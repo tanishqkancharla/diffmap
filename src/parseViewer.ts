@@ -5,7 +5,11 @@ import type { ComarkElement, ComarkNode } from "md4x/napi";
 import { TkstackAnnotationError, TkstackParseError } from "./errors.js";
 import { parseFence, type Fence } from "./parseFence.js";
 
+import { parseExplanation, type Explanation } from "./explanations.js";
+
 export type ViewerDocument = {
+  initialExplanationId?: string;
+  explanations: Record<string, Explanation>;
   nodes: ViewerNode[];
   sourceDiffs: CodeViewDiffItem[];
   hasReferences: boolean;
@@ -58,6 +62,25 @@ export function parseViewerDocument(source: string) {
   if (tree instanceof Error) return tree;
   const nodes = tree.nodes.flatMap(fromNode);
   const fences = collectFences(nodes);
+  const explanations: Record<string, Explanation> = Object.create(null);
+  for (const fence of fences) {
+    if (fence.kind !== "explanation") continue;
+    if (explanations[fence.id])
+      return new TkstackAnnotationError({
+        reason: `Duplicate explanation ${fence.id}`,
+      });
+    try {
+      explanations[fence.id] = parseExplanation(fence.id, fence.source);
+    } catch (cause) {
+      return new TkstackAnnotationError({ reason: String(cause) });
+    }
+  }
+  const diagrams = [
+    ...fences.filter((fence) => fence.kind === "mermaid"),
+    ...Object.values(explanations)
+      .filter((item) => item.diagram)
+      .map((item) => ({ annotations: item.annotations })),
+  ];
   const sourceDiffs: CodeViewDiffItem[] = [];
   for (const fence of fences) {
     if (fence.kind !== "source-diff") continue;
@@ -99,14 +122,26 @@ export function parseViewerDocument(source: string) {
       return fence.annotations.map((link) => link.annotation);
     return [];
   });
-  for (const fence of fences) {
-    if (fence.kind !== "mermaid") continue;
+  for (const explanation of Object.values(explanations)) {
+    annotations.push({
+      text: explanation.title,
+      references: explanation.references,
+    });
+    annotations.push(...explanation.annotations.map((link) => link.annotation));
+    for (const id of explanation.related)
+      if (!explanations[id])
+        return new TkstackAnnotationError({
+          reason: `Unknown related explanation ${id}`,
+        });
+  }
+  for (const fence of diagrams) {
     const targets = new Set<string>();
     for (const link of fence.annotations) {
       const target = `${link.target}:${link.id}`;
       if (
         targets.has(target) ||
-        link.annotation.references.length === 0 ||
+        (link.annotation.references.length === 0 &&
+          !link.annotation.explanationId) ||
         (link.target === "edge" && !/^(0|[1-9]\d*)$/.test(link.id))
       ) {
         return new TkstackAnnotationError({
@@ -117,6 +152,12 @@ export function parseViewerDocument(source: string) {
     }
   }
   for (const line of annotations) {
+    if (line.explanationId && !explanations[line.explanationId])
+      return new TkstackAnnotationError({
+        reason: `Unknown explanation ${line.explanationId}`,
+      });
+    if (line.explanationId && line.references.length === 0)
+      line.references = explanations[line.explanationId]!.references;
     if (line.text.includes("[[")) {
       return new TkstackAnnotationError({
         reason: `Invalid reference in "${line.text}". Use [[id:old|new:start-end]] or [[path#symbol]]`,
@@ -163,9 +204,14 @@ export function parseViewerDocument(source: string) {
   }
   return {
     nodes,
+    initialExplanationId: fences.find((fence) => fence.kind === "explanation")
+      ?.id,
+    explanations,
     sourceDiffs,
     hasReferences: annotations.some(
-      (annotation) => annotation.references.length > 0,
+      (annotation) =>
+        annotation.references.length > 0 ||
+        annotation.explanationId !== undefined,
     ),
   };
 }

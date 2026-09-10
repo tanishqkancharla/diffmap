@@ -30,7 +30,7 @@ import { pierreDiffOptions, sourceSelectionCss } from "./pierre.js";
 
 export type SourceSelection = {
   annotation: SourceAnnotation;
-  reference: SourceReference;
+  reference: SourceReference | undefined;
 };
 
 type DefinitionNavigation = {
@@ -59,6 +59,11 @@ export function SourceDiffPanel(props: {
     });
   }
   const { history } = navigation;
+  const [pendingSymbol, setPendingSymbol] = useState<{
+    params: URLSearchParams;
+    label: string;
+    selection: SourceSelection | undefined;
+  }>();
   const request = useRef(0);
   const definition = history.at(-1);
   const panel = useStyles(styles.panel);
@@ -90,7 +95,7 @@ export function SourceDiffPanel(props: {
       ? navigation.status
       : source instanceof Error
         ? source.message
-        : selection?.reference.kind === "file" && source === undefined
+        : selection?.reference?.kind === "file" && source === undefined
           ? "Opening source…"
           : undefined;
   const selectedLines = useMemo<CodeViewLineSelection | null>(() => {
@@ -125,7 +130,6 @@ export function SourceDiffPanel(props: {
     event,
     context,
   ) => {
-    if (!event.metaKey && !event.ctrlKey) return;
     event.preventDefault();
     const item = context.item;
     let filePath: string;
@@ -154,6 +158,15 @@ export function SourceDiffPanel(props: {
       column: String(token.lineCharStart),
       text: lineText,
     });
+    if (!event.metaKey && !event.ctrlKey) {
+      setPendingSymbol({ params, label: token.tokenText, selection });
+      return;
+    }
+    navigate(params);
+  };
+
+  const navigate = (params: URLSearchParams) => {
+    setPendingSymbol(undefined);
     const currentRequest = ++request.current;
     setNavigation({ selection, history, status: "Finding definition…" });
     // oxlint-disable-next-line typescript/no-floating-promises -- Token callbacks cannot await; the request owns its status update.
@@ -173,7 +186,38 @@ export function SourceDiffPanel(props: {
   };
 
   return (
-    <aside id="source-diff-panel" aria-label="Source changes" className={panel}>
+    <aside
+      id="source-diff-panel"
+      aria-label="Source changes"
+      className={panel}
+      onClickCapture={(event) => {
+        if (!file) return;
+        const elements = event.nativeEvent
+          .composedPath()
+          .filter((item): item is HTMLElement => item instanceof HTMLElement);
+        const token = elements.find((item) => item.hasAttribute("data-char"));
+        const line = elements.find((item) => item.hasAttribute("data-line"));
+        if (!token || !line) return;
+        event.stopPropagation();
+        const lineNumber = Number(line.dataset.line);
+        const params = new URLSearchParams({
+          path: file.path,
+          line: String(lineNumber),
+          column: token.dataset.char!,
+          text: file.contents.split(/\r?\n/)[lineNumber - 1]!,
+        });
+        if (!event.metaKey && !event.ctrlKey) {
+          setPendingSymbol({
+            params,
+            label: token.textContent ?? "symbol",
+            selection,
+          });
+          return;
+        }
+        event.preventDefault();
+        navigate(params);
+      }}
+    >
       <div className={header}>
         <strong>
           {definition !== undefined
@@ -198,6 +242,14 @@ export function SourceDiffPanel(props: {
           </Button>
         )}
         <span>⌘-click or Ctrl-click a symbol to go to its definition.</span>
+        {pendingSymbol && pendingSymbol.selection === selection && (
+          <Button
+            variant="quiet"
+            onClick={() => navigate(pendingSymbol.params)}
+          >
+            Open definition: {pendingSymbol.label}
+          </Button>
+        )}
         {status !== undefined && <span role="status">{status}</span>}
         {selection === undefined ? (
           <span>
@@ -237,7 +289,10 @@ export function SourceDiffPanel(props: {
         className={code}
         items={
           file === undefined
-            ? props.items
+            ? selection?.reference?.kind === "file" &&
+              resolvedFile === undefined
+              ? []
+              : props.items
             : [
                 {
                   type: "file",
@@ -256,6 +311,7 @@ export function SourceDiffPanel(props: {
           unsafeCSS: options.unsafeCSS + sourceSelectionCss,
           stickyHeaders: true,
           onTokenClick,
+          useTokenTransformer: true,
         }}
       />
     </aside>

@@ -1,4 +1,3 @@
 declare module "virtual:tkstack" {
-  import type { ViewerDocument } from "../parseViewer.js";
-  export const viewerDocument: ViewerDocument;
+  export const viewerDocument: import("../parseViewer.js").ViewerDocument;
 }

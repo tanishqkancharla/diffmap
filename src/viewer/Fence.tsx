@@ -9,6 +9,7 @@ import { MermaidBlock } from "./MermaidBlock.tsx";
 
 export function Fence(props: { fence: FenceModel } & SourceNavigation) {
   const fence = props.fence;
+  if (fence.kind === "explanation") return undefined;
   if (fence.kind === "mermaid")
     return (
       <MermaidBlock

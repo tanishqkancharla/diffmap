@@ -13,8 +13,11 @@ import {
 import { style, useStyles } from "purse-styles";
 import { viewerDocument } from "virtual:tkstack";
 import { ComarkView } from "./ComarkView.tsx";
-import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
+import { type SourceSelection } from "./SourceDiffPanel.js";
 import { DoneButton } from "./DoneButton.tsx";
+
+import { ExplorationPanel } from "./ExplorationPanel.js";
+import type { SourceAnnotation } from "../annotations.js";
 
 type ViewerMeta = {
   title: string;
@@ -22,9 +25,44 @@ type ViewerMeta = {
 
 export function ViewerApp() {
   const meta = useViewerMeta();
-  const [selection, setSelection] = useState<SourceSelection>();
+  const [selection, setSelection] = useState<SourceSelection | undefined>(
+    () => {
+      const first = viewerDocument.initialExplanationId
+        ? viewerDocument.explanations[viewerDocument.initialExplanationId]
+        : undefined;
+      return first
+        ? {
+            annotation: {
+              text: first.title,
+              explanationId: first.id,
+              references: first.references,
+            },
+            reference: first.references[0],
+          }
+        : undefined;
+    },
+  );
+  const [history, setHistory] = useState<SourceSelection[]>([]);
+  const selectAnnotation = (annotation: SourceAnnotation) => {
+    const detail = annotation.explanationId
+      ? viewerDocument.explanations[annotation.explanationId]
+      : undefined;
+    const references = annotation.references.length
+      ? annotation.references
+      : (detail?.references ?? []);
+    if (selection) setHistory((previous) => [...previous, selection]);
+    setSelection({
+      annotation:
+        references === annotation.references
+          ? annotation
+          : { ...annotation, references },
+      reference: references[0],
+    });
+  };
   const hasSourceDiffs =
-    viewerDocument.sourceDiffs.length > 0 || viewerDocument.hasReferences;
+    viewerDocument.sourceDiffs.length > 0 ||
+    viewerDocument.hasReferences ||
+    Object.keys(viewerDocument.explanations).length > 0;
   const body = useStyles(styles.body);
   const [shutDown, setShutDown] = useState(false);
   const title = meta === undefined ? document.title : meta.title;
@@ -65,20 +103,22 @@ export function ViewerApp() {
             <ComarkView
               document={viewerDocument}
               selectedAnnotation={selection?.annotation}
-              onSelectAnnotation={(line) =>
-                setSelection({
-                  annotation: line,
-                  reference: line.references[0]!,
-                })
-              }
+              onSelectAnnotation={selectAnnotation}
             />
           </div>
         </article>
         {hasSourceDiffs && (
-          <SourceDiffPanel
+          <ExplorationPanel
+            explanations={viewerDocument.explanations}
+            history={history}
+            onBack={() => {
+              setSelection(history.at(-1));
+              setHistory(history.slice(0, -1));
+            }}
             items={viewerDocument.sourceDiffs}
             selection={selection}
-            onSelect={setSelection}
+            onSelect={selectAnnotation}
+            onSource={setSelection}
           />
         )}
       </div>

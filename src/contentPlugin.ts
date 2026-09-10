@@ -17,7 +17,7 @@ export function tkstackContentPlugin(input: {
       const source = await fs.readFile(input.filePath, "utf8");
       const document = parseViewerDocument(source);
       if (document instanceof Error) throw document;
-      return `export const viewerDocument = ${JSON.stringify(document)};`;
+      return `export const viewerDocument = JSON.parse(${JSON.stringify(JSON.stringify(document))});`;
     },
     transformIndexHtml(html) {
       return html.replaceAll(

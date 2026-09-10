@@ -37,12 +37,12 @@ export function linkDiagram(svg: string, links: DiagramAnnotation[]) {
       wrapper.setAttribute("class", `source-target source-${link.target}`);
       wrapper.setAttribute("role", "button");
       wrapper.setAttribute("tabindex", "0");
-      wrapper.setAttribute("aria-controls", "source-diff-panel");
+      wrapper.setAttribute("aria-controls", "exploration-panel");
       wrapper.setAttribute("aria-pressed", "false");
       const label = element.getAttribute("data-label");
       wrapper.setAttribute(
         "aria-label",
-        `Open source: ${label === null || label.length === 0 ? link.annotation.text : label}`,
+        `${link.annotation.explanationId ? "Explore" : "Open source"}: ${label === null || label.length === 0 ? link.annotation.text : label}`,
       );
       if (link.target !== "edge") continue;
       const edgeIndex = Number(link.id);

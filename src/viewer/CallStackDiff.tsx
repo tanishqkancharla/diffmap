@@ -41,14 +41,15 @@ export function CallStackDiff(
                 )}
               </span>
             </span>
-            {line.references.length > 0 && (
+            {(line.references.length > 0 ||
+              line.explanationId !== undefined) && (
               <span className="source-indicator" aria-hidden="true">
                 ↗
               </span>
             )}
           </>
         );
-        if (line.references.length === 0) {
+        if (line.references.length === 0 && line.explanationId === undefined) {
           return (
             <div key={index} className={row} data-change={sign}>
               {content}
@@ -62,8 +63,10 @@ export function CallStackDiff(
             className={row}
             data-change={sign}
             aria-pressed={props.selectedAnnotation === line}
-            aria-controls="source-diff-panel"
-            title="Show source changes"
+            aria-controls="exploration-panel"
+            title={
+              line.explanationId ? "Explore this step" : "Show source changes"
+            }
             aria-label={description}
             onClick={() => props.onSelectAnnotation(line)}
           >

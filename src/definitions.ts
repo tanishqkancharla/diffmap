@@ -1,4 +1,6 @@
 import path from "node:path";
+import fs from "node:fs";
+import { pythonDefinition } from "./pythonDefinitions.js";
 import ts from "typescript6";
 import * as errore from "errore";
 import { TkstackDefinitionError } from "./errors.js";
@@ -15,7 +17,10 @@ export type DefinitionResponse = {
   error?: string;
 };
 
-export function findDefinition(workspaceRoot: string, params: URLSearchParams) {
+export async function findDefinition(
+  workspaceRoot: string,
+  params: URLSearchParams,
+) {
   const requestedPath = params.get("path");
   const line = Number(params.get("line"));
   const column = Number(params.get("column"));
@@ -36,11 +41,21 @@ export function findDefinition(workspaceRoot: string, params: URLSearchParams) {
       reason: "Path escapes the workspace.",
     });
   }
-  if (!/\.[cm]?[jt]sx?$/i.test(fileName)) {
+  if (!/\.(?:py|[cm]?[jt]sx?)$/i.test(fileName)) {
     return new TkstackDefinitionError({
-      reason: "Definition navigation supports TypeScript and JavaScript.",
+      reason:
+        "Definition navigation supports Python, TypeScript and JavaScript.",
     });
   }
+  if (
+    fs.existsSync(fileName) &&
+    !fs
+      .realpathSync(fileName)
+      .startsWith(fs.realpathSync(workspaceRoot) + path.sep)
+  )
+    return new TkstackDefinitionError({
+      reason: "Path escapes the workspace.",
+    });
   const contents = ts.sys.readFile(fileName);
   if (contents === undefined) {
     return new TkstackDefinitionError({
@@ -54,6 +69,11 @@ export function findDefinition(workspaceRoot: string, params: URLSearchParams) {
         "This diff line differs from the current workspace. Its definition cannot be resolved.",
     });
   }
+  if (fileName.endsWith(".py"))
+    return pythonDefinition(workspaceRoot, fileName, contents, {
+      line,
+      column,
+    });
   const service = createLanguageService(workspaceRoot, fileName);
   if (service instanceof Error) return service;
   using resources = new errore.DisposableStack();
@@ -122,7 +142,7 @@ function createLanguageService(workspaceRoot: string, fileName: string) {
   });
 }
 
-export function readSourceReference(
+export async function readSourceReference(
   workspaceRoot: string,
   params: URLSearchParams,
 ) {
@@ -134,6 +154,15 @@ export function readSourceReference(
     return new TkstackDefinitionError({
       reason: "Path escapes the workspace.",
     });
+  if (
+    fs.existsSync(fileName) &&
+    !fs
+      .realpathSync(fileName)
+      .startsWith(fs.realpathSync(workspaceRoot) + path.sep)
+  )
+    return new TkstackDefinitionError({
+      reason: "Path escapes the workspace.",
+    });
   const contents = ts.sys.readFile(fileName);
   if (contents === undefined)
     return new TkstackDefinitionError({
@@ -141,6 +170,8 @@ export function readSourceReference(
     });
   const symbol = params.get("symbol");
   if (symbol !== null) {
+    if (fileName.endsWith(".py"))
+      return pythonDefinition(workspaceRoot, fileName, contents, { symbol });
     if (!/\.[cm]?[jt]sx?$/i.test(fileName))
       return new TkstackDefinitionError({
         reason: "Symbol references support TypeScript and JavaScript.",

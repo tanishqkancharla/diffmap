@@ -2,7 +2,6 @@
 
 <img width="2031" height="1212" alt="Screenshot 2026-09-10 at 10 41 03 AM" src="https://github.com/user-attachments/assets/8650f8be-44ca-4c21-b9bf-4ce938b4083e" />
 
-
 tkstack is a set of personal skills as well as a web-viewer for Markdown files. It has a unique form of showing diffs using a mixture of callstack diffs and mermaid diagram links, which I've found to be personally extremely helpful in understanding massive diffs.
 
 ```sh
@@ -96,7 +95,7 @@ startServer
 ## Link call stacks to source changes
 
 Append `[[path/to/file.ts#symbolName]]` to a call stack line to link a symbol.
-Paths are relative to `--root`. Symbol lookup supports TypeScript and JavaScript
+Paths are relative to `--root`. Symbol lookup supports Python, TypeScript and JavaScript
 declarations, including qualified names such as `[[src/store.ts#Store.save]]`.
 Ambiguous names show the qualified names you can use instead.
 
@@ -160,7 +159,7 @@ Unknown IDs, duplicate definitions, malformed references, mismatched paths, and
 ranges outside the included hunks produce a parse error. Source patches are
 embedded snapshots; the viewer does not regenerate them from the working tree.
 
-Cmd-click (or Ctrl-click) a TypeScript or JavaScript symbol in the source panel
+Cmd-click (or Ctrl-click) a Python, TypeScript or JavaScript symbol in the source panel
 to open its definition. Use Back to retrace navigation and return to the reference.
 Resolution uses the workspace's TypeScript configuration and current files.
 Deleted files and lines that no longer match the workspace show a message;
@@ -200,3 +199,24 @@ Click a linked shape, edge line, or edge label, or focus it with Tab and press
 Enter or Space. Directives are Mermaid comments, so they remain hidden and do
 not change the diagram when rendered by other Mermaid tools. Missing diagram
 targets display an error. See [the runnable example](fixtures/references.md).
+
+## Explore explanations before code
+
+Diagram nodes, arrows, and call-stack rows can link to `[[explain:detail-id]]`.
+Define each detail in an `explain:detail-id` JSON fence with a `title`, `summary`,
+and optional `steps`, `inputs`, `outputs`, `why`, `example`, `caveat`, `diagram`,
+`sources`, and `related` fields. Sources use the usual reference syntax without
+brackets; related entries are other detail IDs. The first detail opens by default.
+
+The right panel offers Explanation, Diagram, and Code tabs. Detail diagrams can
+link to further details, Back returns to the previous selection, and diagram zoom
+controls keep dense views readable. Try the runnable example with `node bin.js fixtures/exploration.md --root .`
+from this checkout. See [the explanation format](skills/code-walkthrough/references/explanations.md)
+and [the walkthrough skill](skills/code-walkthrough/SKILL.md) for authoring guidance.
+
+Python navigation uses the bundled Pyright language server. It follows resolvable
+imports and methods within the selected workspace without executing project code.
+Click a token to reveal an explicit Open definition action, or use Cmd/Ctrl-click.
+Dynamic calls and missing dependencies can remain unresolved. Existing TS/JS
+navigation continues to use TypeScript. Stale diff lines cannot be resolved against
+current workspace code.

@@ -1,3 +1,4 @@
+import { closePythonServers } from "./pythonDefinitions.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -63,6 +64,7 @@ export async function startServer(input: StartServerInput) {
   let inactivityTimer: ReturnType<typeof setTimeout> | undefined;
 
   async function shutdown() {
+    closePythonServers();
     if (shuttingDown) return;
     shuttingDown = true;
     clearTimeout(inactivityTimer);
@@ -234,8 +236,8 @@ async function handleTkstackRequest(input: {
   ) {
     const definition =
       parsed.pathname === "/__tkstack/source"
-        ? readSourceReference(input.workspaceRoot, parsed.searchParams)
-        : findDefinition(input.workspaceRoot, parsed.searchParams);
+        ? await readSourceReference(input.workspaceRoot, parsed.searchParams)
+        : await findDefinition(input.workspaceRoot, parsed.searchParams);
     input.res.statusCode = definition instanceof Error ? 400 : 200;
     input.res.setHeader("content-type", "application/json; charset=utf-8");
     input.res.end(

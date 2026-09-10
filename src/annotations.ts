@@ -19,6 +19,7 @@ export type SourceReference = DiffReference | FileReference;
 export type SourceAnnotation = {
   text: string;
   references: SourceReference[];
+  explanationId?: string;
 };
 
 export function parseCallStack(source: string): SourceAnnotation[] {
@@ -27,16 +28,22 @@ export function parseCallStack(source: string): SourceAnnotation[] {
 
 export function parseAnnotation(line: string): SourceAnnotation {
   const references: SourceReference[] = [];
+  let explanationId: string | undefined;
   const text = line.replace(
     /\s*\[\[([^[\]\n]+)\]\]/g,
     (match, value: string) => {
+      if (/^explain:[\w-]+$/.test(value)) {
+        if (explanationId !== undefined) return match;
+        explanationId = value.slice(8);
+        return "";
+      }
       const reference = parseReference(value);
       if (reference === undefined) return match;
       references.push(reference);
       return "";
     },
   );
-  return { text, references };
+  return { text, references, explanationId };
 }
 
 function parseReference(value: string): SourceReference | undefined {

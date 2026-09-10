@@ -1,0 +1,145 @@
+.exploration-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--explore-background);
+  color: var(--explore-text);
+  border-left: 1px solid var(--explore-border);
+}
+.exploration-tabpanel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.exploration-tabpanel,
+.exploration-tabpanel > aside {
+  flex: 1;
+  min-height: 0;
+}
+.exploration-header {
+  padding: 22px 26px 0;
+  border-bottom: 1px solid var(--explore-border);
+}
+.exploration-breadcrumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+  color: var(--explore-muted);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+}
+.exploration-header h2 {
+  margin: 12px 0 18px;
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 650;
+}
+.exploration-tabs {
+  display: flex;
+  gap: 18px;
+}
+.exploration-tabs button {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  padding: 10px 1px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--explore-muted);
+  cursor: pointer;
+}
+.exploration-tabs button[aria-selected="true"] {
+  color: var(--explore-accent);
+  border-color: var(--explore-accent);
+  font-weight: 650;
+}
+.exploration-tabs button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.exploration-content {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 26px 36px;
+  line-height: 1.65;
+  font-size: 15px;
+}
+.exploration-content p {
+  margin: 0 0 18px;
+}
+.exploration-summary {
+  font-size: 18px;
+  line-height: 1.6;
+}
+.exploration-content h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.065em;
+  color: var(--explore-muted);
+  margin: 24px 0 9px;
+}
+.exploration-content ol {
+  padding-left: 22px;
+}
+.exploration-content li {
+  padding: 0 0 10px 4px;
+}
+.exploration-io {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  border-block: 1px solid var(--explore-border);
+}
+.exploration-example {
+  border-left: 3px solid var(--explore-accent);
+  background: var(--explore-surface);
+  padding: 2px 18px 1px;
+  margin: 20px 0;
+}
+.exploration-example h3 {
+  margin-top: 14px;
+}
+.exploration-breadcrumb button,
+.exploration-related button {
+  font: inherit;
+  background: var(--explore-surface);
+  color: var(--explore-accent);
+  border: 1px solid var(--explore-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.exploration-related button {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+}
+.exploration-hint {
+  font-size: 13px;
+  color: var(--explore-muted);
+}
+.exploration-panel button:focus-visible {
+  outline: 3px solid var(--explore-focus);
+  outline-offset: 3px;
+}
+@media (max-width: 900px) {
+  .exploration-panel {
+    height: 52vh;
+    border-top: 1px solid var(--explore-border);
+    border-left: 0;
+  }
+  .exploration-header {
+    padding: 12px 18px 0;
+  }
+  .exploration-header h2 {
+    font-size: 20px;
+    margin: 8px 0;
+  }
+  .exploration-content {
+    padding: 18px;
+  }
+}

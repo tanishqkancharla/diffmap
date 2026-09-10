@@ -5,6 +5,7 @@ import {
 } from "./diagramAnnotations.js";
 
 export type Fence =
+  | { kind: "explanation"; id: string; source: string }
   | { kind: "mermaid"; source: string; annotations: DiagramAnnotation[] }
   | { kind: "html"; source: string }
   | { kind: "callstack"; source: string; lines: SourceAnnotation[] }
@@ -32,6 +33,8 @@ export function pathFromDiffSource(source: string) {
 
 export function parseFence(lang: string, source: string): Fence {
   const trimmed = source.replace(/\n$/, "");
+  if (/^explain:[\w-]+$/.test(lang))
+    return { kind: "explanation", id: lang.slice(8), source: trimmed };
   if (lang === "mermaid")
     return {
       kind: "mermaid",
