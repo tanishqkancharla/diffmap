@@ -5,7 +5,7 @@ description: Explain implemented changes through annotated call stack diffs and 
 
 # Walk through landed code
 
-This skill is the counter-equivalent of `$generate-spec-v2`. That skill writes a spec for work that has not happened yet. This skill writes a walkthrough of work that already landed.
+This skill is the counter-equivalent of `$generate-spec`. That skill writes a spec for work that has not happened yet. This skill writes a walkthrough of work that already landed.
 
 Do not plan, spec, or phase future work. Explain what changed and how it runs now, including implemented but uncommitted changes when requested. Use annotated call stack diffs as the main explanation. Link meaningful changed steps to source patches in the shared source panel. Keep standalone source-code excerpts and type declarations out of the walkthrough unless the user explicitly asks for them.
 

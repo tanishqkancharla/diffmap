@@ -1,4 +1,4 @@
 interface:
   display_name: "Generate Spec"
   short_description: "Write phased specs and serve them with tkstack"
-  default_prompt: "Use $generate-spec-v2 to plan this feature as a phased implementation spec."
+  default_prompt: "Use $generate-spec to plan this feature as a phased implementation spec."

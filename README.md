@@ -14,10 +14,10 @@ Install skills from this repository:
 
 ```sh
 npx skills add tanishqkancharla/tkstack --skill code-walkthrough
-npx skills add tanishqkancharla/tkstack --skill generate-spec-v2
+npx skills add tanishqkancharla/tkstack --skill generate-spec
 ```
 
-`code-walkthrough` explains landed changes. `generate-spec-v2` writes a phased spec for work that has not happened yet, then serves `specs/<name>.md` with tkstack.
+`code-walkthrough` explains landed changes. `generate-spec` writes a phased spec for work that has not happened yet, then serves `specs/<name>.md` with tkstack.
 
 Options:
 
@@ -49,7 +49,7 @@ curl -H 'Accept: text/markdown' http://127.0.0.1:4177/
 import { startServer, parseFence, parseViewerDocument } from "tkstack";
 ```
 
-`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The generate-spec-v2 and code-walkthrough skills own spec vs walkthrough section order; the viewer does not.
+`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The generate-spec and code-walkthrough skills own spec vs walkthrough section order; the viewer does not.
 
 ## Fences
 

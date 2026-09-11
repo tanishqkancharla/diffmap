@@ -1,5 +1,5 @@
 ---
-name: generate-spec-v2
+name: generate-spec
 description: Research and collaboratively design a significant feature, fix, or refactor, then write a phased implementation spec in specs/ and serve it with tkstack. Use when the user asks to plan, spec, scope, or phase work before implementation.
 ---
 
