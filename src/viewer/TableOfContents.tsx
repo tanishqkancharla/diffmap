@@ -151,21 +151,18 @@ function useActiveHeading(
 }
 
 const styles = {
-  nav: style(spacing.padding({ left: 16, right: 6 }), {
-    position: "absolute",
-    left: 0,
-    top: spacing.value(8),
-    bottom: spacing.value(8),
-    marginTop: "auto",
-    marginBottom: "auto",
+  nav: style(spacing.padding({ left: 16, right: 6, top: 8, bottom: 8 }), {
+    boxSizing: "border-box",
+    gridColumn: "1",
+    alignSelf: "stretch",
+    minWidth: 240,
+    width: "max-content",
+    maxWidth: 280,
+    minHeight: 0,
     height: "fit-content",
     maxHeight: "100%",
-    gridColumn: "1",
-    gridRow: "1",
-    zIndex: 1,
-    boxSizing: "border-box",
-    width: "max-content",
-    maxWidth: "240px",
+    marginTop: "auto",
+    marginBottom: "auto",
     overflowY: "auto",
     "@media (max-width: 1100px)": {
       display: "none",
@@ -200,6 +197,7 @@ const styles = {
     focusRing(),
     {
       display: "block",
+      overflowWrap: "anywhere",
       cursor: "pointer",
       "&:hover": {
         backgroundColor: colors.gray[3],

@@ -166,13 +166,15 @@ const styles = {
   body: style({
     display: "grid",
     gridTemplateColumns: "var(--tkstack-columns)",
-    "--tkstack-columns": "minmax(0, 1fr)",
+    gridTemplateRows: "minmax(0, 1fr)",
+    "--tkstack-columns": "minmax(0, max-content) minmax(0, 1fr)",
     flex: "1 1 auto",
     minHeight: 0,
     minWidth: 0,
-    position: "relative",
+    overflow: "hidden",
     "&[data-has-source-diffs='true']": {
-      "--tkstack-columns": "minmax(0, 1fr) minmax(0, 1fr)",
+      "--tkstack-columns":
+        "minmax(0, max-content) minmax(0, 1fr) minmax(0, 1fr)",
     },
     "@media (max-width: 900px)": {
       gridTemplateColumns: "minmax(0, 1fr)",
@@ -180,11 +182,15 @@ const styles = {
     },
   }),
   article: style(spacing.padding({ x: 12, y: 12 }), {
+    gridColumn: "2",
     flex: "1 1 auto",
     minWidth: 0,
     minHeight: 0,
     overflowY: "auto",
     backgroundColor: backgroundColor.app,
+    "@media (max-width: 900px)": {
+      gridColumn: "1",
+    },
   }),
   prose: style({
     display: "grid",

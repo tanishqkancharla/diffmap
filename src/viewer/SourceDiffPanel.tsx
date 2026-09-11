@@ -263,13 +263,14 @@ export function SourceDiffPanel(props: {
 }
 
 const styles = {
-  panel: style(flex({ direction: "column" }), border(["left"], "border"), {
+  panel: style(flex({ direction: "column" }), border([], "border"), {
+    gridColumn: "3",
     minWidth: 0,
     minHeight: 0,
+    overflow: "hidden",
     backgroundColor: backgroundColor.app,
     "@media (max-width: 900px)": {
-      borderLeft: 0,
-      borderTop: "1px solid",
+      gridColumn: "1",
       height: "45vh",
     },
   }),
