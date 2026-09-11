@@ -21,6 +21,7 @@ import type {
 } from "../parseViewer.js";
 import type { SourceNavigation } from "../annotations.js";
 import { Fence } from "./Fence.tsx";
+import { TableOfContents } from "./TableOfContents.tsx";
 
 const voidTags = new Set(["img", "hr", "br"]);
 
@@ -29,6 +30,7 @@ export function ComarkView(
 ) {
   return (
     <>
+      <TableOfContents headings={props.document.headings} />
       {props.document.nodes.map((node, index) =>
         renderNode(node, index, props),
       )}

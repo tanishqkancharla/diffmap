@@ -7,8 +7,15 @@ import { parseFence, type Fence } from "./parseFence.js";
 
 export type ViewerDocument = {
   nodes: ViewerNode[];
+  headings: ViewerHeading[];
   sourceDiffs: CodeViewDiffItem[];
   hasReferences: boolean;
+};
+
+export type ViewerHeading = {
+  level: 1 | 2 | 3 | 4 | 5 | 6;
+  text: string;
+  id: string;
 };
 
 export type ViewerNode = ViewerText | ViewerElement | ViewerHtml | ViewerView;
@@ -163,6 +170,7 @@ export function parseViewerDocument(source: string) {
   }
   return {
     nodes,
+    headings: collectHeadings(nodes),
     sourceDiffs,
     hasReferences: annotations.some(
       (annotation) => annotation.references.length > 0,
@@ -176,6 +184,83 @@ function collectFences(nodes: ViewerNode[]): Fence[] {
     if (node.type === "element") return collectFences(node.children);
     return [];
   });
+}
+
+const headingTags = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
+
+function collectHeadings(nodes: ViewerNode[]): ViewerHeading[] {
+  const headings: ViewerHeading[] = [];
+  const usedIds = new Set<string>();
+  walkHeadings(nodes, headings, usedIds);
+  return headings;
+}
+
+function walkHeadings(
+  nodes: ViewerNode[],
+  headings: ViewerHeading[],
+  usedIds: Set<string>,
+) {
+  for (const node of nodes) {
+    if (node.type !== "element") continue;
+    if (headingTags.has(node.tag)) {
+      const text = viewerNodeText(node);
+      const id = ensureHeadingId(node, text, usedIds);
+      headings.push({
+        level: headingLevel(node.tag),
+        text,
+        id,
+      });
+      continue;
+    }
+    walkHeadings(node.children, headings, usedIds);
+  }
+}
+
+function headingLevel(tag: string): ViewerHeading["level"] {
+  if (tag === "h1") return 1;
+  if (tag === "h2") return 2;
+  if (tag === "h3") return 3;
+  if (tag === "h4") return 4;
+  if (tag === "h5") return 5;
+  return 6;
+}
+
+function ensureHeadingId(
+  node: ViewerElement,
+  text: string,
+  usedIds: Set<string>,
+) {
+  const existing = node.attrs.id;
+  if (existing !== undefined && existing !== "") {
+    usedIds.add(existing);
+    return existing;
+  }
+  const id = uniqueHeadingId(text, usedIds);
+  node.attrs.id = id;
+  return id;
+}
+
+function uniqueHeadingId(text: string, usedIds: Set<string>) {
+  const base =
+    text
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
+      .replace(/^-+|-+$/g, "") || "heading";
+  let id = base;
+  let n = 1;
+  while (usedIds.has(id)) {
+    id = `${base}-${n}`;
+    n += 1;
+  }
+  usedIds.add(id);
+  return id;
+}
+
+function viewerNodeText(node: ViewerNode): string {
+  if (node.type === "text") return node.value;
+  if (node.type !== "element") return "";
+  return node.children.map(viewerNodeText).join("");
 }
 
 function fromNode(node: ComarkNode): ViewerNode[] {

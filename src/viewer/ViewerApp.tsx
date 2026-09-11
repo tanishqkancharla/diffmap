@@ -41,6 +41,12 @@ export function ViewerApp() {
     document.title = meta.title;
   }, [meta]);
 
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+    if (id === "") return;
+    document.getElementById(id)?.scrollIntoView({ block: "start" });
+  }, []);
+
   if (shutDown) {
     return <main className={closed}>Closed.</main>;
   }
@@ -169,6 +175,9 @@ const styles = {
     "& > [data-tkstack-kind='mermaid']": {
       gridColumn: "1 / -1",
       maxWidth: "none",
+    },
+    "& h1, & h2, & h3, & h4, & h5, & h6": {
+      scrollMarginTop: spacing.value(4),
     },
     "& ul > li[data-task]::before, & ol > li[data-task]::before": {
       content: "none",

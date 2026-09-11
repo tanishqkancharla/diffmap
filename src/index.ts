@@ -10,6 +10,7 @@ export type {
   ViewerDocument,
   ViewerElement,
   ViewerElementAttrs,
+  ViewerHeading,
   ViewerHtml,
   ViewerNode,
   ViewerText,
