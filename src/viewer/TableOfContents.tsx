@@ -151,17 +151,21 @@ function useActiveHeading(
 }
 
 const styles = {
-  nav: style(spacing.padding({ x: 6 }), {
+  nav: style(spacing.padding({ left: 16, right: 6 }), {
     position: "absolute",
     left: 0,
-    top: "50%",
-    transform: "translateY(-50%)",
+    top: spacing.value(8),
+    bottom: spacing.value(8),
+    marginTop: "auto",
+    marginBottom: "auto",
+    height: "fit-content",
+    maxHeight: "100%",
     gridColumn: "1",
     gridRow: "1",
     zIndex: 1,
+    boxSizing: "border-box",
     width: "max-content",
     maxWidth: "240px",
-    maxHeight: "calc(100% - 2rem)",
     overflowY: "auto",
     "@media (max-width: 1100px)": {
       display: "none",
