@@ -24,18 +24,36 @@ import { Fence } from "./Fence.tsx";
 import { TableOfContents } from "./TableOfContents.tsx";
 
 const voidTags = new Set(["img", "hr", "br"]);
+const headingTags = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 
 export function ComarkView(
   props: { document: ViewerDocument } & SourceNavigation,
 ) {
+  const headingIndex = firstHeadingIndex(props.document.nodes);
+  const before =
+    headingIndex === undefined
+      ? []
+      : props.document.nodes.slice(0, headingIndex + 1);
+  const after =
+    headingIndex === undefined
+      ? props.document.nodes
+      : props.document.nodes.slice(headingIndex + 1);
   return (
     <>
+      {before.map((node, index) => renderNode(node, index, props))}
       <TableOfContents headings={props.document.headings} />
-      {props.document.nodes.map((node, index) =>
-        renderNode(node, index, props),
+      {after.map((node, index) =>
+        renderNode(node, before.length + index, props),
       )}
     </>
   );
+}
+
+function firstHeadingIndex(nodes: ViewerNode[]) {
+  const index = nodes.findIndex(
+    (node) => node.type === "element" && headingTags.has(node.tag),
+  );
+  return index === -1 ? undefined : index;
 }
 
 function renderNode(

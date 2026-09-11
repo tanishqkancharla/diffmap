@@ -4,7 +4,6 @@ import {
   flex,
   focusRing,
   radius,
-  shadow,
   spacing,
   text,
 } from "maui";
@@ -92,49 +91,38 @@ function nestHeadings(headings: ViewerHeading[]): TocItem[] {
 }
 
 const styles = {
-  nav: style(
-    flex({ direction: "column", gap: 3 }),
-    radius.md,
-    shadow.subtle,
-    spacing.padding({ x: 6, y: 4 }),
-    {
-      "&[data-tkstack-kind='toc'] ol": {
-        listStyle: "none",
-        counterReset: "none",
-        margin: 0,
-        padding: 0,
-      },
-      "&[data-tkstack-kind='toc'] ol ol": {
-        marginTop: spacing.value(2),
-        marginInlineStart: spacing.value(2),
-        paddingInlineStart: spacing.value(8),
-        borderLeft: `1px solid ${colors.gray[6]}`,
-      },
-      "&[data-tkstack-kind='toc'] ol > li::before": {
-        content: "none",
-      },
-      "&[data-tkstack-kind='toc'] a": {
-        fontWeight: 400,
-        color: colors.gray[12],
-        textDecoration: "none",
-      },
+  nav: style(flex({ direction: "column", gap: 2 }), {
+    "&[data-tkstack-kind='toc'] ol": {
+      listStyle: "none",
+      counterReset: "none",
+      margin: 0,
+      padding: 0,
     },
-  ),
+    "&[data-tkstack-kind='toc'] ol ol": {
+      paddingInlineStart: spacing.value(8),
+    },
+    "&[data-tkstack-kind='toc'] ol > li::before": {
+      content: "none",
+    },
+    "&[data-tkstack-kind='toc'] a": {
+      fontWeight: 400,
+      color: colors.gray[12],
+      textDecoration: "none",
+    },
+  }),
   label: style(text({ size: "xs", fontWeight: 500, color: "lowContrast" })),
   list: style(text({ size: "sm", fontWeight: 400, color: "highContrast" })),
   item: style({
-    position: "relative",
     "& + &": {
-      marginTop: spacing.value(2),
+      marginTop: spacing.value(1),
     },
   }),
   link: style(
     radius.sm,
-    spacing.padding({ x: 2, y: 1 }),
     text({ size: "sm", fontWeight: 400, color: "highContrast" }),
     focusRing(),
     {
-      display: "block",
+      display: "inline",
       cursor: "pointer",
       "&:hover": {
         backgroundColor: backgroundColor.elementHover,
