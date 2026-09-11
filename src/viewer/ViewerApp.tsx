@@ -15,6 +15,7 @@ import { viewerDocument } from "virtual:tkstack";
 import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { DoneButton } from "./DoneButton.tsx";
+import { DiffButton } from "./DiffButton.tsx";
 import { TableOfContents } from "./TableOfContents.tsx";
 
 type ViewerMeta = {
@@ -24,8 +25,10 @@ type ViewerMeta = {
 export function ViewerApp() {
   const meta = useViewerMeta();
   const [selection, setSelection] = useState<SourceSelection>();
+  const [showDiffPanel, setShowDiffPanel] = useState(false);
   const hasSourceDiffs =
     viewerDocument.sourceDiffs.length > 0 || viewerDocument.hasReferences;
+  const diffPanelOpen = hasSourceDiffs && showDiffPanel;
   const body = useStyles(styles.body);
   const [shutDown, setShutDown] = useState(false);
   const title = meta === undefined ? document.title : meta.title;
@@ -33,6 +36,7 @@ export function ViewerApp() {
   const header = useStyles(styles.header);
   const heading = useStyles(styles.heading);
   const titleClass = useStyles(styles.title);
+  const actions = useStyles(styles.actions);
   const article = useStyles(styles.article);
   const prose = useStyles(styles.prose);
   const content = useStyles(proseHtml("md"), styles.content);
@@ -60,15 +64,23 @@ export function ViewerApp() {
         <div className={heading}>
           <div className={titleClass}>{title}</div>
         </div>
-        <DoneButton
-          onClick={() => {
-            setShutDown(true);
-            // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
-            void closeViewer();
-          }}
-        />
+        <div className={actions}>
+          {hasSourceDiffs && (
+            <DiffButton
+              pressed={showDiffPanel}
+              onClick={() => setShowDiffPanel((open) => !open)}
+            />
+          )}
+          <DoneButton
+            onClick={() => {
+              setShutDown(true);
+              // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
+              void closeViewer();
+            }}
+          />
+        </div>
       </header>
-      <div className={body} data-has-source-diffs={hasSourceDiffs}>
+      <div className={body} data-has-source-diffs={diffPanelOpen}>
         <TableOfContents
           headings={viewerDocument.headings}
           articleRef={articleRef}
@@ -79,17 +91,18 @@ export function ViewerApp() {
               <ComarkView
                 document={viewerDocument}
                 selectedAnnotation={selection?.annotation}
-                onSelectAnnotation={(line) =>
+                onSelectAnnotation={(line) => {
+                  setShowDiffPanel(true);
                   setSelection({
                     annotation: line,
                     reference: line.references[0]!,
-                  })
-                }
+                  });
+                }}
               />
             </div>
           </div>
         </article>
-        {hasSourceDiffs && (
+        {diffPanelOpen && (
           <SourceDiffPanel
             items={viewerDocument.sourceDiffs}
             selection={selection}
@@ -146,6 +159,9 @@ const styles = {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
+  }),
+  actions: style(flex({ direction: "row", align: "center", gap: 3 }), {
+    flexShrink: 0,
   }),
   body: style({
     display: "grid",
