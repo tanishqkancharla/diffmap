@@ -2,20 +2,22 @@
 
 <img width="2031" height="1212" alt="Screenshot 2026-09-10 at 10 41 03 AM" src="https://github.com/user-attachments/assets/8650f8be-44ca-4c21-b9bf-4ce938b4083e" />
 
-
 tkstack is a set of personal skills as well as a web-viewer for Markdown files. It has a unique form of showing diffs using a mixture of callstack diffs and mermaid diagram links, which I've found to be personally extremely helpful in understanding massive diffs.
 
 ```sh
 npx tkstack path/to/file.md
 ```
 
-## Agent skill
+## Agent skills
 
-Install the code walkthrough skill from this repository:
+Install skills from this repository:
 
 ```sh
 npx skills add tanishqkancharla/tkstack --skill code-walkthrough
+npx skills add tanishqkancharla/tkstack --skill generate-spec-v2
 ```
+
+`code-walkthrough` explains landed changes. `generate-spec-v2` writes a phased spec for work that has not happened yet, then serves `specs/<name>.md` with tkstack.
 
 Options:
 
@@ -47,7 +49,7 @@ curl -H 'Accept: text/markdown' http://127.0.0.1:4177/
 import { startServer, parseFence, parseViewerDocument } from "tkstack";
 ```
 
-`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. Halo skills own spec vs walkthrough section order; tkstack does not.
+`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The generate-spec-v2 and code-walkthrough skills own spec vs walkthrough section order; the viewer does not.
 
 ## Fences
 
