@@ -1,29 +1,25 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  backgroundColor,
-  colors,
-  focusRing,
-  radius,
-  shadow,
-  spacing,
-  text,
-} from "maui";
+import { useEffect, useState, type RefObject } from "react";
+import { colors, focusRing, radius, spacing, text } from "maui";
 import { style, useStyles } from "purse-styles";
 import type { ViewerHeading } from "../parseViewer.js";
 
 type TocItem = ViewerHeading & { children: TocItem[] };
 
-export function TableOfContents(props: { headings: ViewerHeading[] }) {
-  const headings = tocHeadings(props.headings);
-  const items = nestHeadings(headings);
-  const { activeId, setActiveId, navRef } = useActiveHeading(props.headings);
+export function TableOfContents(props: {
+  headings: ViewerHeading[];
+  articleRef: RefObject<HTMLElement | null>;
+}) {
+  const items = nestHeadings(tocHeadings(props.headings));
+  const { activeId, setActiveId } = useActiveHeading(
+    props.headings,
+    props.articleRef,
+  );
   const navClass = useStyles(styles.nav);
   const listClass = useStyles(styles.list);
   if (items.length === 0) return undefined;
 
   return (
     <nav
-      ref={navRef}
       className={navClass}
       aria-label="Table of contents"
       data-tkstack-kind="toc"
@@ -121,9 +117,11 @@ function nestHeadings(headings: ViewerHeading[]): TocItem[] {
   return items;
 }
 
-function useActiveHeading(headings: ViewerHeading[]) {
+function useActiveHeading(
+  headings: ViewerHeading[],
+  articleRef: RefObject<HTMLElement | null>,
+) {
   const [activeId, setActiveId] = useState<string>();
-  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const ids = tocHeadings(headings).map((heading) => heading.id);
@@ -132,7 +130,7 @@ function useActiveHeading(headings: ViewerHeading[]) {
       return node ? [node] : [];
     });
     if (nodes.length === 0) return;
-    const root = navRef.current?.closest("article") ?? undefined;
+    const root = articleRef.current ?? undefined;
     const visible = new Set<string>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -147,19 +145,24 @@ function useActiveHeading(headings: ViewerHeading[]) {
     );
     for (const node of nodes) observer.observe(node);
     return () => observer.disconnect();
-  }, [headings]);
+  }, [articleRef, headings]);
 
-  return { activeId, setActiveId, navRef };
+  return { activeId, setActiveId };
 }
 
 const styles = {
-  nav: style(radius.xl, shadow.medium, spacing.padding({ x: 2, y: 2 }), {
+  nav: style(spacing.padding({ x: 6 }), {
+    position: "absolute",
+    left: 0,
+    top: "50%",
+    transform: "translateY(-50%)",
+    gridColumn: "1",
+    gridRow: "1",
+    zIndex: 1,
     width: "max-content",
     maxWidth: "240px",
-    minWidth: "160px",
-    maxHeight: "calc(100vh - 8rem)",
+    maxHeight: "calc(100% - 2rem)",
     overflowY: "auto",
-    backgroundColor: backgroundColor.app,
     "@media (max-width: 1100px)": {
       display: "none",
     },

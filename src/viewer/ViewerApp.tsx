@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   backgroundColor,
   border,
@@ -37,6 +37,7 @@ export function ViewerApp() {
   const prose = useStyles(styles.prose);
   const content = useStyles(proseHtml("md"), styles.content);
   const closed = useStyles(styles.closed);
+  const articleRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (meta === undefined) return;
@@ -68,9 +69,12 @@ export function ViewerApp() {
         />
       </header>
       <div className={body} data-has-source-diffs={hasSourceDiffs}>
-        <article className={article}>
+        <TableOfContents
+          headings={viewerDocument.headings}
+          articleRef={articleRef}
+        />
+        <article ref={articleRef} className={article}>
           <div className={prose}>
-            <TableOfContents headings={viewerDocument.headings} />
             <div className={content} data-tkstack-kind="page">
               <ComarkView
                 document={viewerDocument}
@@ -150,6 +154,7 @@ const styles = {
     flex: "1 1 auto",
     minHeight: 0,
     minWidth: 0,
+    position: "relative",
     "&[data-has-source-diffs='true']": {
       "--tkstack-columns": "minmax(0, 1fr) minmax(0, 1fr)",
     },
@@ -171,15 +176,6 @@ const styles = {
     width: "100%",
     maxWidth: "none",
     minWidth: 0,
-    "& > [data-tkstack-kind='toc']": {
-      gridColumn: "1",
-      justifySelf: "end",
-      alignSelf: "start",
-      position: "sticky",
-      top: spacing.value(12),
-      zIndex: 1,
-      marginRight: spacing.value(8),
-    },
   }),
   content: style({
     gridColumn: "2 / 3",
