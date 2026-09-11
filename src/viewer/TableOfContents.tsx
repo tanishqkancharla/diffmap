@@ -106,7 +106,9 @@ const styles = {
       },
       "&[data-tkstack-kind='toc'] ol ol": {
         marginTop: spacing.value(2),
-        paddingInlineStart: spacing.value(6),
+        marginInlineStart: spacing.value(2),
+        paddingInlineStart: spacing.value(8),
+        borderLeft: `1px solid ${colors.gray[6]}`,
       },
       "&[data-tkstack-kind='toc'] ol > li::before": {
         content: "none",
@@ -133,7 +135,6 @@ const styles = {
     focusRing(),
     {
       display: "block",
-      marginInline: `-${spacing.value(2)}`,
       cursor: "pointer",
       "&:hover": {
         backgroundColor: backgroundColor.elementHover,
