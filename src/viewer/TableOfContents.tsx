@@ -1,58 +1,84 @@
+import { useEffect, useRef, useState } from "react";
 import {
   backgroundColor,
   colors,
-  flex,
   focusRing,
   radius,
+  shadow,
   spacing,
   text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
-import { useId } from "react";
 import type { ViewerHeading } from "../parseViewer.js";
 
 type TocItem = ViewerHeading & { children: TocItem[] };
 
 export function TableOfContents(props: { headings: ViewerHeading[] }) {
-  const items = nestHeadings(tocHeadings(props.headings));
-  const labelId = useId();
+  const headings = tocHeadings(props.headings);
+  const items = nestHeadings(headings);
+  const { activeId, setActiveId, navRef } = useActiveHeading(props.headings);
   const navClass = useStyles(styles.nav);
-  const labelClass = useStyles(styles.label);
   const listClass = useStyles(styles.list);
   if (items.length === 0) return undefined;
 
   return (
-    <nav className={navClass} aria-labelledby={labelId} data-tkstack-kind="toc">
-      <div id={labelId} className={labelClass}>
-        Contents
-      </div>
-      <TocList items={items} className={listClass} />
+    <nav
+      ref={navRef}
+      className={navClass}
+      aria-label="Table of contents"
+      data-tkstack-kind="toc"
+    >
+      <TocList
+        items={items}
+        className={listClass}
+        activeId={activeId}
+        onSelect={setActiveId}
+      />
     </nav>
   );
 }
 
-function TocList(props: { items: TocItem[]; className: string }) {
+function TocList(props: {
+  items: TocItem[];
+  className: string;
+  activeId: string | undefined;
+  onSelect: (id: string) => void;
+}) {
   return (
     <ol className={props.className}>
       {props.items.map((item) => (
-        <TocEntry key={item.id} item={item} listClass={props.className} />
+        <TocEntry
+          key={item.id}
+          item={item}
+          listClass={props.className}
+          activeId={props.activeId}
+          onSelect={props.onSelect}
+        />
       ))}
     </ol>
   );
 }
 
-function TocEntry(props: { item: TocItem; listClass: string }) {
+function TocEntry(props: {
+  item: TocItem;
+  listClass: string;
+  activeId: string | undefined;
+  onSelect: (id: string) => void;
+}) {
   const itemClass = useStyles(styles.item);
   const linkClass = useStyles(styles.link);
+  const current = props.activeId === props.item.id;
   return (
     <li className={itemClass}>
       <a
         className={linkClass}
         href={`#${props.item.id}`}
+        aria-current={current ? "location" : undefined}
         onClick={(event) => {
           const heading = document.getElementById(props.item.id);
           if (!heading) return;
           event.preventDefault();
+          props.onSelect(props.item.id);
           heading.scrollIntoView({ behavior: "smooth", block: "start" });
           history.pushState({}, "", `#${props.item.id}`);
         }}
@@ -60,7 +86,12 @@ function TocEntry(props: { item: TocItem; listClass: string }) {
         {props.item.text}
       </a>
       {props.item.children.length > 0 && (
-        <TocList items={props.item.children} className={props.listClass} />
+        <TocList
+          items={props.item.children}
+          className={props.listClass}
+          activeId={props.activeId}
+          onSelect={props.onSelect}
+        />
       )}
     </li>
   );
@@ -90,8 +121,48 @@ function nestHeadings(headings: ViewerHeading[]): TocItem[] {
   return items;
 }
 
+function useActiveHeading(headings: ViewerHeading[]) {
+  const [activeId, setActiveId] = useState<string>();
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const ids = tocHeadings(headings).map((heading) => heading.id);
+    const nodes = ids.flatMap((id) => {
+      const node = document.getElementById(id);
+      return node ? [node] : [];
+    });
+    if (nodes.length === 0) return;
+    const root = navRef.current?.closest("article") ?? undefined;
+    const visible = new Set<string>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) visible.add(entry.target.id);
+          else visible.delete(entry.target.id);
+        }
+        const next = ids.find((id) => visible.has(id));
+        if (next !== undefined) setActiveId(next);
+      },
+      { root, rootMargin: "0px 0px -70% 0px", threshold: 0 },
+    );
+    for (const node of nodes) observer.observe(node);
+    return () => observer.disconnect();
+  }, [headings]);
+
+  return { activeId, setActiveId, navRef };
+}
+
 const styles = {
-  nav: style(flex({ direction: "column", gap: 2 }), {
+  nav: style(radius.xl, shadow.medium, spacing.padding({ x: 2, y: 2 }), {
+    width: "max-content",
+    maxWidth: "240px",
+    minWidth: "160px",
+    maxHeight: "calc(100vh - 8rem)",
+    overflowY: "auto",
+    backgroundColor: backgroundColor.app,
+    "@media (max-width: 1100px)": {
+      display: "none",
+    },
     "&[data-tkstack-kind='toc'] ol": {
       listStyle: "none",
       counterReset: "none",
@@ -99,33 +170,36 @@ const styles = {
       padding: 0,
     },
     "&[data-tkstack-kind='toc'] ol ol": {
-      paddingInlineStart: spacing.value(8),
+      paddingInlineStart: spacing.value(6),
     },
     "&[data-tkstack-kind='toc'] ol > li::before": {
       content: "none",
     },
     "&[data-tkstack-kind='toc'] a": {
       fontWeight: 400,
-      color: colors.gray[12],
       textDecoration: "none",
     },
   }),
-  label: style(text({ size: "xs", fontWeight: 500, color: "lowContrast" })),
-  list: style(text({ size: "sm", fontWeight: 400, color: "highContrast" })),
+  list: style(text({ size: "sm", fontWeight: 400, color: "lowContrast" })),
   item: style({
-    "& + &": {
-      marginTop: spacing.value(1),
+    "&::before": {
+      content: "none",
     },
   }),
   link: style(
     radius.sm,
-    text({ size: "sm", fontWeight: 400, color: "highContrast" }),
+    spacing.padding({ x: 4, y: 2 }),
+    text({ size: "sm", fontWeight: 400, color: "lowContrast" }),
     focusRing(),
     {
-      display: "inline",
+      display: "block",
       cursor: "pointer",
       "&:hover": {
-        backgroundColor: backgroundColor.elementHover,
+        backgroundColor: colors.gray[3],
+      },
+      "&[aria-current='location']": {
+        color: colors.accent[9],
+        fontWeight: 500,
       },
     },
   ),

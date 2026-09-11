@@ -15,6 +15,7 @@ import { viewerDocument } from "virtual:tkstack";
 import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { DoneButton } from "./DoneButton.tsx";
+import { TableOfContents } from "./TableOfContents.tsx";
 
 type ViewerMeta = {
   title: string;
@@ -33,7 +34,8 @@ export function ViewerApp() {
   const heading = useStyles(styles.heading);
   const titleClass = useStyles(styles.title);
   const article = useStyles(styles.article);
-  const prose = useStyles(proseHtml("md"), styles.prose);
+  const prose = useStyles(styles.prose);
+  const content = useStyles(proseHtml("md"), styles.content);
   const closed = useStyles(styles.closed);
 
   useEffect(() => {
@@ -68,16 +70,19 @@ export function ViewerApp() {
       <div className={body} data-has-source-diffs={hasSourceDiffs}>
         <article className={article}>
           <div className={prose}>
-            <ComarkView
-              document={viewerDocument}
-              selectedAnnotation={selection?.annotation}
-              onSelectAnnotation={(line) =>
-                setSelection({
-                  annotation: line,
-                  reference: line.references[0]!,
-                })
-              }
-            />
+            <TableOfContents headings={viewerDocument.headings} />
+            <div className={content} data-tkstack-kind="page">
+              <ComarkView
+                document={viewerDocument}
+                selectedAnnotation={selection?.annotation}
+                onSelectAnnotation={(line) =>
+                  setSelection({
+                    annotation: line,
+                    reference: line.references[0]!,
+                  })
+                }
+              />
+            </div>
           </div>
         </article>
         {hasSourceDiffs && (
@@ -166,16 +171,21 @@ const styles = {
     width: "100%",
     maxWidth: "none",
     minWidth: 0,
-    "& > *": {
-      gridColumn: "2 / 3",
-      width: "100%",
-      maxWidth: "none",
-      minWidth: 0,
+    "& > [data-tkstack-kind='toc']": {
+      gridColumn: "1",
+      justifySelf: "end",
+      alignSelf: "start",
+      position: "sticky",
+      top: spacing.value(12),
+      zIndex: 1,
+      marginRight: spacing.value(8),
     },
-    "& > [data-tkstack-kind='mermaid']": {
-      gridColumn: "1 / -1",
-      maxWidth: "none",
-    },
+  }),
+  content: style({
+    gridColumn: "2 / 3",
+    width: "100%",
+    maxWidth: "none",
+    minWidth: 0,
     "& h1, & h2, & h3, & h4, & h5, & h6": {
       scrollMarginTop: spacing.value(4),
     },
