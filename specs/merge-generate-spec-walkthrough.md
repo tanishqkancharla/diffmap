@@ -239,7 +239,7 @@ This is the product. After approval, do **one** phase. Update **that same file**
      ├── updateSameSpec
      │   ├── tick checkboxes that are actually done
      │   ├── add source-diff:id:path  # real patch with diff --git / hunk headers
-     │   └── relink callstack  # [[path#symbol]] and [[id:new:…]]
+     │   └── relink callstack  # point rows at the new source-diff ids
      └── leaveRunning
          └── tkstackContentPlugin [[src/contentPlugin.ts#tkstackContentPlugin]]
              └── reloadModule  # page already open; do not start a second server
@@ -339,7 +339,7 @@ No new product. Confirm the skill and viewer behave as one flow.
 ```callstack
  verify
  ├── fixtureTwoPhases
- │   ├── Phase 1 landed  # source-diff + stack rows [[id:new:…]] + checked boxes
+ │   ├── Phase 1 landed  # source-diff + stack rows that reference it + checked boxes
  │   └── Phase 2 proposed  # call stack only, open boxes, no source-diff
  ├── ViewerApp [[src/viewer/ViewerApp.tsx#ViewerApp]]
  │   ├── TableOfContents [[src/viewer/TableOfContents.tsx#TableOfContents]]  # both phases nested
