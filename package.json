@@ -35,7 +35,8 @@
     "release": "npm publish",
     "test": "tsx --test src/gist/route.test.ts",
     "typecheck": "tsc --noEmit",
-    "build:gist": "vite build --config vite.gist.config.ts",
+    "build": "vite build",
+    "build:gist": "vite build",
     "preview:gist": "vite preview --config vite.gist.config.ts --host 127.0.0.1 --port 4178"
   },
   "dependencies": {

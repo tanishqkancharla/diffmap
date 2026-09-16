@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npx vite build --config vite.gist.config.ts",
-  "outputDirectory": "dist",
+  "framework": "vite",
   "installCommand": "npm install",
-  "framework": null,
+  "buildCommand": "npx vite build",
+  "outputDirectory": "dist",
   "rewrites": [
     { "source": "/g", "destination": "/index.html" },
     { "source": "/g/:path*", "destination": "/index.html" }
