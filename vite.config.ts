@@ -9,7 +9,7 @@ const packageRoot = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig(({ command }) => {
   // Vercel’s Vite preset runs `vite build` with this file. Production must
   // be the gist app (`gist/index.html`), not the local viewer that imports
-  // `virtual:tkstack`.
+  // `virtual:diffmap`.
   if (command === "build") return gistAppConfig();
 
   return {

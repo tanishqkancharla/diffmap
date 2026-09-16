@@ -6,7 +6,7 @@ import { defineConfig, type UserConfig } from "vite";
 const packageRoot = path.dirname(fileURLToPath(import.meta.url));
 const gistRoot = path.join(packageRoot, "gist");
 
-/** Production / preview: static gist viewer. Never pulls `virtual:tkstack`. */
+/** Production / preview: static gist viewer. Never pulls `virtual:diffmap`. */
 export function gistAppConfig(): UserConfig {
   return {
     root: gistRoot,
