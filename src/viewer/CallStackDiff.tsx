@@ -50,7 +50,12 @@ export function CallStackDiff(
         );
         if (line.references.length === 0) {
           return (
-            <div key={index} className={row} data-change={sign}>
+            <div
+              key={index}
+              className={row}
+              data-change={sign}
+              title={description}
+            >
               {content}
             </div>
           );
@@ -63,7 +68,7 @@ export function CallStackDiff(
             data-change={sign}
             aria-pressed={props.selectedAnnotation === line}
             aria-controls="source-diff-panel"
-            title="Show source changes"
+            title={description}
             aria-label={description}
             onClick={() => props.onSelectAnnotation(line)}
           >
@@ -81,20 +86,24 @@ const styles = {
     spacing.padding({ y: 2 }),
     {
       backgroundColor: backgroundColor.app,
-      overflowX: "auto",
+      overflowX: "hidden",
+      maxWidth: "100%",
     },
   ),
   row: style(
     spacing.padding({ x: 3 }),
     {
       display: "flex",
+      alignItems: "center",
       gap: "12px",
+      boxSizing: "border-box",
       width: "100%",
-      minWidth: "max-content",
+      maxWidth: "100%",
+      minWidth: 0,
+      overflow: "hidden",
       textAlign: "left",
       font: "inherit",
       lineHeight: "1.6",
-      whiteSpace: "pre",
       color: "inherit",
       background: "transparent",
       border: 0,
@@ -109,9 +118,19 @@ const styles = {
       "& .stack-content": {
         display: "flex",
         alignItems: "stretch",
+        flex: "1 1 auto",
+        minWidth: 0,
         minHeight: "28px",
+        overflow: "hidden",
       },
-      "& .stack-label": { paddingBlock: "3px" },
+      "& .stack-label": {
+        flex: "1 1 auto",
+        minWidth: 0,
+        paddingBlock: "3px",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      },
       "& .stack-comment": { color: colors.gray[11], fontWeight: 400 },
       "& .tree-prefix": { display: "inline-flex", alignSelf: "stretch" },
       "& [data-branch]": {
@@ -147,6 +166,7 @@ const styles = {
       "& > .diff-sign": { alignSelf: "center" },
       "& > .source-indicator": {
         alignSelf: "center",
+        flexShrink: 0,
         marginLeft: "auto",
         color: colors.blue[11],
       },

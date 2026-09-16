@@ -164,6 +164,7 @@ const styles = {
     marginTop: "auto",
     marginBottom: "auto",
     overflowY: "auto",
+    backgroundColor: "transparent",
     "@media (max-width: 1100px)": {
       display: "none",
     },

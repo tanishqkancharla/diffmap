@@ -189,6 +189,7 @@ const styles = {
     minHeight: 0,
     minWidth: 0,
     overflow: "hidden",
+    backgroundColor: backgroundColor.app,
     "&[data-has-source-diffs='true']": {
       "--diffmap-columns":
         "minmax(0, max-content) minmax(0, 1fr) minmax(0, 1fr)",

@@ -22,12 +22,19 @@ import {
   type SourceReference,
 } from "../annotations.js";
 import type { SourceDefinition } from "../definitions.js";
+import { useGistPin } from "../gist/pin.ts";
+import { useGitHubPin } from "../github/pin.ts";
 import {
   matchingSourceDiff,
   requestSource,
   useSourceReference,
 } from "./sourceNavigation.js";
 import { pierreDiffOptions, sourceSelectionCss } from "./pierre.js";
+import {
+  sourcePanelOrigin,
+  sourcePanelPath,
+  sourcePanelPin,
+} from "./sourceHeader.ts";
 import { useViewerMode } from "./viewerMode.ts";
 
 export type SourceSelection = {
@@ -66,12 +73,13 @@ export function SourceDiffPanel(props: {
   const definition = history.at(-1);
   const panel = useStyles(styles.panel);
   const header = useStyles(styles.header);
+  const titleRow = useStyles(styles.titleRow);
+  const titleClass = useStyles(styles.title);
+  const pinClass = useStyles(styles.pin);
   const links = useStyles(styles.links);
   const code = useStyles(styles.code);
-  const options = pierreDiffOptions({
-    themeType: resolvedTheme,
-    disableFileHeader: false,
-  });
+  const github = useGitHubPin();
+  const gist = useGistPin();
   const selection = props.selection;
   const source = useSourceReference(selection?.reference);
   const resolvedFile = source instanceof Error ? undefined : source;
@@ -93,7 +101,9 @@ export function SourceDiffPanel(props: {
       ? navigation.status
       : source instanceof Error
         ? source.message
-        : selection?.reference.kind === "file" && source === undefined
+        : selection?.reference.kind === "file" &&
+            source === undefined &&
+            mode !== "gist"
           ? "Opening source…"
           : undefined;
   const selectedLines = useMemo<CodeViewLineSelection | null>(() => {
@@ -112,6 +122,32 @@ export function SourceDiffPanel(props: {
       },
     };
   }, [selection, file, linkedDiff]);
+
+  const openPath = sourcePanelPath({
+    filePath: file?.path,
+    reference: selection?.reference,
+    items: props.items,
+    linkedDiffId: linkedDiff?.id,
+  });
+  const origin = sourcePanelOrigin({
+    showingFile: file !== undefined,
+    reference: selection?.reference,
+    items: props.items,
+    linkedDiffId: linkedDiff?.id,
+  });
+  const pin =
+    openPath === undefined
+      ? { kind: "none" as const }
+      : sourcePanelPin({
+          origin,
+          path: openPath,
+          github,
+          gist,
+        });
+  const options = pierreDiffOptions({
+    themeType: resolvedTheme,
+    disableFileHeader: openPath !== undefined,
+  });
 
   useEffect(() => {
     if (selectedLines === null) return;
@@ -178,28 +214,53 @@ export function SourceDiffPanel(props: {
 
   return (
     <aside id="source-diff-panel" aria-label="Source changes" className={panel}>
-      <div className={header}>
-        <strong>
-          {definition !== undefined
-            ? "Symbol definition"
-            : file !== undefined
-              ? "Source file"
-              : "Source changes"}
-        </strong>
-        {definition !== undefined && (
-          <Button
-            variant="quiet"
-            onClick={() => {
-              request.current++;
-              setNavigation({
-                selection,
-                history: history.slice(0, -1),
-                status: undefined,
-              });
-            }}
+      <div className={header} data-diffmap-kind="source-header">
+        {openPath !== undefined && (
+          <div className={titleRow}>
+            <div className={titleClass} title={openPath}>
+              {openPath}
+            </div>
+            {definition !== undefined && (
+              <Button
+                variant="quiet"
+                onClick={() => {
+                  request.current++;
+                  setNavigation({
+                    selection,
+                    history: history.slice(0, -1),
+                    status: undefined,
+                  });
+                }}
+              >
+                {history.length === 1 ? "Back to reference" : "Back"}
+              </Button>
+            )}
+          </div>
+        )}
+        {pin.kind === "github" && (
+          <a
+            className={pinClass}
+            href={pin.href}
+            data-diffmap-pin="github"
+            title={pin.label}
           >
-            {history.length === 1 ? "Back to reference" : "Back"}
-          </Button>
+            {pin.label}
+          </a>
+        )}
+        {pin.kind === "gist" && (
+          <a
+            className={pinClass}
+            href={pin.href}
+            data-diffmap-pin="gist"
+            title={pin.label}
+          >
+            {pin.label}
+          </a>
+        )}
+        {pin.kind === "spec" && (
+          <span className={pinClass} data-diffmap-pin="spec">
+            {pin.label}
+          </span>
         )}
         {mode === "local" && (
           <span>⌘-click or Ctrl-click a symbol to go to its definition.</span>
@@ -210,32 +271,27 @@ export function SourceDiffPanel(props: {
             Select a linked stack row or diagram element to open its source.
           </span>
         ) : (
-          <>
-            <span>
-              {selection.annotation.text.replace(/^[+ -]/, "").trim()}
-            </span>
-            {selection.annotation.references.length > 1 && (
-              <div className={links} aria-label="Linked changes">
-                {selection.annotation.references.map((reference, index) => (
-                  <Button
-                    key={index}
-                    variantColor="blue"
-                    variant={
-                      reference === selection.reference ? "primary" : "quiet"
-                    }
-                    onClick={() =>
-                      props.onSelect({
-                        annotation: selection.annotation,
-                        reference,
-                      })
-                    }
-                  >
-                    {referenceLabel(reference)}
-                  </Button>
-                ))}
-              </div>
-            )}
-          </>
+          selection.annotation.references.length > 1 && (
+            <div className={links} aria-label="Linked changes">
+              {selection.annotation.references.map((reference, index) => (
+                <Button
+                  key={index}
+                  variantColor="blue"
+                  variant={
+                    reference === selection.reference ? "primary" : "quiet"
+                  }
+                  onClick={() =>
+                    props.onSelect({
+                      annotation: selection.annotation,
+                      reference,
+                    })
+                  }
+                >
+                  {referenceLabel(reference)}
+                </Button>
+              ))}
+            </div>
+          )
         )}
       </div>
       <CodeView
@@ -289,12 +345,33 @@ const styles = {
     text({ size: "sm", color: "lowContrast" }),
     {
       gap: "6px",
-      overflowWrap: "anywhere",
+      minWidth: 0,
       maxHeight: "35%",
       overflowY: "auto",
       flexShrink: 0,
     },
   ),
+  titleRow: style(flex({ direction: "row", align: "center" }), {
+    gap: "6px",
+    minWidth: 0,
+  }),
+  title: style(text({ size: "sm", fontWeight: 600, color: "highContrast" }), {
+    minWidth: 0,
+    flex: "1 1 auto",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  }),
+  pin: style(text({ size: "sm", color: "lowContrast" }), {
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    textDecoration: "none",
+    "&:is(a):hover": {
+      textDecoration: "underline",
+    },
+  }),
   links: style(flex({ direction: "row" }), { gap: "6px", flexWrap: "wrap" }),
   code: style({
     flex: "1 1 auto",

@@ -6,6 +6,7 @@ import { parseViewerDocument } from "../parseViewer.ts";
 import type { ViewerDocument } from "../parseViewer.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
 import { loadGistMarkdown, type GistDocument } from "./fetchGist.ts";
+import { GistPinContext } from "./pin.ts";
 import { GistLanding, GistLoading, GistStatus } from "./GistStatus.tsx";
 import {
   gistPath,
@@ -151,24 +152,32 @@ export function GistApp() {
   }
 
   return (
-    <ViewerApp
-      key={`${view.gist.id}:${view.file}`}
-      document={view.document}
-      mode="gist"
-      headerActions={
-        <GistHeader
-          gistId={view.gist.id}
-          htmlUrl={view.gist.htmlUrl}
-          files={view.gist.files}
-          current={view.file}
-          onSelect={(file) => {
-            const next = gistPath(view.gist.id, file);
-            window.history.pushState({}, "", next);
-            setRoute(parseGistPath(next));
-          }}
-        />
-      }
-    />
+    <GistPinContext.Provider
+      value={{
+        gistId: view.gist.id,
+        file: view.file,
+        htmlUrl: view.gist.htmlUrl,
+      }}
+    >
+      <ViewerApp
+        key={`${view.gist.id}:${view.file}`}
+        document={view.document}
+        mode="gist"
+        headerActions={
+          <GistHeader
+            gistId={view.gist.id}
+            htmlUrl={view.gist.htmlUrl}
+            files={view.gist.files}
+            current={view.file}
+            onSelect={(file) => {
+              const next = gistPath(view.gist.id, file);
+              window.history.pushState({}, "", next);
+              setRoute(parseGistPath(next));
+            }}
+          />
+        }
+      />
+    </GistPinContext.Provider>
   );
 }
 
