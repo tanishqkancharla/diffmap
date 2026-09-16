@@ -46,7 +46,6 @@ export default defineConfig({
   build: {
     outDir: path.join(packageRoot, "dist"),
     emptyOutDir: true,
-    sourcemap: true,
   },
   clearScreen: false,
 });
