@@ -21,16 +21,19 @@ import type {
 } from "../parseViewer.js";
 import type { SourceNavigation } from "../annotations.js";
 import { Fence } from "./Fence.tsx";
+import { HtmlPlaceholder } from "./HtmlPlaceholder.tsx";
+import { useViewerMode } from "./viewerMode.ts";
 
 const voidTags = new Set(["img", "hr", "br"]);
 
 export function ComarkView(
   props: { document: ViewerDocument } & SourceNavigation,
 ) {
+  const trustedHtml = useViewerMode() === "local";
   return (
     <>
       {props.document.nodes.map((node, index) =>
-        renderNode(node, index, props),
+        renderNode(node, index, props, trustedHtml),
       )}
     </>
   );
@@ -40,9 +43,13 @@ function renderNode(
   node: ViewerNode,
   key: number,
   navigation: SourceNavigation,
+  trustedHtml: boolean,
 ): ReactNode {
   if (node.type === "text") return node.value;
   if (node.type === "html") {
+    if (!trustedHtml) {
+      return <HtmlPlaceholder key={key} inline={node.block !== true} />;
+    }
     if (node.block) {
       return (
         <div key={key} dangerouslySetInnerHTML={{ __html: node.source }} />
@@ -53,17 +60,19 @@ function renderNode(
   if (node.type === "view") {
     return <Fence key={key} fence={node.fence} {...navigation} />;
   }
-  return renderElement(node, key, navigation);
+  return renderElement(node, key, navigation, trustedHtml);
 }
 
 function renderElement(
   node: ViewerElement,
   key: number,
   navigation: SourceNavigation,
+  trustedHtml: boolean,
 ): ReactNode {
-  if (node.tag === "table") return renderTable(node, key, navigation);
+  if (node.tag === "table")
+    return renderTable(node, key, navigation, trustedHtml);
   const children = node.children.map((child, index) =>
-    renderNode(child, index, navigation),
+    renderNode(child, index, navigation, trustedHtml),
   );
   if (node.tag === "alert") {
     return (
@@ -106,6 +115,7 @@ function renderTable(
   node: ViewerElement,
   key: number,
   navigation: SourceNavigation,
+  trustedHtml: boolean,
 ) {
   const headers = tableElements(node, "thead")
     .flatMap((head) => tableElements(head, "tr"))
@@ -124,7 +134,7 @@ function renderTable(
             align={tableAlign(header)}
           >
             {header.children.map((child, i) =>
-              renderNode(child, i, navigation),
+              renderNode(child, i, navigation, trustedHtml),
             )}
           </TableHead>
         ))}
@@ -135,7 +145,7 @@ function renderTable(
             {tableElements(row, "td").map((cell, i) => (
               <TableCell key={i} align={tableAlign(cell)}>
                 {cell.children.map((child, j) =>
-                  renderNode(child, j, navigation),
+                  renderNode(child, j, navigation, trustedHtml),
                 )}
               </TableCell>
             ))}

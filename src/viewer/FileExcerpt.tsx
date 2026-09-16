@@ -3,6 +3,7 @@ import { File } from "@pierre/diffs/react";
 import { useTheme } from "maui";
 import { useStyles } from "purse-styles";
 import { pierreFileOptions, pierreShell } from "./pierre.ts";
+import { useViewerMode } from "./viewerMode.ts";
 
 type FileExcerptPayload = {
   path: string;
@@ -38,7 +39,9 @@ export function FileExcerpt(props: {
 
 function useFileExcerpt(input: { path: string; start: number; end: number }) {
   const [excerpt, setExcerpt] = useState<FileExcerptPayload>();
+  const mode = useViewerMode();
   useEffect(() => {
+    if (mode === "gist") return;
     const params = new URLSearchParams({
       path: input.path,
       start: String(input.start),
@@ -57,6 +60,6 @@ function useFileExcerpt(input: { path: string; start: number; end: number }) {
       .catch((cause) => {
         console.warn("diffmap file excerpt failed", cause);
       });
-  }, [input.path, input.start, input.end]);
+  }, [input.path, input.start, input.end, mode]);
   return excerpt;
 }

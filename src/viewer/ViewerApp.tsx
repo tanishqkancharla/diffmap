@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   backgroundColor,
   border,
@@ -11,19 +11,26 @@ import {
   text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
-import { viewerDocument } from "virtual:diffmap";
+import type { ViewerDocument } from "../parseViewer.js";
 import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { DoneButton } from "./DoneButton.tsx";
 import { DiffButton } from "./DiffButton.tsx";
 import { TableOfContents } from "./TableOfContents.tsx";
+import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
 
 type ViewerMeta = {
   title: string;
 };
 
-export function ViewerApp() {
-  const meta = useViewerMeta();
+export function ViewerApp(props: {
+  document: ViewerDocument;
+  mode: ViewerMode;
+  title?: string;
+  headerActions?: ReactNode;
+}) {
+  const viewerDocument = props.document;
+  const meta = useViewerMeta(props.mode === "local");
   const [selection, setSelection] = useState<SourceSelection>();
   const [showDiffPanel, setShowDiffPanel] = useState(false);
   const hasSourceDiffs =
@@ -31,7 +38,12 @@ export function ViewerApp() {
   const diffPanelOpen = hasSourceDiffs && showDiffPanel;
   const body = useStyles(styles.body);
   const [shutDown, setShutDown] = useState(false);
-  const title = meta === undefined ? document.title : meta.title;
+  const parsedTitle =
+    props.title ??
+    viewerDocument.headings.find((heading) => heading.level === 1)?.text ??
+    "diffmap";
+  const title =
+    props.mode === "local" && meta !== undefined ? meta.title : parsedTitle;
   const shell = useStyles(styles.shell);
   const header = useStyles(styles.header);
   const heading = useStyles(styles.heading);
@@ -44,9 +56,8 @@ export function ViewerApp() {
   const articleRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (meta === undefined) return;
-    document.title = meta.title;
-  }, [meta]);
+    document.title = title;
+  }, [title]);
 
   useEffect(() => {
     const id = decodeURIComponent(window.location.hash.replace(/^#/, ""));
@@ -59,64 +70,70 @@ export function ViewerApp() {
   }
 
   return (
-    <div className={shell}>
-      <header className={header}>
-        <div className={heading}>
-          <div className={titleClass}>{title}</div>
-        </div>
-        <div className={actions}>
-          {hasSourceDiffs && (
-            <DiffButton
-              pressed={showDiffPanel}
-              onClick={() => setShowDiffPanel((open) => !open)}
-            />
-          )}
-          <DoneButton
-            onClick={() => {
-              setShutDown(true);
-              // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
-              void closeViewer();
-            }}
-          />
-        </div>
-      </header>
-      <div className={body} data-has-source-diffs={diffPanelOpen}>
-        <TableOfContents
-          headings={viewerDocument.headings}
-          articleRef={articleRef}
-        />
-        <article ref={articleRef} className={article}>
-          <div className={prose}>
-            <div className={content} data-diffmap-kind="page">
-              <ComarkView
-                document={viewerDocument}
-                selectedAnnotation={selection?.annotation}
-                onSelectAnnotation={(line) => {
-                  setShowDiffPanel(true);
-                  setSelection({
-                    annotation: line,
-                    reference: line.references[0]!,
-                  });
+    <ViewerModeContext.Provider value={props.mode}>
+      <div className={shell}>
+        <header className={header}>
+          <div className={heading}>
+            <div className={titleClass}>{title}</div>
+          </div>
+          <div className={actions}>
+            {hasSourceDiffs && (
+              <DiffButton
+                pressed={showDiffPanel}
+                onClick={() => setShowDiffPanel((open) => !open)}
+              />
+            )}
+            {props.headerActions}
+            {props.mode === "local" && (
+              <DoneButton
+                onClick={() => {
+                  setShutDown(true);
+                  // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
+                  void closeViewer();
                 }}
               />
-            </div>
+            )}
           </div>
-        </article>
-        {diffPanelOpen && (
-          <SourceDiffPanel
-            items={viewerDocument.sourceDiffs}
-            selection={selection}
-            onSelect={setSelection}
+        </header>
+        <div className={body} data-has-source-diffs={diffPanelOpen}>
+          <TableOfContents
+            headings={viewerDocument.headings}
+            articleRef={articleRef}
           />
-        )}
+          <article ref={articleRef} className={article}>
+            <div className={prose}>
+              <div className={content} data-diffmap-kind="page">
+                <ComarkView
+                  document={viewerDocument}
+                  selectedAnnotation={selection?.annotation}
+                  onSelectAnnotation={(line) => {
+                    setShowDiffPanel(true);
+                    setSelection({
+                      annotation: line,
+                      reference: line.references[0]!,
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          </article>
+          {diffPanelOpen && (
+            <SourceDiffPanel
+              items={viewerDocument.sourceDiffs}
+              selection={selection}
+              onSelect={setSelection}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </ViewerModeContext.Provider>
   );
 }
 
-function useViewerMeta() {
+function useViewerMeta(enabled: boolean) {
   const [meta, setMeta] = useState<ViewerMeta>();
   useEffect(() => {
+    if (!enabled) return;
     // oxlint-disable-next-line typescript/no-floating-promises -- React effects cannot await; this request owns the metadata update.
     void fetch("/__diffmap/meta")
       .then((response) => response.json())
@@ -124,7 +141,7 @@ function useViewerMeta() {
         // SAFETY: the diffmap CLI serves this shape from extractTitle.
         setMeta(value as ViewerMeta);
       });
-  }, []);
+  }, [enabled]);
   return meta;
 }
 

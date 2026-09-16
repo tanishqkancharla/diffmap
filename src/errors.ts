@@ -34,3 +34,8 @@ export class DiffmapDefinitionError extends errore.createTaggedError({
   name: "DiffmapDefinitionError",
   message: "$reason",
 }) {}
+
+export class DiffmapShareError extends errore.createTaggedError({
+  name: "DiffmapShareError",
+  message: "diffmap share failed: $reason",
+}) {}
