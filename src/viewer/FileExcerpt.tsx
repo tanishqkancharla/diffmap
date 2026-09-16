@@ -4,6 +4,8 @@ import { useTheme } from "maui";
 import { useStyles } from "purse-styles";
 import { pierreFileOptions, pierreShell } from "./pierre.ts";
 import { useViewerMode } from "./viewerMode.ts";
+import { useGitHubPin } from "../github/pin.ts";
+import { fetchPinnedBlob } from "../github/fetchRepo.ts";
 
 type FileExcerptPayload = {
   path: string;
@@ -40,8 +42,33 @@ export function FileExcerpt(props: {
 function useFileExcerpt(input: { path: string; start: number; end: number }) {
   const [excerpt, setExcerpt] = useState<FileExcerptPayload>();
   const mode = useViewerMode();
+  const pin = useGitHubPin();
   useEffect(() => {
     if (mode === "gist") return;
+    if (mode === "github") {
+      if (pin === undefined) return;
+      // oxlint-disable-next-line typescript/no-floating-promises -- React effects cannot await; this request owns the excerpt update.
+      void fetchPinnedBlob(pin, input.path)
+        .then((contents) => {
+          if (contents instanceof Error) return undefined;
+          const lines = contents.split(/\r?\n/);
+          const start = input.start;
+          const end = Math.min(input.end, lines.length);
+          return {
+            path: input.path,
+            start,
+            end,
+            contents: lines.slice(start - 1, end).join("\n"),
+          } satisfies FileExcerptPayload;
+        })
+        .then((value) => {
+          if (value !== undefined) setExcerpt(value);
+        })
+        .catch((cause) => {
+          console.warn("diffmap file excerpt failed", cause);
+        });
+      return;
+    }
     const params = new URLSearchParams({
       path: input.path,
       start: String(input.start),
@@ -60,6 +87,6 @@ function useFileExcerpt(input: { path: string; start: number; end: number }) {
       .catch((cause) => {
         console.warn("diffmap file excerpt failed", cause);
       });
-  }, [input.path, input.start, input.end, mode]);
+  }, [input.path, input.start, input.end, mode, pin]);
   return excerpt;
 }

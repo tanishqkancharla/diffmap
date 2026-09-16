@@ -128,7 +128,7 @@ export function SourceDiffPanel(props: {
     event,
     context,
   ) => {
-    if (mode === "gist") return;
+    if (mode !== "local") return;
     if (!event.metaKey && !event.ctrlKey) return;
     event.preventDefault();
     const item = context.item;

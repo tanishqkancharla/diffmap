@@ -6,6 +6,22 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/g", "destination": "/index.html" },
-    { "source": "/g/:path*", "destination": "/index.html" }
+    { "source": "/g/:path*", "destination": "/index.html" },
+    {
+      "source": "/:owner/:repo/pull/:n",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/:owner/:repo/pull/:n/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/:owner/:repo/commit/:sha",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/:owner/:repo/commit/:sha/:path*",
+      "destination": "/index.html"
+    }
   ]
 }

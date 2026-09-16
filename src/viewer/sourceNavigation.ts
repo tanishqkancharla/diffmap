@@ -3,6 +3,9 @@ import type { CodeViewDiffItem, CodeViewLineSelection } from "@pierre/diffs";
 import type { SourceReference } from "../annotations.js";
 import type { SourceDefinition, DefinitionResponse } from "../definitions.js";
 import { DiffmapDefinitionError } from "../errors.js";
+import { useGitHubPin } from "../github/pin.ts";
+import { fetchPinnedBlob, findSymbolLineRange } from "../github/fetchRepo.ts";
+import { useViewerMode } from "./viewerMode.ts";
 
 export async function requestSource(
   endpoint: "source" | "definition",
@@ -42,14 +45,55 @@ export function useSourceReference(reference: SourceReference | undefined) {
     reference: SourceReference;
     result: SourceDefinition | Error;
   }>();
+  const pin = useGitHubPin();
+  const mode = useViewerMode();
   useEffect(() => {
     if (reference?.kind !== "file") return;
+    if (mode === "gist") return;
+    let active = true;
+    if (pin !== undefined) {
+      // Pinned GitHub spec: load this path at the spec commit SHA, never main.
+      // oxlint-disable-next-line typescript/no-floating-promises -- The effect owns its asynchronous source result.
+      void fetchPinnedBlob(pin, reference.path).then((contents) => {
+        if (!active) return;
+        if (contents instanceof Error) {
+          const message =
+            contents.message === "not-found"
+              ? `Could not read ${reference.path} at this commit.`
+              : contents.message;
+          setResolution({
+            reference,
+            result: new DiffmapDefinitionError({ reason: message }),
+          });
+          return;
+        }
+        const lineCount = Math.max(1, contents.split(/\r?\n/).length);
+        const range =
+          reference.symbol !== undefined
+            ? findSymbolLineRange(contents, reference.symbol)
+            : {
+                start: reference.start ?? 1,
+                end: reference.end ?? lineCount,
+              };
+        setResolution({
+          reference,
+          result: {
+            path: reference.path,
+            contents,
+            start: range.start,
+            end: range.end,
+          },
+        });
+      });
+      return () => {
+        active = false;
+      };
+    }
     const params = new URLSearchParams({ path: reference.path });
     if (reference.symbol !== undefined) params.set("symbol", reference.symbol);
     if (reference.start !== undefined)
       params.set("start", String(reference.start));
     if (reference.end !== undefined) params.set("end", String(reference.end));
-    let active = true;
     // oxlint-disable-next-line typescript/no-floating-promises -- The effect owns its asynchronous source result.
     void requestSource("source", params).then((result) => {
       if (active) setResolution({ reference, result });
@@ -57,7 +101,7 @@ export function useSourceReference(reference: SourceReference | undefined) {
     return () => {
       active = false;
     };
-  }, [reference]);
+  }, [reference, pin, mode]);
   return resolution?.reference === reference ? resolution?.result : undefined;
 }
 

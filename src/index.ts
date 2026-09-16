@@ -17,6 +17,7 @@ export type {
   ViewerView,
 } from "./parseViewer.js";
 export { gistViewerUrl } from "./gist/route.js";
+export { githubViewerUrl } from "./github/route.js";
 export { shareMarkdownFile } from "./share.js";
 export { startServer } from "./serve.js";
 export type { FileExcerpt, StartServerInput, DiffmapServer } from "./serve.js";

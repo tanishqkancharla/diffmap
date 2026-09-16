@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { MauiProvider } from "maui";
 import { rewritePiGistUrl } from "./route.ts";
-import { GistApp } from "./GistApp.tsx";
+import { HostApp } from "../host/HostApp.tsx";
 import "../viewer/styles.css";
 
 const rewritten = rewritePiGistUrl(
@@ -19,7 +19,7 @@ if (root === null) throw new Error("diffmap root element is missing");
 createRoot(root).render(
   <StrictMode>
     <MauiProvider>
-      <GistApp />
+      <HostApp />
     </MauiProvider>
   </StrictMode>,
 );

@@ -19,6 +19,7 @@ export function GistStatus(props: {
   children: ReactNode;
   gistId?: string;
   gistUrl?: string;
+  linkLabel?: string;
 }) {
   const shell = useStyles(styles.shell);
   const header = useStyles(styles.header);
@@ -39,7 +40,9 @@ export function GistStatus(props: {
         {props.children}
         {gistUrl !== undefined && (
           <P>
-            <Link href={gistUrl}>Open gist on GitHub</Link>
+            <Link href={gistUrl}>
+              {props.linkLabel ?? "Open gist on GitHub"}
+            </Link>
           </P>
         )}
       </main>
@@ -47,10 +50,10 @@ export function GistStatus(props: {
   );
 }
 
-export function GistLoading() {
+export function GistLoading(props: { title?: string }) {
   const row = useStyles(styles.loading);
   return (
-    <GistStatus title="Loading gist…">
+    <GistStatus title={props.title ?? "Loading gist…"}>
       <div className={row}>
         <Thinking />
       </div>
@@ -64,14 +67,23 @@ export function GistLanding() {
     <GistStatus title="diffmap">
       <P>
         A hosted viewer for diffmap walkthroughs. This page fetches a GitHub
-        gist in your browser. There is no server holding the markdown.
+        gist or a public repo file in your browser. There is no server holding
+        the markdown.
       </P>
       <P>
-        Canonical URL:{" "}
+        Canonical gist URL:{" "}
         <code className={code}>https://diffmap.dev/g/&lt;gistId&gt;</code>.
         Optional file:{" "}
-        <code className={code}>/g/&lt;gistId&gt;/&lt;file.md&gt;</code>. Heading
-        hashes stay in the fragment, same as the local viewer.
+        <code className={code}>/g/&lt;gistId&gt;/&lt;file.md&gt;</code>. GitHub
+        spec:{" "}
+        <code className={code}>
+          https://diffmap.dev/&lt;owner&gt;/&lt;repo&gt;/pull/&lt;n&gt;/&lt;path.md&gt;
+        </code>{" "}
+        or{" "}
+        <code className={code}>
+          /&lt;owner&gt;/&lt;repo&gt;/commit/&lt;sha&gt;/&lt;path.md&gt;
+        </code>
+        . Heading hashes stay in the fragment, same as the local viewer.
       </P>
       <P>
         Share a secret gist (requires <code className={code}>gh</code>
