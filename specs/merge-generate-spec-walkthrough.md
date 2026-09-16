@@ -2,7 +2,9 @@
 
 ## System flow
 
-One skill, three jobs: spec a piece, implement it phase by phase in the same document, or explain work that already landed. The viewer does not change in the first four phases. `npx tkstack` already reloads when that one markdown file changes.
+One skill, three jobs: spec a piece, implement it phase by phase in the same document, or explain work that already landed. The viewer does not change in the first four phases. `diffmap serve` already reloads when that one markdown file changes.
+
+Product is **diffmap**: GitHub `tanishqkancharla/diffmap` (old `tkstack` URL 301s), npm `@tanishqkancharla/diffmap`, host `https://diffmap.dev`. Local CLI is `diffmap serve` (bare `npx @tanishqkancharla/diffmap <file>` is the same). `diffmap share` publishes a secret gist. GitHub-hosted specs pin to one SHA (`/owner/repo/pull/n/path` → `/commit/<sha>/path`). This spec does not re-implement those. Skill install name stays `generate-spec`. Do not `npm publish`.
 
 ### Current: two opposite skills
 
@@ -14,12 +16,12 @@ flowchart TD
   SpecSkill --> QA[Ask until design is settled]
   QA --> SpecFile["Write specs/name.md"]
   SpecFile --> Sketches[Inline diff:path sketches]
-  Sketches --> ServeSpec["npx tkstack specs/name.md"]
+  Sketches --> ServeSpec["diffmap serve specs/name.md"]
   ServeSpec --> StopSpec[Stop. Do not implement]
   WalkSkill --> Research[git diff and calldiff]
   Research --> TmpFile["Write tmp/.../walkthrough.md"]
   TmpFile --> SourceDiffs[Real source-diff patches]
-  SourceDiffs --> ServeWalk["npx tkstack tmp/..."]
+  SourceDiffs --> ServeWalk["diffmap serve tmp/..."]
   %% ref node:SpecSkill [[skills/generate-spec/SKILL.md]]
   %% ref node:WalkSkill [[skills/code-walkthrough/SKILL.md]]
   %% ref node:ServeSpec [[src/cli.ts]]
@@ -50,7 +52,7 @@ flowchart TD
   %% ref node:ImplMode [[skills/generate-spec/SKILL.md]]
   %% ref node:WalkMode [[skills/code-walkthrough/SKILL.md]]
   %% ref node:ServeOnce [[src/cli.ts]]
-  %% ref node:Reload [[src/contentPlugin.ts#tkstackContentPlugin]]
+  %% ref node:Reload [[src/contentPlugin.ts#diffmapContentPlugin]]
 ```
 
 Walkthrough stays a mode, not a second skill. Implement-from-spec always lives at `specs/<name>.md`. Explain-only still goes under `tmp/`.
@@ -62,8 +64,8 @@ sequenceDiagram
   participant User
   participant Skill as generate-spec
   participant File as specs/name.md
-  participant Viewer as npx tkstack
-  User->>Skill: use tkstack to implement X
+  participant Viewer as diffmap serve
+  User->>Skill: use diffmap to implement X
   Skill->>File: phases + proposed call stacks
   Skill->>Viewer: serve the file once
   Viewer-->>User: local page
@@ -75,7 +77,7 @@ sequenceDiagram
   %% ref node:Skill [[skills/generate-spec/SKILL.md]]
   %% ref node:Viewer [[src/serve.ts#startServer]]
   %% ref edge:2 [[src/cli.ts]]
-  %% ref edge:7 [[src/contentPlugin.ts#tkstackContentPlugin]]
+  %% ref edge:7 [[src/contentPlugin.ts#diffmapContentPlugin]]
 ```
 
 The viewer does not read git. “Diffs show up automatically” means the agent edited the spec and the page refreshed.
@@ -87,7 +89,7 @@ sequenceDiagram
   participant User
   participant Skill as generate-spec
   participant File as tmp/walkthrough.md
-  participant Viewer as npx tkstack
+  participant Viewer as diffmap serve
   User->>Skill: what did this PR do?
   Skill->>Skill: git diff / calldiff / source-check
   Skill->>File: outcomes + call stacks + real source-diff
@@ -105,7 +107,9 @@ No implementation checklist. No `specs/` file.
 
 ## Solution overview
 
-Fold both jobs into `skills/generate-spec` until there is an npm-available product name that is not `tkstack`. The skill has three modes chosen from the user request: spec, implement, walkthrough. Spec mode writes phases and proposed call stacks, serves the file, and waits. Implement mode continues in the same chat after “look good”: one phase, then the same markdown gets real `source-diff` patches and relinked stacks. Walkthrough-only keeps today’s research rules and `tmp/` path. Keep `code-walkthrough` as the same three-mode skill under a second install name so existing installs still resolve. Viewer polish (auto-open Diff, live title, parse error page) is a later optional phase.
+Fold both jobs into `skills/generate-spec`. Do not name the skill `diffmap` or `tkstack`. The skill has three modes chosen from the user request: spec, implement, walkthrough. Spec mode writes phases and proposed call stacks, serves the file with `diffmap serve`, and waits. Implement mode continues in the same chat after “look good”: one phase, then the same markdown gets real `source-diff` patches and relinked stacks. Walkthrough-only keeps today’s research rules and `tmp/` path. Keep `code-walkthrough` as the same three-mode skill under a second install name so existing installs still resolve. Viewer polish (auto-open Diff, live title, parse error page) is a later optional phase.
+
+Hosting already shipped on main: `diffmap share` → `https://diffmap.dev/g/<id>`; GitHub-hosted specs at `https://diffmap.dev/<owner>/<repo>/pull/<n>/<path>` pin to one commit SHA. The author loop in this skill stays local `serve`. Do not `npm publish`.
 
 ## Goals
 
@@ -114,32 +118,34 @@ Fold both jobs into `skills/generate-spec` until there is an npm-available produ
 - Spec-time documents have proposed call stacks only: no `source-diff` and no inline `diff:path` sketches.
 - After a phase lands, that same file ticks the phase, embeds a real git patch, and points stack rows at it.
 - Walkthrough-only (“explain this PR”) still works, still under `tmp/`, still with real diffs and no fake checklist.
-- Serve once per file. If `npx tkstack list` already shows that file, do not start a second server on 4177.
-- README advertises a single `npx skills add tanishqkancharla/tkstack --skill generate-spec`.
+- Serve once per file. If `npx @tanishqkancharla/diffmap list` already shows that file, do not start a second server on 4177.
+- README advertises a single `npx skills add tanishqkancharla/diffmap --skill generate-spec`.
 
 ## Non-goals
 
-- Renaming the skill or npm package to `tkstack`.
+- Renaming the skill to `diffmap` or `tkstack`. Install name stays `generate-spec`.
+- Publishing npm (`@tanishqkancharla/diffmap` already exists in-repo; do not `npm publish` from this work).
+- Re-implementing gist share or GitHub-hosted spec URLs (already on main).
 - Viewer reading git itself, or generating patches from the working tree.
-- Multi-file / directory viewer, auth, hosting, or anything other than local `npx tkstack`.
-- Changing Maui TOC or Diff layout beyond auto-open, title refresh, and a parse error page.
+- Multi-file / directory viewer, or changing Maui TOC or Diff layout beyond auto-open, title refresh, and a parse error page.
 - Deleting the `code-walkthrough` install name in this work (it becomes an alias of the merged skill).
 - Implementing this merge before the user says look good.
 
 ## Important files, docs, and websites
 
-- [`skills/generate-spec/SKILL.md`](../skills/generate-spec/SKILL.md) — Canonical skill. Today: research, Q&A until settled, `specs/<name>.md` with `diff:path` sketches, serve, do not implement.
+- [`skills/generate-spec/SKILL.md`](../skills/generate-spec/SKILL.md) — Canonical skill. Today: research, Q&A until settled, `specs/<name>.md` with `diff:path` sketches, `npx @tanishqkancharla/diffmap specs/<name>.md`, do not implement.
 - [`skills/code-walkthrough/SKILL.md`](../skills/code-walkthrough/SKILL.md) — Opposite skill. Today: landed-only research, `tmp/code-walkthrough-<name>/walkthrough.md`, real `source-diff`, do not plan.
 - [`skills/generate-spec/agents/openai.yaml`](../skills/generate-spec/agents/openai.yaml) — Default prompt is “plan this feature as a phased implementation spec.”
 - [`skills/code-walkthrough/agents/openai.yaml`](../skills/code-walkthrough/agents/openai.yaml) — Default prompt is explain already-made changes.
-- [`README.md`](../README.md) — Two install lines; viewer does not own spec vs walkthrough section order.
-- [`src/cli.ts`](../src/cli.ts) — `npx tkstack <file>` and `npx tkstack list`.
-- [`src/serve.ts`](../src/serve.ts) — `startServer`: Vite, `strictPort`, 24h idle, `/__tkstack/meta` title captured at start.
-- [`src/contentPlugin.ts`](../src/contentPlugin.ts) — Watches the markdown file and `reloadModule`s `virtual:tkstack`. `parseViewerDocument` errors throw and Vite fails the page.
+- [`README.md`](../README.md) — Two install lines; `serve` local, `share` gist; viewer does not own spec vs walkthrough section order.
+- [`src/cli.ts`](../src/cli.ts) — `diffmap serve` (bare file arg is the same), `diffmap share`, `diffmap list`.
+- [`src/serve.ts`](../src/serve.ts) — `startServer`: Vite, `strictPort`, 24h idle, `/__diffmap/meta` title captured at start.
+- [`src/contentPlugin.ts`](../src/contentPlugin.ts) — Watches the markdown file and `reloadModule`s `virtual:diffmap`. `parseViewerDocument` errors throw and Vite fails the page.
 - [`src/parseViewer.ts`](../src/parseViewer.ts) — Invalid `source-diff` is a parse error for the whole document.
 - [`src/viewer/ViewerApp.tsx`](../src/viewer/ViewerApp.tsx) — Diff panel exists only when there are source diffs or references; starts closed.
 - [`src/registry.ts`](../src/registry.ts) — Running-viewer list used to avoid a second server.
-- [TK Stack README — source links](https://github.com/tanishqkancharla/tkstack#link-call-stacks-to-source-changes) — `[[path#symbol]]` and `source-diff` syntax the skill must keep teaching.
+- [diffmap README — source links](https://github.com/tanishqkancharla/diffmap#link-call-stacks-to-source-changes) — `[[path#symbol]]` and `source-diff` syntax the skill must keep teaching.
+- Hosted example of this spec: `https://diffmap.dev/tanishqkancharla/diffmap/pull/5/specs/merge-generate-spec-walkthrough.md` (PR number resolves to one head SHA, then pins).
 
 ## Implementation
 
@@ -152,17 +158,17 @@ One `SKILL.md` with three modes. Description must match spec, implement, and exp
 -├── generate-spec [[skills/generate-spec/SKILL.md]]
 -│   ├── research then Q&A until settled
 -│   ├── write specs/<name>.md  # includes diff:path sketches
--│   └── npx tkstack  # always start
+-│   └── diffmap serve  # always start
 -└── code-walkthrough [[skills/code-walkthrough/SKILL.md]]
 -    ├── research landed change
 -    ├── write tmp/code-walkthrough-<name>/walkthrough.md
--    └── npx tkstack  # always start
+-    └── diffmap serve  # always start
 +└── generate-spec [[skills/generate-spec/SKILL.md]]  # three modes; code-walkthrough is the same body
      ├── spec → specs/<name>.md, proposed stacks only, wait
      ├── implement → same file, one phase, real source-diff after land
      └── walkthrough → tmp/code-walkthrough-<name>/walkthrough.md
-         └── serveOnce [[src/cli.ts]]  # listRunningTkstacks; skip if that file is already up
-             └── listRunningTkstacks [[src/registry.ts#listRunningTkstacks]]
+         └── serveOnce [[src/cli.ts]]  # listRunningDiffmaps; skip if that file is already up
+             └── listRunningDiffmaps [[src/registry.ts#listRunningDiffmaps]]
 ```
 
 Trigger lines at the top of the skill:
@@ -173,15 +179,15 @@ Trigger lines at the top of the skill:
 
 File rule: implement-from-spec always `specs/<short-kebab-case-name>.md`. Walkthrough-only: `tmp/code-walkthrough-<name>/walkthrough.md`. Do not open a second walkthrough under `tmp/` for work that started as this spec.
 
-Serve once. Before `npx tkstack <file>`, run `npx tkstack list`. If that absolute file is already served, reuse its URL. Do not start a second server on 4177 (`strictPort` fails). Leave the process running; do not kill it.
+Serve once. Before `npx @tanishqkancharla/diffmap serve <file>`, run `npx @tanishqkancharla/diffmap list`. If that absolute file is already served, reuse its URL. Do not start a second server on 4177 (`strictPort` fails). Leave the process running; do not kill it. `share` is already a separate command; do not start a local server when sharing.
 
-README: one install command. `openai.yaml` default prompt: “use tkstack to spec this, then implement phase by phase in the same doc.” The code-walkthrough yaml can keep a walkthrough-flavored prompt that still names the merged skill.
+README: one install command. `openai.yaml` default prompt: “use diffmap to spec this, then implement phase by phase in the same doc.” The code-walkthrough yaml can keep a walkthrough-flavored prompt that still names the merged skill.
 
-- [ ] Rewrite [`skills/generate-spec/SKILL.md`](../skills/generate-spec/SKILL.md): frontmatter description covers spec, implement, and explain-landed; three-mode triggers; delete opposite-skill bans; file rules; serve-once via `npx tkstack list`.
+- [ ] Rewrite [`skills/generate-spec/SKILL.md`](../skills/generate-spec/SKILL.md): frontmatter description covers spec, implement, and explain-landed; three-mode triggers; delete opposite-skill bans; file rules; serve-once via `npx @tanishqkancharla/diffmap list`.
 - [ ] Mirror the same body in [`skills/code-walkthrough/SKILL.md`](../skills/code-walkthrough/SKILL.md) with `name: code-walkthrough`.
 - [ ] Update [`skills/generate-spec/agents/openai.yaml`](../skills/generate-spec/agents/openai.yaml) default prompt to spec-then-implement in the same doc.
 - [ ] Point [`skills/code-walkthrough/agents/openai.yaml`](../skills/code-walkthrough/agents/openai.yaml) at the merged skill.
-- [ ] README: single `npx skills add tanishqkancharla/tkstack --skill generate-spec`. One paragraph for the three modes. Stop listing two opposite skills.
+- [ ] README: single `npx skills add tanishqkancharla/diffmap --skill generate-spec`. One paragraph for the three modes. Stop listing two opposite skills.
 - [ ] Run `npm run format:check`. No product TypeScript in this phase.
 
 ### Phase 2: Spec mode (write-then-review)
@@ -227,7 +233,7 @@ Drop `diff:path` from the skill’s format template and fence-reference table as
 
 ### Phase 3: Implement mode (same doc updates)
 
-This is the product. After approval, do **one** phase. Update **that same file** in the same turn, then leave `npx tkstack` running so HMR shows the landed diff.
+This is the product. After approval, do **one** phase. Update **that same file** in the same turn, then leave `diffmap serve` running so HMR shows the landed diff.
 
 ```callstack
  generate-spec [[skills/generate-spec/SKILL.md]]
@@ -241,7 +247,7 @@ This is the product. After approval, do **one** phase. Update **that same file**
      │   ├── add source-diff:id:path  # real patch with diff --git / hunk headers
      │   └── relink callstack  # point rows at the new source-diff ids
      └── leaveRunning
-         └── tkstackContentPlugin [[src/contentPlugin.ts#tkstackContentPlugin]]
+         └── diffmapContentPlugin [[src/contentPlugin.ts#diffmapContentPlugin]]
              └── reloadModule  # page already open; do not start a second server
 ```
 
@@ -259,7 +265,7 @@ Header title is captured at server start. Changing the H1 later will not refresh
 
 - [ ] Implement-mode section: one phase per turn; same file; tick / `source-diff` / relink / leave later phases proposed.
 - [ ] Invalid-patch rule: omit `source-diff`, explain in prose, keep the page alive.
-- [ ] Keep-alive: `npx tkstack list` before serve; never a second server; never kill the running viewer.
+- [ ] Keep-alive: `npx @tanishqkancharla/diffmap list` before serve; never a second server; never kill the running viewer.
 - [ ] Ban opening `tmp/` walkthroughs for implement-from-spec work.
 - [ ] Run `npm run format:check`.
 
@@ -303,14 +309,14 @@ Optional. Only this phase changes product TypeScript. Skill-only work in Phases 
 ```callstack
  startServer [[src/serve.ts#startServer]]
  ├── extractTitle [[src/extractDocument.ts#extractTitle]]  # today: once at boot
- ├── tkstackContentPlugin [[src/contentPlugin.ts#tkstackContentPlugin]]
+ ├── diffmapContentPlugin [[src/contentPlugin.ts#diffmapContentPlugin]]
  │   ├── load
  │   │   └── parseViewerDocument [[src/parseViewer.ts#parseViewerDocument]]
 -│   │       └── throw  # Vite overlay / blank page on bad source-diff
 +│   │       └── on error: export parseError  # ViewerApp error page, not throw
  │   └── watcher.change → reloadModule
- └── handleTkstackRequest [[src/serve.ts]]
-     └── GET /__tkstack/meta
+ └── handleDiffmapRequest [[src/serve.ts]]
+     └── GET /__diffmap/meta
 -        └── captured title
 +        └── extractTitle  # re-read the markdown file
              └── ViewerApp [[src/viewer/ViewerApp.tsx#ViewerApp]]
@@ -321,14 +327,14 @@ Optional. Only this phase changes product TypeScript. Skill-only work in Phases 
 
 Behavior:
 
-- Re-read the H1 on `/__tkstack/meta` (and refetch from `ViewerApp` when `virtual:tkstack` reloads) so renaming the heading updates the chrome without restart.
+- Re-read the H1 on `/__diffmap/meta` (and refetch from `ViewerApp` when `virtual:diffmap` reloads) so renaming the heading updates the chrome without restart.
 - Auto-open the Diff panel when the first real `source-diff` appears after a reload. Symbol-only `[[path#symbol]]` references must not auto-open; spec-time pages stay single-panel until a patch exists.
-- If `parseViewerDocument` returns `TkstackParseError` or `TkstackAnnotationError`, `tkstackContentPlugin` must not throw. Show an error page with the message. The article watcher should still recover on the next valid save.
+- If `parseViewerDocument` returns `DiffmapParseError` or `DiffmapAnnotationError`, `diffmapContentPlugin` must not throw. Show an error page with the message. The article watcher should still recover on the next valid save.
 - **Not in this phase:** generating patches from the working tree.
 
-- [ ] `/__tkstack/meta` re-reads the file through `extractTitle`. `ViewerApp` refreshes the header on HMR.
+- [ ] `/__diffmap/meta` re-reads the file through `extractTitle`. `ViewerApp` refreshes the header on HMR.
 - [ ] Auto-open Diff iff `viewerDocument.sourceDiffs.length > 0` after reload; keep closed for references-only docs.
-- [ ] `tkstackContentPlugin.load` exports a parse error instead of throwing; `ViewerApp` renders that error.
+- [ ] `diffmapContentPlugin.load` exports a parse error instead of throwing; `ViewerApp` renders that error.
 - [ ] Run `npm run typecheck` and `npm run lint`.
 - [ ] Manual: serve a spec, add a valid `source-diff`, confirm Diff opens; break the patch, confirm an error page; fix it, confirm the page returns.
 
@@ -345,7 +351,7 @@ No new product. Confirm the skill and viewer behave as one flow.
  │   ├── TableOfContents [[src/viewer/TableOfContents.tsx#TableOfContents]]  # both phases nested
  │   └── SourceDiffPanel  # only the landed patch
  └── manualDogfood
-     ├── npx skills add tanishqkancharla/tkstack --skill generate-spec
+     ├── npx skills add tanishqkancharla/diffmap --skill generate-spec
      ├── spec a tiny change
      ├── look good → implement phase 1
      └── open viewer hot-reloads with the patch
