@@ -5,10 +5,13 @@ import { CallStackDiff } from "./CallStackDiff.tsx";
 import { CodeDiff } from "./CodeDiff.tsx";
 import { FileExcerpt } from "./FileExcerpt.tsx";
 import { HtmlBlock } from "./HtmlBlock.tsx";
+import { HtmlPlaceholder } from "./HtmlPlaceholder.tsx";
 import { MermaidBlock } from "./MermaidBlock.tsx";
+import { useViewerMode } from "./viewerMode.ts";
 
 export function Fence(props: { fence: FenceModel } & SourceNavigation) {
   const fence = props.fence;
+  const trustedHtml = useViewerMode() === "local";
   if (fence.kind === "mermaid")
     return (
       <MermaidBlock
@@ -18,7 +21,10 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
         onSelectAnnotation={props.onSelectAnnotation}
       />
     );
-  if (fence.kind === "html") return <HtmlBlock source={fence.source} />;
+  if (fence.kind === "html") {
+    if (!trustedHtml) return <HtmlPlaceholder />;
+    return <HtmlBlock source={fence.source} />;
+  }
   if (fence.kind === "source-diff") return undefined;
   if (fence.kind === "callstack")
     return (

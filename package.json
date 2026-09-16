@@ -29,11 +29,15 @@
     "cli": "node --import tsx src/cli.ts",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "lint": "oxlint --deny-warnings src vite.config.ts bin.js",
-    "lint:fix": "oxlint --fix src vite.config.ts bin.js",
+    "lint": "oxlint --deny-warnings src vite.config.ts vite.gist.config.ts bin.js",
+    "lint:fix": "oxlint --fix src vite.config.ts vite.gist.config.ts bin.js",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run format:check",
     "release": "npm publish",
-    "typecheck": "tsc --noEmit"
+    "test": "tsx --test src/gist/route.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build",
+    "build:gist": "vite build",
+    "preview:gist": "vite preview --config vite.gist.config.ts --host 127.0.0.1 --port 4178"
   },
   "dependencies": {
     "@pierre/diffs": "1.4.1",

@@ -4,6 +4,7 @@ import { Cli, z } from "incur";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
 import { listRunningDiffmaps } from "./registry.js";
 import { startServer } from "./serve.js";
+import { shareMarkdownFile } from "./share.js";
 
 const cli = Cli.create("diffmap", {
   description: "Serve a spec or code walkthrough as a local page",
@@ -38,28 +39,56 @@ const cli = Cli.create("diffmap", {
     await started.closed;
     return { url: started.url, file: started.filePath };
   },
-}).command("list", {
-  description: "List running diffmap viewers",
-  output: z.object({
-    instances: z.array(
-      z.object({
-        pid: z.number(),
-        title: z.string(),
-        url: z.string(),
-        file: z.string(),
-      }),
-    ),
-  }),
-  async run(c) {
-    const instances = await listRunningDiffmaps();
-    if (instances instanceof Error) {
-      return c.error({
-        code: "DIFFMAP",
-        message: instances.message,
+})
+  .command("list", {
+    description: "List running diffmap viewers",
+    output: z.object({
+      instances: z.array(
+        z.object({
+          pid: z.number(),
+          title: z.string(),
+          url: z.string(),
+          file: z.string(),
+        }),
+      ),
+    }),
+    async run(c) {
+      const instances = await listRunningDiffmaps();
+      if (instances instanceof Error) {
+        return c.error({
+          code: "DIFFMAP",
+          message: instances.message,
+        });
+      }
+      return c.ok({ instances });
+    },
+  })
+  .command("share", {
+    description: "Upload a walkthrough gist and print the diffmap.dev URL",
+    args: z.object({
+      file: z.string().describe("Path to the markdown file"),
+    }),
+    options: z.object({
+      public: z.boolean().optional().describe("Create a public gist"),
+    }),
+    output: z.object({
+      gistId: z.string(),
+      gistUrl: z.string(),
+      viewerUrl: z.string(),
+    }),
+    async run(c) {
+      const shared = await shareMarkdownFile({
+        filePath: resolveFromInvokeCwd(c.args.file),
+        isPublic: c.options.public === true,
       });
-    }
-    return c.ok({ instances });
-  },
-});
+      if (shared instanceof Error) {
+        return c.error({
+          code: "DIFFMAP",
+          message: shared.message,
+        });
+      }
+      return c.ok(shared);
+    },
+  });
 
 await cli.serve();

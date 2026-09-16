@@ -8,6 +8,14 @@ diffmap is a set of personal skills as well as a web-viewer for Markdown files. 
 npx diffmap path/to/file.md
 ```
 
+Share a secret gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
+
+```sh
+npx diffmap share path/to.md
+```
+
+Hosted viewer: `https://diffmap.dev/g/<gistId>` (optional `/<file.md>`; `#heading` is the table of contents). The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
+
 ## Agent skills
 
 Install skills from this repository:

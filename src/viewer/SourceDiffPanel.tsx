@@ -28,6 +28,7 @@ import {
   useSourceReference,
 } from "./sourceNavigation.js";
 import { pierreDiffOptions, sourceSelectionCss } from "./pierre.js";
+import { useViewerMode } from "./viewerMode.ts";
 
 export type SourceSelection = {
   annotation: SourceAnnotation;
@@ -46,6 +47,7 @@ export function SourceDiffPanel(props: {
   onSelect: (selection: SourceSelection) => void;
 }) {
   const { resolvedTheme } = useTheme();
+  const mode = useViewerMode();
   const viewer = useRef<CodeViewHandle<undefined, undefined>>(null);
   const [navigation, setNavigation] = useState<DefinitionNavigation>({
     selection: props.selection,
@@ -126,6 +128,7 @@ export function SourceDiffPanel(props: {
     event,
     context,
   ) => {
+    if (mode === "gist") return;
     if (!event.metaKey && !event.ctrlKey) return;
     event.preventDefault();
     const item = context.item;
@@ -198,7 +201,9 @@ export function SourceDiffPanel(props: {
             {history.length === 1 ? "Back to reference" : "Back"}
           </Button>
         )}
-        <span>⌘-click or Ctrl-click a symbol to go to its definition.</span>
+        {mode === "local" && (
+          <span>⌘-click or Ctrl-click a symbol to go to its definition.</span>
+        )}
         {status !== undefined && <span role="status">{status}</span>}
         {selection === undefined ? (
           <span>
