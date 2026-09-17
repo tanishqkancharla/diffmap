@@ -20,14 +20,11 @@ Hosted viewer: `https://diffmap.dev/g/<gistId>` (optional `/<file.md>`; `#headin
 
 ## Agent skills
 
-Install skills from this repository:
-
 ```sh
-npx skills add tanishqkancharla/diffmap --skill code-walkthrough
 npx skills add tanishqkancharla/diffmap --skill generate-spec
 ```
 
-`code-walkthrough` explains landed changes. `generate-spec` writes a phased spec for work that has not happened yet, then serves `specs/<name>.md` with diffmap.
+Keeps a spec in `specs/` that stays true to what's planned versus already in the tree. Serve it with diffmap. Share from a GitHub PR (`https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`) or `npx @tanishqkancharla/diffmap share`.
 
 Options:
 
@@ -63,7 +60,7 @@ import {
 } from "@tanishqkancharla/diffmap";
 ```
 
-`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The generate-spec and code-walkthrough skills own spec vs walkthrough section order; the viewer does not.
+`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The generate-spec skill owns document shape; the viewer does not.
 
 ## Fences
 

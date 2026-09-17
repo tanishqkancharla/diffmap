@@ -258,11 +258,15 @@ async function handleDiffmapRequest(input: {
     return;
   }
   if (parsed.pathname === "/__diffmap/meta" && input.method === "GET") {
+    const source = await fs
+      .readFile(input.filePath, "utf8")
+      .catch(() => undefined);
+    const title = source === undefined ? input.title : extractTitle(source);
     input.res.statusCode = 200;
     input.res.setHeader("content-type", "application/json; charset=utf-8");
     input.res.end(
       JSON.stringify({
-        title: input.title,
+        title,
         file: input.filePath,
         pid: process.pid,
       }),

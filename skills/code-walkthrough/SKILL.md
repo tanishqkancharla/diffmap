@@ -1,163 +1,97 @@
 ---
 name: code-walkthrough
-description: Explain implemented changes through annotated call stack diffs and prose, store the markdown in a temp directory, and serve it with diffmap.
+description: Keep a living spec that shows what's planned versus already in the tree, serve it with diffmap, and keep it updated. Use when explaining landed changes, or whenever generate-spec would apply.
 ---
 
-# Walk through landed code
+# Living spec
 
-This skill is the counter-equivalent of `$generate-spec`. That skill writes a spec for work that has not happened yet. This skill writes a walkthrough of work that already landed.
+This markdown is the spec for the work. It should stay true to the repo: what’s already there, and what’s still planned. Same file for the life of that work — not a second walkthrough later.
 
-Do not plan, spec, or phase future work. Explain what changed and how it runs now, including implemented but uncommitted changes when requested. Use annotated call stack diffs as the main explanation. Link meaningful changed steps to source patches in the shared source panel. Keep standalone source-code excerpts and type declarations out of the walkthrough unless the user explicitly asks for them.
+Put it in `specs/<short-kebab-case-name>.md`. Research the current paths. Don’t interview forever; write the page. Ask only if the answer would change how you phase the work.
 
-## Research the landed change
+When they change the plan or ask you to implement, update **this file** so it still matches. If they only wanted “what did this PR do?” and there’s no spec yet, start one in `specs/` with the done parts filled in.
 
-1. Read the request and repository instructions.
-2. Collect the change: `git diff`, `git diff --cached`, `git log`, and the files those commands name. If the user points at a branch, PR, or commit range, use that range.
-3. Use `calldiff` to research changed call paths. Read the calldiff skill and run `calldiff --help` for current usage. Compare the same refs as the requested change; use `tree` or `reach` to inspect a particular entry point when useful.
-4. Verify the old and new paths against their respective source versions, especially calls through interfaces, callbacks, events, and dependency boundaries that static analysis may miss. Condense the result around the behavior being explained. Name real files and symbols; do not paste raw tool output without checking it.
-5. Read external docs only when a dependency or API is part of the landed change. Record the links used.
+## Serve and share
 
-Use the amount of research the change needs. Do not impose a fixed research process.
-
-## Write the markdown file
-
-Choose a short kebab-case name. Create a named temp directory under the repo's `tmp/` directory and write one markdown file there. Do not write walkthroughs into `specs/`.
+From the repo root:
 
 ```sh
-mkdir -p tmp/code-walkthrough-<name>
+npx @tanishqkancharla/diffmap list
+npx @tanishqkancharla/diffmap serve specs/<name>.md
 ```
 
-Write `tmp/code-walkthrough-<name>/walkthrough.md`. Use this structure. In each outcome chapter, put the call-stack diff first, then explain the behavior and its implications in short prose. Do not title the stack fence or follow it with inline source-code blocks. Put linked patches in `source-diff` fences, which render in the shared source panel.
+Bare `npx @tanishqkancharla/diffmap specs/<name>.md` is the same as `serve`. If `list` already shows that file, reuse its URL — don’t start a second server on 4177 (`strictPort` fails). Leave it running. Tell them the path and URL. Don’t open the browser unless they ask.
+
+**Done** posts `/__diffmap/shutdown`. The server also stops after 24 hours idle.
+
+Share when they want others to read it:
+
+```sh
+npx @tanishqkancharla/diffmap share specs/<name>.md
+```
+
+That prints `https://diffmap.dev/g/<id>` (unlisted gist, not private). A spec on a PR is `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md` (pins to one SHA). Don’t start a local server when sharing.
+
+## What to put in the file
+
+Shape: title, system flow (mermaid), problem / solution / goals / non-goals, sources, then phases.
+
+**Planned:** call stacks (`-` current, `+` proposed) and mermaid. Link existing code with `[[path#symbol]]`. Leave unwritten symbols unlinked. No invented `source-diff`. No `diff:path` sketches of code that isn’t written.
+
+**Done:** paste a real `git diff` into `source-diff:id:path` (include `diff --git`, `---`, `+++`, `@@`). Point landed stack rows at it. Mixed planned/done in one file is the point.
+
+A bad `source-diff` blanks the whole page. If the patch would be invalid, skip it and say so. For untracked files: `git diff --no-index -- /dev/null <path>` (exit 1 means differences).
 
 ````md
-# <Name of the landed change>
+# <Feature>
 
-Compared **<base> → <head or local working tree>**. State whether the change is committed. These are condensed, source-checked call flows, not recorded runtime traces. `-` marks removed steps; `+` marks added steps; unmarked lines provide unchanged context.
-
-## Problem
-
-Explain the problem that existed before the change, in a few plain sentences. Add a Mermaid diagram when it makes the old path clearer.
+## System flow
 
 ```mermaid
 flowchart TD
-  A[Entry point] --> B[Old helper]
-  B --> C[Broken or missing result]
+    A[Entry] --> B[Result]
+    %% ref node:A [[src/request.ts#requestHandler]]
 ```
 
-## Solution
+## Problem overview
 
-Explain what landed and why that design, in a few plain sentences. Write in the past tense. Add a Mermaid diagram when it makes the new path clearer.
-
-```mermaid
-flowchart TD
-  A[Entry point] --> B[New helper]
-  B --> C[Existing service]
-  C --> D[Observable result]
-```
-
-## User flows
-
-After Solution, add a Mermaid `sequenceDiagram` for each main user-visible flow (happy path and the other paths a user actually takes). Put the flow name in a Markdown heading immediately before each Mermaid fence, such as `### Create a conversation`. Name participants that exist in the landed design. Keep node text short. Skip this section only when the change has no user-facing sequence.
-
-### Send a request
-
-```mermaid
-sequenceDiagram
-  participant User
-  participant App
-  participant Service
-
-  User->>App: action
-  App->>Service: call
-  Service-->>App: result
-  App-->>User: visible outcome
-```
+## Solution overview
 
 ## Goals
 
-- State a user-visible or system-level result that is true after the change.
+## Non-goals
 
-Out of scope:
+## Important files, docs, and websites
 
-- State what this walkthrough does not cover.
+- [`src/request.ts`](../src/request.ts) — Why it matters.
 
-## <One outcome that is now true>
+## Implementation
 
-No `Chapter:` prefix. The heading is the outcome name only.
+### Phase 1: <Commit-sized outcome>
 
 ```callstack
- requestHandler
-+├── validateInput  # return a tagged error if input is invalid
- └── existingService
-     └── dataStore  # reached only after validation succeeds
+ requestHandler [[src/request.ts#requestHandler]]
+-└── existingService [[src/service.ts#existingService]]
++└── validateInput
+    └── existingService [[src/service.ts#existingService]]
 ```
 
-The handler now validates before it stores. If validation returns a tagged error, the handler returns that error and skips the write. The existing storage path is unchanged.
-
-## Verification
-
-Summarize checks actually run and their results. State material gaps or failures. Do not imply that a source-checked call flow was exercised at runtime.
+- [ ] The concrete change, with files and symbols.
+- [ ] Wire it to its caller.
+- [ ] Run `<focused check>`.
 ````
 
-Prefer `[[path/to/file.ts#symbolName]]` on a stack line when linking a current TypeScript or JavaScript declaration. Use qualified names such as `[[src/store.ts#Store.save]]` when names are ambiguous. diffmap highlights a matching included new-side patch when possible, otherwise the current file. A symbol reference does not require an embedded patch. Use `[[path/to/file]]` or `[[path/to/file#L12-L30]]` for files and ranges in other languages.
+Phases should be small enough to land alone (~200 lines). Link mermaid with `%% ref node:<id> [[path#symbol]]` or `%% ref edge:<index> [[…]]`. Call stacks use `└──` / `├──` and unified diff signs. A `#` comment on a line is for purpose, return, or side effect — skip comments that just repeat the name.
 
-Append `[[id:old:start-end]]` or `[[id:new:start-end]]` to a stack line to link an exact source change. Use actual source line numbers from the compared versions; `[[id:new:12]]` links a single line. Keep references separate from the visible `#` explanation. Link removed steps with `old` references, including steps whose source file was deleted. Link unchanged steps when their implementation changed, and leave context-only steps unlinked. A line may reference several changes, including different files.
+`[[path/to/file.ts#symbolName]]` links a current TS/JS declaration (`[[src/store.ts#Store.save]]` if the name is ambiguous). `[[path]]` or `[[path#L12-L30]]` for files and ranges. After something lands, `[[id:old:start-end]]` / `[[id:new:12]]` on a stack line points at a `source-diff:id:path` fence. Don’t invent those IDs or hunks.
 
-Define each referenced ID once in a `source-diff:id:path` fence anywhere in the Markdown. Copy the real file patch from the same Git comparison, including `diff --git`, `---`, `+++`, and `@@` headers. Include surrounding context; each reference range must fit within one included hunk. Use the new path for renames and the old path for deletions. Do not invent patches or renumber hunks. For untracked files, obtain a patch with `git diff --no-index -- /dev/null <path>` (exit 1 means differences).
+Full syntax: [diffmap README](https://github.com/tanishqkancharla/diffmap#link-call-stacks-to-source-changes), [annotations](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/annotations.md), [diagrams](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/references.md).
 
-Mermaid diagrams can use the same references. Inside the fence, add `%% ref node:<id> [[path#symbol]]` for a node or sequence participant, or `%% ref edge:<index> [[id:new:start-end]]` for an edge or sequence message. Edge indices start at zero in declaration order. Put multiple references on one directive rather than repeating its target. These are Mermaid comments and do not appear in labels.
+| Fence                 | Viewer                           |
+| --------------------- | -------------------------------- |
+| `mermaid`             | Diagram                          |
+| `callstack`           | Stack rows                       |
+| `source-diff:id:path` | Real git patch in the Diff panel |
+| `html`                | Trusted HTML from this file      |
 
-diffmap hides reference markers and renders source definitions in one shared panel. Clicking a stack line, linked diagram node, or linked edge scrolls to and highlights its code. For full syntax, read the [diffmap README](https://github.com/tanishqkancharla/diffmap#link-call-stacks-to-source-changes) and [example](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/annotations.md).
-
-Use `callstack` fences with tree branches (`└──` / `├──`) and unified diff signs. Call stacks render without a file header. Put a trailing `#` comment on a line when the symbol name does not explain its purpose, return value, condition, or side effect. A standalone `#` comment can explain the next step. Skip comments that merely repeat the symbol name.
-
-Show ownership and meaningful ordering accurately. Sibling calls stay siblings; do not nest a later call beneath an earlier one unless it actually calls it. Mark asynchronous handoffs and conditional alternatives instead of implying a single synchronous stack. Plain-language steps such as a database write are useful when clearly labeled as behavior rather than invented function names.
-
-Use an `html` fence, or write HTML in the markdown, for callouts. HTML from this file is trusted local content. diffmap does not sanitize it. Only use it for files you wrote.
-
-Repeat `## <outcome>` for each slice of the change. Put Mermaid in a chapter when a local flow is clearer than the Problem, Solution, or User flows diagrams. Keep each chapter on one outcome. Skip a Mermaid fence in Problem or Solution when prose is enough.
-
-## Fence reference
-
-See the [diffmap README](https://github.com/tanishqkancharla/diffmap) for rendering details. The walkthrough uses these fences:
-
-| Fence info string                              | Viewer                                                       |
-| ---------------------------------------------- | ------------------------------------------------------------ |
-| `mermaid`                                      | Beautiful Mermaid ([Craft](https://agents.craft.do/mermaid)) |
-| `callstack` or `diff` containing `└──` / `├──` | Interactive stack rows, no file header                       |
-| `source-diff:id:path`                          | Named Git patch in the shared source panel                   |
-| `html`                                         | Trusted HTML from this file. diffmap does not sanitize it.   |
-
-Walkthroughs are markdown. Curly braces in prose are plain text. Use small tables for state ownership or data mappings when they clarify the call flows. Link to relevant source files in prose when useful; use source-diff annotations to show the changes.
-
-## Serve it
-
-This skill’s CLI is diffmap. After the markdown file exists, run it from the repo root:
-
-```sh
-npx @tanishqkancharla/diffmap tmp/code-walkthrough-<name>/walkthrough.md
-```
-
-Options:
-
-- `--port <n>` — listen port (default `4177`)
-- `--root <dir>` — workspace root for file excerpts (default cwd)
-
-The command prints a local URL and keeps running. **Done** in the top right posts `/__diffmap/shutdown` and stops the server.
-The server also stops after 24 hours without a page or file-excerpt request. Loading or refreshing the page resets that timer.
-
-Tell the user the markdown path and the URL. Do not open the URL in a browser unless the user explicitly asks.
-
-## Chapter rules
-
-- After Solution, add a `sequenceDiagram` for each main user-visible flow. Name participants that exist in the landed design.
-- Name exact files, symbols, behavior, and commands that exist in the tree.
-- In each runtime chapter, lead with an annotated call-stack diff and follow it with concise prose explaining the outcome, ownership, and important limits. Do not add a fixed set of subheadings.
-- Keep call-stack diffs central. Use Mermaid, tables, and source links only where they add information; use linked `source-diff` patches for code changes and omit standalone excerpts and type blocks unless explicitly requested.
-- Make the call-stack diff start from the previous path and mark the landed path with unified diff signs. For UI work, a component render or event-handler path counts as the call stack.
-- Annotate call-stack lines with `#` comments where the reader needs a reason, return, or side effect that the symbol name does not say. Do not comment every line.
-- Do not invent call paths or diffs. If behavior changed inside an unchanged call path, show the unchanged structure and explain the behavior in annotations and prose; do not invent added or removed calls. For docs, data, or config slices with no changed runtime path, use prose without a stack fence.
-
-## Final check
-
-Confirm that the markdown lives under `tmp/`; the comparison range and commit status are explicit; Problem and Solution match the implemented change; User flows covers each main user path; runtime chapters center on accurate, annotated call-stack diffs and prose; source-diff annotations point to real patches and valid old/new ranges; standalone source-code blocks are absent unless requested; source links are real; verification claims match checks actually run; diffmap is serving the page; and the walkthrough explains existing work without turning into a plan.
+`html` is unsanitized. Only for files you wrote.

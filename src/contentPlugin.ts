@@ -16,8 +16,10 @@ export function diffmapContentPlugin(input: {
       if (id !== virtualId) return;
       const source = await fs.readFile(input.filePath, "utf8");
       const document = parseViewerDocument(source);
-      if (document instanceof Error) throw document;
-      return `export const viewerDocument = ${JSON.stringify(document)};`;
+      if (document instanceof Error) {
+        return `export const viewerDocument = null; export const parseError = ${JSON.stringify(document.message)};`;
+      }
+      return `export const viewerDocument = ${JSON.stringify(document)}; export const parseError = null;`;
     },
     transformIndexHtml(html) {
       return html.replaceAll(

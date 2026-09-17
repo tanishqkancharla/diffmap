@@ -32,7 +32,9 @@ export function ViewerApp(props: {
   const viewerDocument = props.document;
   const meta = useViewerMeta(props.mode === "local");
   const [selection, setSelection] = useState<SourceSelection>();
-  const [showDiffPanel, setShowDiffPanel] = useState(false);
+  const [showDiffPanel, setShowDiffPanel] = useState(
+    viewerDocument.sourceDiffs.length > 0,
+  );
   const hasSourceDiffs =
     viewerDocument.sourceDiffs.length > 0 || viewerDocument.hasReferences;
   const diffPanelOpen = hasSourceDiffs && showDiffPanel;

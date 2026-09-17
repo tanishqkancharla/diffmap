@@ -1,4 +1,4 @@
 interface:
   display_name: "Code Walkthrough"
-  short_description: "Explain implemented changes with call stack diffs and prose"
-  default_prompt: "Use $code-walkthrough to explain the changes already made using annotated call stack diffs and prose, with linked source patches in the shared diff panel."
+  short_description: "Keep a living spec of planned vs done and serve it with diffmap"
+  default_prompt: "Use $code-walkthrough to keep a spec that shows what's already landed and what's still planned."
