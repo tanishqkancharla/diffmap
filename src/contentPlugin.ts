@@ -15,7 +15,7 @@ export function diffmapContentPlugin(input: {
     async load(id) {
       if (id !== virtualId) return;
       const source = await fs.readFile(input.filePath, "utf8");
-      const document = parseViewerDocument(source);
+      const document = parseViewerDocument(source, input.filePath);
       if (document instanceof Error) {
         return `export const viewerDocument = null; export const parseError = ${JSON.stringify(document.message)};`;
       }

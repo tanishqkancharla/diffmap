@@ -17,7 +17,7 @@ export class DiffmapRegistryError extends errore.createTaggedError({
 
 export class DiffmapMermaidError extends errore.createTaggedError({
   name: "DiffmapMermaidError",
-  message: "diffmap could not render mermaid",
+  message: "diffmap could not parse mermaid in $path ($where): $reason",
 }) {}
 
 export class DiffmapParseError extends errore.createTaggedError({

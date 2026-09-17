@@ -177,7 +177,7 @@ async function loadView(
     }
   }
 
-  const parsed = parseViewerDocument(spec.content);
+  const parsed = parseViewerDocument(spec.content, spec.path);
   if (parsed instanceof Error) {
     return {
       kind: "parse-error",

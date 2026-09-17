@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { DiffmapFileError, DiffmapShareError } from "./errors.js";
 import { extractTitle } from "./extractDocument.js";
 import { extractGistId, gistViewerUrl } from "./gist/route.ts";
+import { parseViewerDocument } from "./parseViewer.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -17,7 +18,7 @@ export type ShareResult = {
 export async function shareMarkdownFile(input: {
   filePath: string;
   isPublic: boolean;
-}): Promise<ShareResult | DiffmapFileError | DiffmapShareError> {
+}) {
   const filePath = path.resolve(input.filePath);
   const source = await fs.readFile(filePath, "utf8").catch(
     (cause) =>
@@ -28,6 +29,9 @@ export async function shareMarkdownFile(input: {
       }),
   );
   if (source instanceof Error) return source;
+
+  const parsed = parseViewerDocument(source, filePath);
+  if (parsed instanceof Error) return parsed;
 
   const auth = await runGh(["auth", "status"]);
   if (auth instanceof DiffmapShareError) return auth;

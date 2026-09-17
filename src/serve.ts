@@ -5,6 +5,7 @@ import { createServer, type ViteDevServer } from "vite";
 import { diffmapContentPlugin } from "./contentPlugin.js";
 import { DiffmapFileError, DiffmapServeError } from "./errors.js";
 import { extractTitle } from "./extractDocument.js";
+import { parseViewerDocument } from "./parseViewer.js";
 import { findDefinition, readSourceReference } from "./definitions.js";
 import {
   registerRunningDiffmap,
@@ -53,6 +54,9 @@ export async function startServer(input: StartServerInput) {
       }),
   );
   if (source instanceof Error) return source;
+
+  const parsed = parseViewerDocument(source, filePath);
+  if (parsed instanceof Error) return parsed;
 
   const title = extractTitle(source);
 

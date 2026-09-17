@@ -3,6 +3,7 @@ import { parsePatchFiles, type CodeViewDiffItem } from "@pierre/diffs";
 import { parseAST } from "md4x/napi";
 import type { ComarkElement, ComarkNode } from "md4x/napi";
 import { DiffmapAnnotationError, DiffmapParseError } from "./errors.js";
+import { parseMermaidDiagram } from "./mermaid.js";
 import { parseFence, type Fence } from "./parseFence.js";
 
 export type ViewerDocument = {
@@ -57,7 +58,7 @@ export type ViewerElementAttrs = {
   align: string | undefined;
 };
 
-export function parseViewerDocument(source: string) {
+export function parseViewerDocument(source: string, path = "spec") {
   const tree = errore.try({
     try: () => parseAST(source),
     catch: (cause) => new DiffmapParseError({ cause }),
@@ -106,8 +107,17 @@ export function parseViewerDocument(source: string) {
       return fence.annotations.map((link) => link.annotation);
     return [];
   });
-  for (const fence of fences) {
-    if (fence.kind !== "mermaid") continue;
+  const mermaidFences = fences.flatMap((fence) =>
+    fence.kind === "mermaid" ? [fence] : [],
+  );
+  for (const [offset, fence] of mermaidFences.entries()) {
+    const mermaidIndex = offset + 1;
+    const parsedMermaid = parseMermaidDiagram({
+      source: fence.source,
+      path,
+      where: mermaidWhere(source, mermaidIndex),
+    });
+    if (parsedMermaid instanceof Error) return parsedMermaid;
     const targets = new Set<string>();
     for (const link of fence.annotations) {
       const target = `${link.target}:${link.id}`;
@@ -184,6 +194,20 @@ function collectFences(nodes: ViewerNode[]): Fence[] {
     if (node.type === "element") return collectFences(node.children);
     return [];
   });
+}
+
+function mermaidWhere(source: string, index: number) {
+  const line = mermaidFenceLine(source, index);
+  if (line === undefined) return `diagram ${index}`;
+  return `diagram ${index}, line ${line}`;
+}
+
+function mermaidFenceLine(source: string, index: number) {
+  const match = [...source.matchAll(/^[ \t]*(`{3,}mermaid\b|::mermaid\b)/gm)][
+    index - 1
+  ];
+  if (match === undefined || match.index === undefined) return undefined;
+  return source.slice(0, match.index).split("\n").length;
 }
 
 const headingTags = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);

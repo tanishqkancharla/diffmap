@@ -205,7 +205,10 @@ async function loadView(
       file: file ?? "",
     };
   }
-  const parsed = parseViewerDocument(loaded.gist.chosen.content);
+  const parsed = parseViewerDocument(
+    loaded.gist.chosen.content,
+    loaded.gist.chosen.name,
+  );
   if (parsed instanceof Error) {
     return {
       kind: "parse-error",

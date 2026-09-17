@@ -33,7 +33,7 @@
     "lint:fix": "oxlint --fix src vite.config.ts vite.gist.config.ts bin.js",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run format:check",
     "release": "npm publish",
-    "test": "tsx --test src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts",
+    "test": "tsx --test src/parseViewer.test.ts src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "build:gist": "vite build",
