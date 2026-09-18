@@ -67,8 +67,8 @@ export function ViewerApp(props: {
   const content = useStyles(proseHtml("md"), styles.content);
   const closed = useStyles(styles.closed);
   const closedCopy = useStyles(styles.closedCopy);
-  const dwellEdge = useStyles(styles.dwellEdge);
   const tocPanel = useStyles(styles.tocPanel);
+  const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
   const tocPanelRef = useRef<HTMLDivElement>(null);
   const dwellTimer = useRef<number>(undefined);
@@ -125,9 +125,9 @@ export function ViewerApp(props: {
   useEffect(() => {
     if (floating !== "dwell") return;
     const onMove = (event: PointerEvent) => {
-      const rect = tocPanelRef.current?.getBoundingClientRect();
-      if (rect === undefined) return;
-      if (event.clientX > rect.right + DWELL_LEAVE_PAD_PX) {
+      const panelRight = tocPanelRef.current?.getBoundingClientRect().right;
+      if (panelRight === undefined) return;
+      if (event.clientX > panelRight + DWELL_LEAVE_PAD_PX) {
         setFloating(undefined);
       }
     };
@@ -191,41 +191,39 @@ export function ViewerApp(props: {
           </div>
         </header>
         <div
-          className={body}
-          data-has-source-diffs={diffPanelOpen}
-          data-toc={
-            !hasToc
-              ? "none"
-              : sidebarFits
-                ? sidebarOpen
-                  ? "sidebar-open"
-                  : "sidebar-closed"
-                : "float"
-          }
+          className={stage}
+          onPointerMove={(event) => {
+            if (!hasToc || sidebarFits) return;
+            const bounds = event.currentTarget.getBoundingClientRect();
+            const x = event.clientX - bounds.left;
+            if (floating === "dwell") {
+              const panelRight =
+                tocPanelRef.current?.getBoundingClientRect().right;
+              if (
+                panelRight !== undefined &&
+                event.clientX > panelRight + DWELL_LEAVE_PAD_PX
+              ) {
+                setFloating(undefined);
+              }
+              return;
+            }
+            if (floating !== undefined) return;
+            if (x <= TOC_DWELL_EDGE_PX) {
+              if (dwellTimer.current !== undefined) return;
+              dwellTimer.current = window.setTimeout(() => {
+                dwellTimer.current = undefined;
+                setFloating("dwell");
+              }, DWELL_MS);
+              return;
+            }
+            window.clearTimeout(dwellTimer.current);
+            dwellTimer.current = undefined;
+          }}
+          onPointerLeave={() => {
+            window.clearTimeout(dwellTimer.current);
+            dwellTimer.current = undefined;
+          }}
         >
-          {hasToc && !sidebarFits && (
-            <div
-              className={dwellEdge}
-              aria-hidden="true"
-              onPointerEnter={() => {
-                if (floating !== undefined) return;
-                dwellTimer.current = window.setTimeout(() => {
-                  setFloating("dwell");
-                }, DWELL_MS);
-              }}
-              onPointerLeave={() => {
-                window.clearTimeout(dwellTimer.current);
-              }}
-            />
-          )}
-          {hasToc && sidebarFits && (
-            <TableOfContents
-              headings={viewerDocument.headings}
-              articleRef={articleRef}
-              layout="sidebar"
-              collapsed={!sidebarOpen}
-            />
-          )}
           {hasToc && floating !== undefined && (
             <div ref={tocPanelRef} className={tocPanel}>
               <TableOfContents
@@ -236,30 +234,52 @@ export function ViewerApp(props: {
               />
             </div>
           )}
-          <article ref={articleRef} className={article}>
-            <div className={prose}>
-              <div className={content} data-diffmap-kind="page">
-                <ComarkView
-                  document={viewerDocument}
-                  selectedAnnotation={selection?.annotation}
-                  onSelectAnnotation={(line) => {
-                    setShowDiffPanel(true);
-                    setSelection({
-                      annotation: line,
-                      reference: line.references[0]!,
-                    });
-                  }}
-                />
+          <div
+            className={body}
+            data-has-source-diffs={diffPanelOpen}
+            data-toc={
+              !hasToc
+                ? "none"
+                : sidebarFits
+                  ? sidebarOpen
+                    ? "sidebar-open"
+                    : "sidebar-closed"
+                  : "float"
+            }
+          >
+            {hasToc && sidebarFits && (
+              <TableOfContents
+                headings={viewerDocument.headings}
+                articleRef={articleRef}
+                layout="sidebar"
+                collapsed={!sidebarOpen}
+              />
+            )}
+            <article ref={articleRef} className={article}>
+              <div className={prose}>
+                <div className={content} data-diffmap-kind="page">
+                  <ComarkView
+                    document={viewerDocument}
+                    selectedAnnotation={selection?.annotation}
+                    onSelectAnnotation={(line) => {
+                      setShowDiffPanel(true);
+                      setSelection({
+                        annotation: line,
+                        reference: line.references[0]!,
+                      });
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          </article>
-          {diffPanelOpen && (
-            <SourceDiffPanel
-              items={viewerDocument.sourceDiffs}
-              selection={selection}
-              onSelect={setSelection}
-            />
-          )}
+            </article>
+            {diffPanelOpen && (
+              <SourceDiffPanel
+                items={viewerDocument.sourceDiffs}
+                selection={selection}
+                onSelect={setSelection}
+              />
+            )}
+          </div>
         </div>
       </div>
     </ViewerModeContext.Provider>
@@ -287,7 +307,7 @@ async function closeViewer() {
 
 const DWELL_MS = 280;
 const DWELL_LEAVE_PAD_PX = 48;
-const TOC_DWELL_EDGE_PX = 12;
+const TOC_DWELL_EDGE_PX = 24;
 
 const styles = {
   shell: style(flex({ direction: "column" }), {
@@ -321,8 +341,13 @@ const styles = {
   actions: style(flex({ direction: "row", align: "center", gap: 3 }), {
     flexShrink: 0,
   }),
-  body: style({
+  stage: style(flex({ direction: "column" }), {
     position: "relative",
+    flex: "1 1 auto",
+    minWidth: 0,
+    minHeight: 0,
+  }),
+  body: style({
     display: "grid",
     gridTemplateColumns: "minmax(0, 1fr)",
     gridTemplateRows: "minmax(0, 1fr)",
@@ -408,14 +433,6 @@ const styles = {
     width: "100%",
     maxWidth: proseMaxWidth,
     textAlign: "center",
-  }),
-  dwellEdge: style({
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: TOC_DWELL_EDGE_PX,
-    zIndex: 2,
   }),
   tocPanel: style(
     background.element,
