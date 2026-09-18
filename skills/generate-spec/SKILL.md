@@ -20,7 +20,7 @@ npx @tanishqkancharla/diffmap list
 npx @tanishqkancharla/diffmap serve specs/<name>.md
 ```
 
-Bare `npx @tanishqkancharla/diffmap specs/<name>.md` is the same as `serve`. If `list` already shows that file, reuse its URL — don’t start a second server on 4177 (`strictPort` fails). Leave it running. Tell them the path and URL. Don’t open the browser unless they ask.
+Bare `npx @tanishqkancharla/diffmap specs/<name>.md` is the same as `serve`. If `list` already shows that file, reuse its URL — don’t start a second server. Leave it running. Tell them the path and URL. Don’t open the browser unless they ask.
 
 **Done** posts `/__diffmap/shutdown`. The server also stops after 24 hours idle.
 

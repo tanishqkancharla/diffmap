@@ -28,7 +28,7 @@ Keeps a spec in `specs/` that stays true to what's planned versus already in the
 
 Options:
 
-- `--port <n>` — listen port (default `4177`)
+- `--port <n>` — pin a listen port (default: a free port)
 - `--root <dir>` — workspace root for file excerpts (default the directory you ran the command from)
 
 **Done** in the top right stops the server.
@@ -44,10 +44,10 @@ npx @tanishqkancharla/diffmap list
 ```
 
 Request the page with `Accept: text/markdown` to read the current source file
-instead of the rendered HTML:
+instead of the rendered HTML. Use the URL printed by `serve`:
 
 ```sh
-curl -H 'Accept: text/markdown' http://127.0.0.1:4177/
+curl -H 'Accept: text/markdown' http://127.0.0.1:<port>/
 ```
 
 ## Library
