@@ -1,6 +1,6 @@
 ---
 name: maui
-description: Conventions and design constraints for consuming the Maui design system. Use when building UI with Maui tokens, components, or purse-styles in an app that depends on Maui. Before designing or implementing new UI, read the closest example under src/apps/ or src/patterns/.
+description: Conventions and design constraints for consuming the Maui design system. Use when building UI with Maui tokens, components, patterns, or purse-styles. Prefer this skill and its references for composition knowledge.
 ---
 
 # Maui
@@ -34,14 +34,32 @@ The published package exposes:
 - `"maui/src"` — TypeScript source barrel
 - `"maui/src/*"` — TypeScript source for deep imports
 - `"maui/skills/maui"` — this skill file
+- `"maui/skills/maui/*"` — reference files next to this skill
 
 `MauiProvider` sets up theme (`data-theme` / `color-scheme`), `PurseProvider`, design-system globals, and the focus UI database used by Button/Dialog.
 
+## How to learn Maui
+
+Prefer this skill for composition knowledge — how to assemble tokens, components, patterns, and apps. Reach for package source (`"maui/src/patterns"`, `"maui/src/apps"`, or an install under `node_modules`) when you need a detail the skill does not cover.
+
+Before designing or implementing new UI:
+
+1. Read the constraints in this file.
+2. Open the matching reference (same grouping as the [gallery nav](https://maui.tanishqkancharla.dev)) and reuse its structure, tokens, and interactions.
+
+| Need                                          | Read                                         |
+| --------------------------------------------- | -------------------------------------------- |
+| Tokens, `purse-styles`, motion, layout, theme | [references/tokens.md](references/tokens.md) |
+| A component                                   | [Components](#components)                    |
+| A pattern                                     | [Patterns](#patterns)                        |
+| An app                                        | [Apps](#apps)                                |
+
+Patterns, demo apps, and the gallery `Panel` preview frame are **not** package components. `Panel` is not on the `"maui"` barrel, not in `src/components`, and not in the JSX editor catalog. Prefer the recipes in those references and rebuild with barrel exports (`Button`, `Flex`, `text(...)`, …).
+
 ## Design constraints
 
-- Before designing or implementing new UI with Maui components, read the closest example under `src/apps/` or `src/patterns/`. Reuse its structure, components, tokens, and interactions.
 - Hover backgrounds have no transitions. Hover fills (`backgroundColor.elementHover`, quiet-button washes, list/row highlights) snap instantly. Do not animate `background` / `background-color` on hover with `motion.standard(...)` or a CSS `transition`. Other motion (tooltips, transforms) is fine.
-- Simple apps default to a `proseMaxWidth` column (`72ch`) centered in their container: `width: "100%"`, `maxWidth: proseMaxWidth`, `marginInline: "auto"`. `sizingTokens.contentWidth` is the same measure. Use this for single-column tools, settings, forms, and reading layouts. Multi-pane or full-bleed apps (inbox, calendar, IDE) are the exception.
+- Simple apps default to a `proseMaxWidth` column (`72ch`) centered in their container: `width: "100%"`, `maxWidth: proseMaxWidth`, `marginInline: "auto"`. `sizing.contentWidth` is the same measure. Use this for single-column tools, settings, forms, and reading layouts. Multi-pane or full-bleed apps (inbox, calendar, IDE) are the exception.
 - Always design empty states. Every list, inbox, search result, or collection needs an intentional empty composition (copy and an optional action), never a blank panel.
 
 ## Theme FOUC
@@ -70,7 +88,7 @@ internal button or segment.
 
 ## Layout utilities
 
-`Flex`, `Padding`, and `Gap` take spacing scale steps (`1 | 2 | 3 | 4 | 6 | 8 | 12 | 16`), not raw pixels. Example: `<Flex row gap={4}>` is 9px, not 4px. `Spacer` grows to fill leftover flex space. `Divider` is a horizontal rule.
+`Flex` and `Gap` take spacing scale steps (`1 | 2 | 3 | 4 | 6 | 8 | 12 | 16`), not raw pixels. Example: `<Flex row gap={4} padding={4}>` is 9px gap and 9px inset, not 4px. Put padding on `Flex` (`padding` / `p`, `px`, `py`, `pt`, `pr`, `pb`, `pl`) — there is no `Padding` component. `Spacer` grows to fill leftover flex space. `Divider` is a horizontal rule.
 
 ## Icons
 
@@ -84,63 +102,54 @@ import { Text as TextIcon } from "maui/icons"
 <TextIcon size="md" />
 ```
 
-`size` uses the same t-shirt scale as `text(...)` (`2xs`–`xl`, default `sm`). Stroke and fill use `currentColor`. Icons that share a root export name (`Text`, `Badge`, `Switch`, …) are `TextIcon` / `BadgeIcon` / `SwitchIcon` from `"maui"`, or the original name from `"maui/icons"` / `Icons.Text`.
+`size` uses the same t-shirt scale as `text(...)` (`2xs`–`xl`, default `sm`). Stroke and fill use `currentColor`. Icons that share a root export name (`Text`, `Badge`, `Switch`, `H1`, `H2`, `H3`, `Link`, `Menu`, `Code`, `Blockquote`, `Padding`, `SearchField`) are `TextIcon` / `BadgeIcon` / … from `"maui"`, or the original name from `"maui/icons"` / `Icons.Text`.
 
 ## Components
 
-### Typography and reading
+Gallery order. Props and composition live in the linked file.
 
-- `Text` — size / weight / color / `monospace` span
-- `H1`–`H4`, `P`, `Label`, `Blockquote`, `Ul`, `Ol`, `Li`, `Link`
-- `Prose` — long-form rhythm; headings switch to the prose scale inside it
-- `Editor` — TipTap markdown surface (CommonMark shortcuts, `proseHtml` type) with no chrome; wrap it for padding, elevation, and actions
+| Page             | Reference                                                                                    |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| Avatar           | [avatar.md](references/components/avatar.md)                                                 |
+| Badge            | [badge.md](references/components/badge.md)                                                   |
+| Buttons          | [buttons.md](references/components/buttons.md) (`Button`, `Overlay`, `Dialog`)               |
+| Prose            | [prose.md](references/components/prose.md) (`Prose`, `H1`–`H4`, `P`, lists, `Label`, `Link`) |
+| Editor           | [editor.md](references/components/editor.md)                                                 |
+| Thinking         | [thinking.md](references/components/thinking.md)                                             |
+| Crossfade        | [crossfade.md](references/components/crossfade.md)                                           |
+| Loading screen   | [loading-screen.md](references/components/loading-screen.md)                                 |
+| Text             | [text.md](references/components/text.md)                                                     |
+| Form controls    | [form-controls.md](references/components/form-controls.md)                                   |
+| Select           | [select.md](references/components/select.md)                                                 |
+| List box         | [list-box.md](references/components/list-box.md)                                             |
+| Table            | [table.md](references/components/table.md)                                                   |
+| Menu             | [menu.md](references/components/menu.md)                                                     |
+| Tooltip          | [tooltip.md](references/components/tooltip.md)                                               |
+| Layout utilities | [layout-utilities.md](references/components/layout-utilities.md)                             |
+| FuzzyString      | [fuzzy-string.md](references/components/fuzzy-string.md)                                     |
+| Icons            | [icons.md](references/components/icons.md)                                                   |
+| Code             | [code.md](references/components/code.md)                                                     |
 
-### Form controls
+## Patterns
 
-- `Button` — `variant` is `"default"` | `"quiet"` | `"primary"`; `variantColor` is a palette name, or an opaque hex / `rgb()` string (`#${string}` or `rgb(`). Primary palettes fill step 9 (hover 10) with light text (`onAccent`, or step 12 on amber/lime/mint/sky/yellow). A CSS color is used as the fill (alpha is dropped; hover is `l - 0.04`; text is white or near-black from lightness). The edge is `tintedSubtle`. Quiet + color uses a 3.5% wash of the fill (hover 7%).
-- `TextField`, `SearchField`, `NumberField`, `QuietTextField`
-- `Checkbox`, `Switch`, `Slider`
-- `RadioOptionGroup` / `RadioOption`
-- `Select` / `SelectItem`
+Not on the `"maui"` barrel. Prefer the recipes; rebuild with barrel exports in consuming apps. Hover fills snap; empty collections get copy.
 
-### Collections and overlays
+| Page              | Role                                                               | Reference                                                        |
+| ----------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| Inbox             | Mail thread list with unread dot, hover actions, selection         | [inbox.md](references/patterns/inbox.md)                         |
+| Message list      | Thread of raised message cards (avatar + Prose body)               | [message-list.md](references/patterns/message-list.md)           |
+| Assistant message | Streaming markdown reply (Streamdown + Maui prose + CodeBlock)     | [assistant-message.md](references/patterns/assistant-message.md) |
+| Sidebar           | 240px nav: sections, active item, optional icon and trailing badge | [sidebar.md](references/patterns/sidebar.md)                     |
 
-- `ListBox` / `ListBoxItem`
-- `MenuTrigger` / `Menu` / `MenuItem`
-- `Tooltip`
-- `CollectionPopover` — shared popover used by Select and Menu
-- `Overlay`, `Dialog`
+## Apps
 
-### Display
+Not on the `"maui"` barrel. Prefer these layouts; rebuild with barrel exports.
 
-- `Avatar`
-- `Badge`
-- `Code`, `Kbd`, `CodeBlock`
-- `Table` — React Aria table. `TableHeader` contains `TableHead` columns directly (no `TableRow`). Mark the identifying column with `isRowHeader` (required; usually the name/id column, not a leading checkbox or drag handle). `align` on `TableHead` / `TableCell` is `"start"` | `"center"` | `"end"`. `TableFooter` fills with `colors.gray[2]`. Place `TableCaption` after `Table`. `TableBody` renders “No results.” when empty; pass `renderEmptyState` to replace it.
-- `FuzzyString` — highlight segments; takes a match result, not a plain string
-- `Thinking` — 3×3 Game of Life indicator; reseeds when the board dies or loops
-
-## Reference: patterns and apps
-
-Patterns, demo apps, and the gallery `Panel` preview surface are not part of the `"maui"` package barrel. Read the closest example before designing or implementing new UI, and reuse its structure, components, tokens, and interactions (also available via `"maui/src/..."`):
-
-### Patterns — `src/patterns/`
-
-| Path | Role |
-| --- | --- |
-| `src/patterns/AssistantMessage.tsx` | Streaming markdown reply (Streamdown + Maui prose) |
-| `src/patterns/Sidebar.tsx` | App sidebar chrome |
-| `src/patterns/Inbox.tsx` | Mail inbox layout |
-| `src/patterns/MessageList.tsx` | Message list rows |
-
-### Apps — `src/apps/`
-
-| Path | Role |
-| --- | --- |
-| `src/apps/AiChat/` | Mock streaming AI chat (Editor + AssistantMessage) |
-| `src/apps/EmailClient/` | Email client demo composing inbox patterns |
-| `src/apps/Calendar/` | Three-pane schedule (mini month, week grid, event details) |
-| `src/apps/JsxEditor/` | Live JSX playground (CodeMirror + Maui catalog) |
+| Page         | Role                                                       | Reference                                          |
+| ------------ | ---------------------------------------------------------- | -------------------------------------------------- |
+| Email client | Two-pane inbox + reading pane                              | [email-client.md](references/apps/email-client.md) |
+| AI chat      | Mock streaming chat (Editor + AssistantMessage + Thinking) | [ai-chat.md](references/apps/ai-chat.md)           |
+| Calendar     | Three-pane schedule (mini month, week grid, event details) | [calendar.md](references/apps/calendar.md)         |
 
 ## License
 

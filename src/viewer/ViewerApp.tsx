@@ -14,7 +14,7 @@ import { style, useStyles } from "purse-styles";
 import type { ViewerDocument } from "../parseViewer.js";
 import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
-import { DoneButton } from "./DoneButton.tsx";
+import { CloseServerButton } from "./CloseServerButton.tsx";
 import { DiffButton } from "./DiffButton.tsx";
 import { TableOfContents } from "./TableOfContents.tsx";
 import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
@@ -87,7 +87,7 @@ export function ViewerApp(props: {
             )}
             {props.headerActions}
             {props.mode === "local" && (
-              <DoneButton
+              <CloseServerButton
                 onClick={() => {
                   setShutDown(true);
                   // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.

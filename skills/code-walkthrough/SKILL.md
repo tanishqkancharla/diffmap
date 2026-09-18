@@ -22,7 +22,7 @@ npx @tanishqkancharla/diffmap serve specs/<name>.md
 
 Bare `npx @tanishqkancharla/diffmap specs/<name>.md` is the same as `serve`. If `list` already shows that file, reuse its URL — don’t start a second server on 4177 (`strictPort` fails). Leave it running. Tell them the path and URL. Don’t open the browser unless they ask.
 
-**Done** posts `/__diffmap/shutdown`. The server also stops after 24 hours idle.
+**Close server** posts `/__diffmap/shutdown`. The server also stops after 24 hours idle. Hosted gist and GitHub viewers have no local server, so they omit this control.
 
 Share when they want others to read it:
 

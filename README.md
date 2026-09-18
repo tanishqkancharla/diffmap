@@ -31,7 +31,7 @@ Options:
 - `--port <n>` — listen port (default `4177`)
 - `--root <dir>` — workspace root for file excerpts (default the directory you ran the command from)
 
-**Done** in the top right stops the server.
+**Close server** in the top right stops the server. Hosted gist and GitHub viewers have no local server, so they omit this control.
 
 The server also stops after 24 hours without a page or source request.
 Loading or refreshing the page resets the timer; background health checks and
