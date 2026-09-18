@@ -125,7 +125,7 @@ export function ViewerApp(props: {
 
   useEffect(() => {
     if (!hasToc || sidebarFits) return;
-    const onMove = (event: PointerEvent) => {
+    const onMove = (event: MouseEvent) => {
       const stageEl = stageRef.current;
       if (stageEl === null) return;
       const bounds = stageEl.getBoundingClientRect();
@@ -154,11 +154,16 @@ export function ViewerApp(props: {
         }, DWELL_MS);
         return;
       }
+      if (x <= TOC_DWELL_CANCEL_PX && inStage) return;
       window.clearTimeout(dwellTimer.current);
       dwellTimer.current = undefined;
     };
     window.addEventListener("pointermove", onMove);
-    return () => window.removeEventListener("pointermove", onMove);
+    window.addEventListener("mousemove", onMove);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("mousemove", onMove);
+    };
   }, [floating, hasToc, sidebarFits]);
 
   if (shutDown) {
@@ -301,6 +306,7 @@ async function closeViewer() {
 const DWELL_MS = 280;
 const DWELL_LEAVE_PAD_PX = 48;
 const TOC_DWELL_EDGE_PX = 48;
+const TOC_DWELL_CANCEL_PX = 80;
 
 const styles = {
   shell: style(flex({ direction: "column" }), {
