@@ -5,6 +5,11 @@ import { defineConfig, type UserConfig } from "vite";
 
 const packageRoot = path.dirname(fileURLToPath(import.meta.url));
 const gistRoot = path.join(packageRoot, "gist");
+/** npm 0.0.29’s tarball predates Drawer; resolve the source barrel that the patch adds. */
+export const mauiSourceEntry = path.join(
+  packageRoot,
+  "node_modules/maui/src/maui.ts",
+);
 
 /** Production / preview: static gist viewer. Never pulls `virtual:diffmap`. */
 export function gistAppConfig(): UserConfig {
@@ -29,6 +34,7 @@ export function gistAppConfig(): UserConfig {
     appType: "spa",
     resolve: {
       alias: {
+        maui: mauiSourceEntry,
         "md4x/napi": path.join(
           packageRoot,
           "node_modules/md4x/lib/standalone.mjs",

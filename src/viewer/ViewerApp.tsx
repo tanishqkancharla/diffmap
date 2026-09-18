@@ -1,17 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  background,
   backgroundColor,
   border,
   colors,
+  Drawer,
   flex,
   flexItem,
   H1,
   P,
   proseHtml,
   proseMaxWidth,
-  radius,
-  shadow,
   spacing,
   text,
 } from "maui";
@@ -67,10 +65,8 @@ export function ViewerApp(props: {
   const content = useStyles(proseHtml("md"), styles.content);
   const closed = useStyles(styles.closed);
   const closedCopy = useStyles(styles.closedCopy);
-  const tocPanel = useStyles(styles.tocPanel);
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
-  const tocPanelRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const dwellTimer = useRef<number>(undefined);
   const hasToc = hasTableOfContents(viewerDocument.headings);
@@ -96,26 +92,22 @@ export function ViewerApp(props: {
   }, []);
 
   useEffect(() => {
-    if (floating === undefined) return;
+    if (floating !== "dwell") return;
     const close = () => setFloating(undefined);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
-    window.addEventListener("keydown", onKey);
-    if (floating !== "click") {
-      return () => window.removeEventListener("keydown", onKey);
-    }
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (
         target.closest("#diffmap-toc") ||
-        target.closest("#diffmap-toc-button")
+        target.closest("[data-side='start']")
       ) {
-        return;
+        setFloating("click");
       }
-      close();
     };
+    window.addEventListener("keydown", onKey);
     window.addEventListener("pointerdown", onPointerDown);
     return () => {
       window.removeEventListener("keydown", onKey);
@@ -136,7 +128,10 @@ export function ViewerApp(props: {
         event.clientY >= bounds.top &&
         event.clientY <= bounds.bottom;
       if (floating === "dwell") {
-        const panelRight = tocPanelRef.current?.getBoundingClientRect().right;
+        const panelRight =
+          document.querySelector("[data-side='start']")?.getBoundingClientRect()
+            .right ??
+          document.getElementById("diffmap-toc")?.getBoundingClientRect().right;
         if (
           panelRight !== undefined &&
           event.clientX > panelRight + DWELL_LEAVE_PAD_PX
@@ -222,15 +217,23 @@ export function ViewerApp(props: {
           </div>
         </header>
         <div ref={stageRef} className={stage}>
-          {hasToc && floating !== undefined && (
-            <div ref={tocPanelRef} className={tocPanel}>
+          {hasToc && !sidebarFits && (
+            <Drawer
+              isOpen={floating !== undefined}
+              onOpenChange={(open) => {
+                if (!open) setFloating(undefined);
+              }}
+              side="start"
+              isDismissable={floating === "click"}
+              aria-label="Table of contents"
+            >
               <TableOfContents
                 headings={viewerDocument.headings}
                 articleRef={articleRef}
                 layout="panel"
                 onNavigate={() => setFloating(undefined)}
               />
-            </div>
+            </Drawer>
           )}
           <div
             className={body}
@@ -438,22 +441,6 @@ const styles = {
       width: "100%",
       maxWidth: proseMaxWidth,
       textAlign: "center",
-    },
-  ),
-  tocPanel: style(
-    background.element,
-    radius.lg,
-    shadow.strong,
-    spacing.padding({ all: 2 }),
-    {
-      position: "absolute",
-      left: spacing.value(3),
-      top: spacing.value(3),
-      bottom: spacing.value(3),
-      zIndex: 3,
-      display: "flex",
-      minHeight: 0,
-      overflow: "hidden",
     },
   ),
 };

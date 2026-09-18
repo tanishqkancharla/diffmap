@@ -31,6 +31,7 @@
     "format:check": "oxfmt --check .",
     "lint": "oxlint --deny-warnings src vite.config.ts vite.gist.config.ts bin.js",
     "lint:fix": "oxlint --fix src vite.config.ts vite.gist.config.ts bin.js",
+    "postinstall": "patch-package",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run format:check",
     "release": "npm publish",
     "test": "tsx --test src/parseViewer.test.ts src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts",
@@ -59,6 +60,7 @@
     "@types/react-dom": "19.2.5",
     "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
+    "patch-package": "^8.0.1",
     "typescript": "7.0.2"
   },
   "peerDependencies": {

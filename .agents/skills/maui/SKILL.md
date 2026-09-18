@@ -113,6 +113,7 @@ Gallery order. Props and composition live in the linked file.
 | Avatar           | [avatar.md](references/components/avatar.md)                                                 |
 | Badge            | [badge.md](references/components/badge.md)                                                   |
 | Buttons          | [buttons.md](references/components/buttons.md) (`Button`, `Overlay`, `Dialog`)               |
+| Drawer           | [drawer.md](references/components/drawer.md)                                                 |
 | Prose            | [prose.md](references/components/prose.md) (`Prose`, `H1`–`H4`, `P`, lists, `Label`, `Link`) |
 | Editor           | [editor.md](references/components/editor.md)                                                 |
 | Thinking         | [thinking.md](references/components/thinking.md)                                             |

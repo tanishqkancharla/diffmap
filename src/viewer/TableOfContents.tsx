@@ -215,12 +215,14 @@ const styles = {
     },
     ...tocListRules,
   }),
-  panel: style(spacing.padding({ left: 12, right: 6, top: 8, bottom: 8 }), {
+  panel: style(spacing.padding({ left: 4, right: 4, top: 8, bottom: 8 }), {
     boxSizing: "border-box",
-    width: `${TOC_WIDTH_PX}px`,
-    minHeight: 0,
-    maxHeight: "100%",
+    width: "100%",
+    minHeight: "100%",
     overflowY: "auto",
+    backgroundColor: "transparent",
+    boxShadow: "none",
+    borderRadius: 0,
     ...tocListRules,
   }),
   list: style(text({ size: "sm", fontWeight: 400, color: "lowContrast" })),
