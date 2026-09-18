@@ -350,7 +350,7 @@ const styles = {
       flexShrink: 0,
     },
   ),
-  titleRow: style(flex({ direction: "row", align: "center" }), {
+  titleRow: style(flex({ direction: "row", alignItems: "center" }), {
     gap: "6px",
     minWidth: 0,
   }),

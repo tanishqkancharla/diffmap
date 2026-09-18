@@ -117,7 +117,7 @@ const styles = {
     backgroundColor: colors.gray[4],
   }),
   header: style(
-    flex({ direction: "row", align: "center", justify: "between" }),
+    flex({ direction: "row", alignItems: "center", justifyContent: "between" }),
     spacing.padding({ x: 6, y: 3 }),
     flexItem({ size: "hug" }),
     border(["bottom"], "border"),
@@ -142,7 +142,7 @@ const styles = {
   title: style(text({ size: "xl", fontWeight: 600, color: "highContrast" }), {
     marginBottom: spacing.value(4),
   }),
-  loading: style(flex({ direction: "row", align: "center" }), {
+  loading: style(flex({ direction: "row", alignItems: "center" }), {
     minHeight: spacing.value(12),
   }),
   code: style(text({ size: "sm", color: "highContrast" }), {

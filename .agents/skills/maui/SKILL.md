@@ -88,7 +88,7 @@ internal button or segment.
 
 ## Layout utilities
 
-`Flex` and `Gap` take spacing scale steps (`1 | 2 | 3 | 4 | 6 | 8 | 12 | 16`), not raw pixels. Example: `<Flex row gap={4} padding={4}>` is 9px gap and 9px inset, not 4px. Put padding on `Flex` (`padding` / `p`, `px`, `py`, `pt`, `pr`, `pb`, `pl`) — there is no `Padding` component. `Spacer` grows to fill leftover flex space. `Divider` is a horizontal rule.
+`Flex` and `Gap` take spacing scale steps (`1 | 2 | 3 | 4 | 6 | 8 | 12 | 16`), not raw pixels. Example: `<Flex row gap={4} padding={4}>` is 9px gap and 9px inset, not 4px. Put padding on `Flex` (`padding` / `p`, `px`, `py`, `pt`, `pr`, `pb`, `pl`) — there is no `Padding` component. `alignItems` and `justifyContent` use the same tokens as `flex()` (`start` | `center` | `end` | …; `justifyContent` also has `between` | `around` | `evenly`). `background` is a surface token (`app`, `element`, `accent`, …). `Spacer` grows to fill leftover flex space. `Divider` is a horizontal rule.
 
 ## Icons
 

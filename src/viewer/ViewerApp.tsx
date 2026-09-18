@@ -318,7 +318,7 @@ const styles = {
     backgroundColor: colors.gray[4],
   }),
   header: style(
-    flex({ direction: "row", align: "center", justify: "between" }),
+    flex({ direction: "row", alignItems: "center", justifyContent: "between" }),
     spacing.padding({ x: 6, y: 3 }),
     flexItem({ size: "hug" }),
     border(["bottom"], "border"),
@@ -327,7 +327,7 @@ const styles = {
       backgroundColor: backgroundColor.app,
     },
   ),
-  heading: style(flex({ direction: "row", align: "center", gap: 3 }), {
+  heading: style(flex({ direction: "row", alignItems: "center", gap: 3 }), {
     minWidth: 0,
     flex: "1 1 auto",
   }),
@@ -337,7 +337,7 @@ const styles = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   }),
-  actions: style(flex({ direction: "row", align: "center", gap: 3 }), {
+  actions: style(flex({ direction: "row", alignItems: "center", gap: 3 }), {
     flexShrink: 0,
   }),
   stage: style(flex({ direction: "column" }), {
@@ -421,18 +421,25 @@ const styles = {
     },
   }),
   closed: style(
-    flex({ direction: "column", align: "center", justify: "center" }),
+    flex({
+      direction: "column",
+      alignItems: "center",
+      justifyContent: "center",
+    }),
     spacing.padding({ x: 12, y: 12 }),
     {
       minHeight: "100vh",
       backgroundColor: backgroundColor.app,
     },
   ),
-  closedCopy: style(flex({ direction: "column", align: "center", gap: 3 }), {
-    width: "100%",
-    maxWidth: proseMaxWidth,
-    textAlign: "center",
-  }),
+  closedCopy: style(
+    flex({ direction: "column", alignItems: "center", gap: 3 }),
+    {
+      width: "100%",
+      maxWidth: proseMaxWidth,
+      textAlign: "center",
+    },
+  ),
   tocPanel: style(
     background.element,
     radius.lg,
