@@ -75,7 +75,7 @@ jobs:
           console.log(`npm ${version}`);
           EOF
 
-      - name: Publish only if package.json is newer than npm
+      - name: Stage only if package.json is newer than npm
         id: decide
         run: |
           node <<'EOF'
@@ -139,14 +139,14 @@ jobs:
           const published = npmViewVersion(pkg.name);
           if (published === pkg.version) {
             console.log(
-              `${pkg.name}@${pkg.version} is already on npm; skipping publish.`,
+              `${pkg.name}@${pkg.version} is already on npm; skipping stage.`,
             );
             writeOutput("false");
             process.exit(0);
           }
           if (published && !isNewer(pkg.version, published)) {
             console.log(
-              `package.json ${pkg.version} is not newer than npm ${published}; skipping publish.`,
+              `package.json ${pkg.version} is not newer than npm ${published}; skipping stage.`,
             );
             writeOutput("false");
             process.exit(0);
@@ -154,8 +154,8 @@ jobs:
 
           console.log(
             published
-              ? `Will publish ${pkg.name}@${pkg.version} (npm has ${published}).`
-              : `Will publish ${pkg.name}@${pkg.version} (not yet on npm).`,
+              ? `Will stage ${pkg.name}@${pkg.version} (npm has ${published}).`
+              : `Will stage ${pkg.name}@${pkg.version} (not yet on npm).`,
           );
           writeOutput("true");
           EOF
@@ -170,4 +170,32 @@ jobs:
 
       - name: Stage
         if: steps.decide.outputs.should_publish == 'true'
-        run: npm stage publish --access public --provenance
+        run: |
+          node <<'EOF'
+          const { spawnSync } = require("node:child_process");
+          const pkg = require("./package.json");
+          const result = spawnSync(
+            "npm",
+            ["stage", "publish", "--access", "public", "--provenance"],
+            { encoding: "utf8" },
+          );
+          process.stdout.write(result.stdout);
+          process.stderr.write(result.stderr);
+          if (result.status === 0) {
+            process.exit(0);
+          }
+          const output = `${result.stdout}${result.stderr}`;
+          // npm view cannot see the staging queue. Restaging the same version
+          // is a 409; treat it as a no-op like an already-published version.
+          if (
+            /409|EEXIST|already staged|previously staged|previously published|Cannot stage/i.test(
+              output,
+            )
+          ) {
+            console.log(
+              `${pkg.name}@${pkg.version} is already staged or published; skipping.`,
+            );
+            process.exit(0);
+          }
+          process.exit(result.status === null ? 1 : result.status);
+          EOF
