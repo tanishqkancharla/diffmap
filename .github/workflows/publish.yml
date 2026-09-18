@@ -75,7 +75,7 @@ jobs:
           console.log(`npm ${version}`);
           EOF
 
-      - name: Stage only if package.json is newer than npm
+      - name: Stage only if version is not live or already staged
         id: decide
         run: |
           node <<'EOF'
@@ -83,6 +83,7 @@ jobs:
           const { spawnSync } = require("node:child_process");
           const pkg = require("./package.json");
           const expected = "@tanishqkancharla/diffmap";
+          const registry = "https://registry.npmjs.org";
 
           if (pkg.name !== expected) {
             console.error(
@@ -96,6 +97,12 @@ jobs:
             if (out) {
               fs.appendFileSync(out, `should_publish=${shouldPublish}\n`);
             }
+          }
+
+          function skip(message) {
+            console.log(message);
+            writeOutput("false");
+            process.exit(0);
           }
 
           function npmViewVersion(name) {
@@ -136,28 +143,137 @@ jobs:
             return a.pre > b.pre;
           }
 
-          const published = npmViewVersion(pkg.name);
-          if (published === pkg.version) {
-            console.log(
-              `${pkg.name}@${pkg.version} is already on npm; skipping stage.`,
-            );
-            writeOutput("false");
-            process.exit(0);
-          }
-          if (published && !isNewer(pkg.version, published)) {
-            console.log(
-              `package.json ${pkg.version} is not newer than npm ${published}; skipping stage.`,
-            );
-            writeOutput("false");
-            process.exit(0);
+          function parseStageItems(text) {
+            const trimmed = String(text).trim();
+            const startArr = trimmed.indexOf("[");
+            const startObj = trimmed.indexOf("{");
+            let jsonText = trimmed;
+            if (startArr >= 0 && (startObj < 0 || startArr <= startObj)) {
+              jsonText = trimmed.slice(startArr);
+            } else if (startObj >= 0) {
+              jsonText = trimmed.slice(startObj);
+            }
+            const parsed = JSON.parse(jsonText);
+            if (Array.isArray(parsed)) {
+              return parsed;
+            }
+            return Array.isArray(parsed.items) ? parsed.items : [];
           }
 
-          console.log(
-            published
-              ? `Will stage ${pkg.name}@${pkg.version} (npm has ${published}).`
-              : `Will stage ${pkg.name}@${pkg.version} (not yet on npm).`,
-          );
-          writeOutput("true");
+          function itemMatches(item, name, version) {
+            const itemName = item.packageName || item.name;
+            return itemName === name && item.version === version;
+          }
+
+          // npm view cannot see the staging queue. List it explicitly.
+          function listStagedViaCli(name) {
+            const result = spawnSync(
+              "npm",
+              ["stage", "list", name, "--json"],
+              { encoding: "utf8" },
+            );
+            if (result.status !== 0) {
+              return null;
+            }
+            try {
+              return parseStageItems(result.stdout);
+            } catch {
+              return null;
+            }
+          }
+
+          async function listStagedViaOidc(name) {
+            const reqUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
+            const reqToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+            if (!reqUrl || !reqToken) {
+              return null;
+            }
+            const ghUrl = new URL(reqUrl);
+            ghUrl.searchParams.set("audience", "npm:registry.npmjs.org");
+            const ghRes = await fetch(ghUrl, {
+              headers: {
+                Authorization: `Bearer ${reqToken}`,
+                Accept: "application/json",
+              },
+            });
+            if (!ghRes.ok) {
+              return null;
+            }
+            const ghBody = await ghRes.json();
+            const idToken = ghBody.value;
+            if (!idToken) {
+              return null;
+            }
+            const escapedName = name.replace("/", "%2f");
+            const exchangeRes = await fetch(
+              `${registry}/-/npm/v1/oidc/token/exchange/package/${escapedName}`,
+              {
+                method: "POST",
+                headers: { Authorization: `Bearer ${idToken}` },
+              },
+            );
+            if (!exchangeRes.ok) {
+              return null;
+            }
+            const exchangeBody = await exchangeRes.json();
+            const token = exchangeBody.token;
+            if (!token) {
+              return null;
+            }
+            const listUrl = new URL(`${registry}/-/stage`);
+            listUrl.searchParams.set("package", name);
+            listUrl.searchParams.set("page", "0");
+            listUrl.searchParams.set("perPage", "100");
+            const listRes = await fetch(listUrl, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/json",
+              },
+            });
+            if (!listRes.ok) {
+              return null;
+            }
+            try {
+              return parseStageItems(await listRes.text());
+            } catch {
+              return null;
+            }
+          }
+
+          (async () => {
+            const published = npmViewVersion(pkg.name);
+            if (published === pkg.version) {
+              skip(
+                `${pkg.name}@${pkg.version} is already on npm; skipping stage.`,
+              );
+            }
+            if (published && !isNewer(pkg.version, published)) {
+              skip(
+                `package.json ${pkg.version} is not newer than npm ${published}; skipping stage.`,
+              );
+            }
+
+            let staged = listStagedViaCli(pkg.name);
+            if (!staged) {
+              staged = await listStagedViaOidc(pkg.name);
+            }
+            if (
+              Array.isArray(staged) &&
+              staged.some((item) => itemMatches(item, pkg.name, pkg.version))
+            ) {
+              skip(`${pkg.name}@${pkg.version} is already staged; skipping.`);
+            }
+
+            console.log(
+              published
+                ? `Will stage ${pkg.name}@${pkg.version} (npm has ${published}).`
+                : `Will stage ${pkg.name}@${pkg.version} (not yet on npm).`,
+            );
+            writeOutput("true");
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
           EOF
 
       - name: Install
