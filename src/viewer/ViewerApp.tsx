@@ -92,22 +92,27 @@ export function ViewerApp(props: {
   }, []);
 
   useEffect(() => {
-    if (floating !== "dwell") return;
+    if (floating === undefined) return;
     const close = () => setFloating(undefined);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
+    window.addEventListener("keydown", onKey);
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
-      if (
-        target.closest("#diffmap-toc") ||
-        target.closest("[data-side='start']")
-      ) {
-        setFloating("click");
+      const onPanel =
+        target.closest("#diffmap-toc") !== null ||
+        target.closest("[data-side='start']") !== null;
+      if (floating === "dwell") {
+        if (onPanel) setFloating("click");
+        return;
       }
+      if (onPanel || target.closest("#diffmap-toc-button") !== null) {
+        return;
+      }
+      close();
     };
-    window.addEventListener("keydown", onKey);
     window.addEventListener("pointerdown", onPointerDown);
     return () => {
       window.removeEventListener("keydown", onKey);
