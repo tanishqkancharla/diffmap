@@ -71,6 +71,7 @@ export function ViewerApp(props: {
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
   const tocPanelRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const dwellTimer = useRef<number>(undefined);
   const hasToc = hasTableOfContents(viewerDocument.headings);
   const sidebarFits = useMediaQuery(
@@ -123,17 +124,42 @@ export function ViewerApp(props: {
   }, [floating]);
 
   useEffect(() => {
-    if (floating !== "dwell") return;
+    if (!hasToc || sidebarFits) return;
     const onMove = (event: PointerEvent) => {
-      const panelRight = tocPanelRef.current?.getBoundingClientRect().right;
-      if (panelRight === undefined) return;
-      if (event.clientX > panelRight + DWELL_LEAVE_PAD_PX) {
-        setFloating(undefined);
+      const stageEl = stageRef.current;
+      if (stageEl === null) return;
+      const bounds = stageEl.getBoundingClientRect();
+      const x = event.clientX - bounds.left;
+      const inStage =
+        event.clientX >= bounds.left &&
+        event.clientX <= bounds.right &&
+        event.clientY >= bounds.top &&
+        event.clientY <= bounds.bottom;
+      if (floating === "dwell") {
+        const panelRight = tocPanelRef.current?.getBoundingClientRect().right;
+        if (
+          panelRight !== undefined &&
+          event.clientX > panelRight + DWELL_LEAVE_PAD_PX
+        ) {
+          setFloating(undefined);
+        }
+        return;
       }
+      if (floating !== undefined) return;
+      if (inStage && x <= TOC_DWELL_EDGE_PX) {
+        if (dwellTimer.current !== undefined) return;
+        dwellTimer.current = window.setTimeout(() => {
+          dwellTimer.current = undefined;
+          setFloating("dwell");
+        }, DWELL_MS);
+        return;
+      }
+      window.clearTimeout(dwellTimer.current);
+      dwellTimer.current = undefined;
     };
     window.addEventListener("pointermove", onMove);
     return () => window.removeEventListener("pointermove", onMove);
-  }, [floating]);
+  }, [floating, hasToc, sidebarFits]);
 
   if (shutDown) {
     return (
@@ -190,40 +216,7 @@ export function ViewerApp(props: {
             )}
           </div>
         </header>
-        <div
-          className={stage}
-          onPointerMove={(event) => {
-            if (!hasToc || sidebarFits) return;
-            const bounds = event.currentTarget.getBoundingClientRect();
-            const x = event.clientX - bounds.left;
-            if (floating === "dwell") {
-              const panelRight =
-                tocPanelRef.current?.getBoundingClientRect().right;
-              if (
-                panelRight !== undefined &&
-                event.clientX > panelRight + DWELL_LEAVE_PAD_PX
-              ) {
-                setFloating(undefined);
-              }
-              return;
-            }
-            if (floating !== undefined) return;
-            if (x <= TOC_DWELL_EDGE_PX) {
-              if (dwellTimer.current !== undefined) return;
-              dwellTimer.current = window.setTimeout(() => {
-                dwellTimer.current = undefined;
-                setFloating("dwell");
-              }, DWELL_MS);
-              return;
-            }
-            window.clearTimeout(dwellTimer.current);
-            dwellTimer.current = undefined;
-          }}
-          onPointerLeave={() => {
-            window.clearTimeout(dwellTimer.current);
-            dwellTimer.current = undefined;
-          }}
-        >
+        <div ref={stageRef} className={stage}>
           {hasToc && floating !== undefined && (
             <div ref={tocPanelRef} className={tocPanel}>
               <TableOfContents
@@ -307,7 +300,7 @@ async function closeViewer() {
 
 const DWELL_MS = 280;
 const DWELL_LEAVE_PAD_PX = 48;
-const TOC_DWELL_EDGE_PX = 24;
+const TOC_DWELL_EDGE_PX = 48;
 
 const styles = {
   shell: style(flex({ direction: "column" }), {
