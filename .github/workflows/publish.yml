@@ -1,13 +1,14 @@
-# Publishes @tanishqkancharla/diffmap from main using npm Trusted Publishing (OIDC).
+# Stages @tanishqkancharla/diffmap from main using npm Trusted Publishing (OIDC).
+# Uses `npm stage publish` only (not `npm publish`). A maintainer must approve on npmjs.com.
 # No NPM_TOKEN. Provenance is emitted automatically by trusted publishing; --provenance
-# is also passed so a publish still attests if OIDC is configured.
+# is also passed so a stage still attests if OIDC is configured.
 #
 # One-time npmjs.com setup (Package → Settings → Trusted Publisher → GitHub Actions):
 #   Organization or user: tanishqkancharla
 #   Repository:           diffmap
 #   Workflow filename:    publish.yml
 #   Environment name:     (leave blank — this workflow does not use an environment)
-#   Allowed actions:      enable npm publish (not only npm stage publish)
+#   Allowed actions:      npm stage publish only (do not enable npm publish)
 name: Publish to npm
 
 on:
@@ -46,20 +47,28 @@ jobs:
             sed -i '/_authToken/d' "$npmrc"
           fi
 
-      - name: Require npm 11.5.1+ for OIDC
+      - name: Require npm 11.15.0+ for staged OIDC
         run: |
           node <<'EOF'
           const { execSync } = require("node:child_process");
-          const version = execSync("npm --version", { encoding: "utf8" }).trim();
-          const [major, minor, patch] = version.split(".").map((n) =>
-            parseInt(n, 10),
-          );
-          const ok =
-            major > 11 ||
-            (major === 11 && (minor > 5 || (minor === 5 && patch >= 1)));
-          if (!ok) {
+          function npmVersion() {
+            return execSync("npm --version", { encoding: "utf8" }).trim();
+          }
+          function isNewEnough(version) {
+            const [major, minor] = version.split(".").map((n) => parseInt(n, 10));
+            return major > 11 || (major === 11 && minor >= 15);
+          }
+          let version = npmVersion();
+          if (!isNewEnough(version)) {
+            console.log(
+              `npm ${version} is too old for npm stage; installing 11.15.0`,
+            );
+            execSync("npm install -g npm@11.15.0", { stdio: "inherit" });
+            version = npmVersion();
+          }
+          if (!isNewEnough(version)) {
             console.error(
-              `Trusted publishing needs npm >= 11.5.1; found ${version}`,
+              `npm stage publish needs npm >= 11.15.0; found ${version}`,
             );
             process.exit(1);
           }
@@ -159,6 +168,6 @@ jobs:
         if: steps.decide.outputs.should_publish == 'true'
         run: npm test
 
-      - name: Publish
+      - name: Stage
         if: steps.decide.outputs.should_publish == 'true'
-        run: npm publish --access public --provenance
+        run: npm stage publish --access public --provenance
