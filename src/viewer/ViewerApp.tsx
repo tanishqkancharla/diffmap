@@ -5,6 +5,8 @@ import {
   colors,
   flex,
   flexItem,
+  H1,
+  P,
   proseHtml,
   proseMaxWidth,
   spacing,
@@ -55,6 +57,7 @@ export function ViewerApp(props: {
   const prose = useStyles(styles.prose);
   const content = useStyles(proseHtml("md"), styles.content);
   const closed = useStyles(styles.closed);
+  const closedCopy = useStyles(styles.closedCopy);
   const articleRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -68,7 +71,14 @@ export function ViewerApp(props: {
   }, []);
 
   if (shutDown) {
-    return <main className={closed}>Closed.</main>;
+    return (
+      <main className={closed}>
+        <div className={closedCopy}>
+          <H1>Closed spec</H1>
+          <P>The local server stopped.</P>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -250,11 +260,16 @@ const styles = {
     },
   }),
   closed: style(
-    text({ size: "md", fontWeight: 500, color: "highContrast" }),
-    spacing.padding({ all: 12 }),
+    flex({ direction: "column", align: "center", justify: "center" }),
+    spacing.padding({ x: 12, y: 12 }),
     {
       minHeight: "100vh",
       backgroundColor: backgroundColor.app,
     },
   ),
+  closedCopy: style(flex({ direction: "column", align: "center", gap: 3 }), {
+    width: "100%",
+    maxWidth: proseMaxWidth,
+    textAlign: "center",
+  }),
 };

@@ -8,7 +8,7 @@ const closeIcon = style({
 export function CloseServerButton(props: { onClick?: () => void }) {
   const iconClass = useStyles(closeIcon);
   return (
-    <Button variant="quiet" onClick={props.onClick}>
+    <Button variant="default" onClick={props.onClick}>
       <Close className={iconClass} size="sm" />
       Close server
     </Button>
