@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { gistAppConfig, mauiSourceEntry } from "./vite.gist.config.ts";
+import { gistAppConfig } from "./vite.gist.config.ts";
 
 const packageRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,9 +30,6 @@ export default defineConfig(({ command }) => {
     },
     plugins: [react()],
     resolve: {
-      alias: {
-        maui: mauiSourceEntry,
-      },
       dedupe: ["react", "react-dom", "purse-styles"],
     },
     clearScreen: false,
