@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  background,
   backgroundColor,
   border,
   colors,
@@ -9,6 +10,8 @@ import {
   P,
   proseHtml,
   proseMaxWidth,
+  radius,
+  shadow,
   spacing,
   text,
 } from "maui";
@@ -18,7 +21,13 @@ import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
 import { DiffButton } from "./DiffButton.tsx";
-import { TableOfContents } from "./TableOfContents.tsx";
+import { TocButton } from "./TocButton.tsx";
+import {
+  hasTableOfContents,
+  TableOfContents,
+  TOC_SIDEBAR_MIN_WIDTH_PX,
+} from "./TableOfContents.tsx";
+import { useMediaQuery } from "./useMediaQuery.ts";
 import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
 
 type ViewerMeta = {
@@ -58,17 +67,73 @@ export function ViewerApp(props: {
   const content = useStyles(proseHtml("md"), styles.content);
   const closed = useStyles(styles.closed);
   const closedCopy = useStyles(styles.closedCopy);
+  const dwellEdge = useStyles(styles.dwellEdge);
+  const tocPanel = useStyles(styles.tocPanel);
   const articleRef = useRef<HTMLElement>(null);
+  const tocPanelRef = useRef<HTMLDivElement>(null);
+  const dwellTimer = useRef<number>(undefined);
+  const hasToc = hasTableOfContents(viewerDocument.headings);
+  const sidebarFits = useMediaQuery(
+    `(min-width: ${String(TOC_SIDEBAR_MIN_WIDTH_PX)}px)`,
+  );
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [floating, setFloating] = useState<"click" | "dwell">();
+  const tocExpanded = sidebarFits ? sidebarOpen : floating !== undefined;
 
   useEffect(() => {
     document.title = title;
   }, [title]);
 
   useEffect(() => {
+    return () => window.clearTimeout(dwellTimer.current);
+  }, []);
+
+  useEffect(() => {
     const id = decodeURIComponent(window.location.hash.replace(/^#/, ""));
     if (id === "") return;
     document.getElementById(id)?.scrollIntoView({ block: "start" });
   }, []);
+
+  useEffect(() => {
+    if (floating === undefined) return;
+    const close = () => setFloating(undefined);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    if (floating !== "click") {
+      return () => window.removeEventListener("keydown", onKey);
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest("#diffmap-toc") ||
+        target.closest("#diffmap-toc-button")
+      ) {
+        return;
+      }
+      close();
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [floating]);
+
+  useEffect(() => {
+    if (floating !== "dwell") return;
+    const onMove = (event: PointerEvent) => {
+      const rect = tocPanelRef.current?.getBoundingClientRect();
+      if (rect === undefined) return;
+      if (event.clientX > rect.right + DWELL_LEAVE_PAD_PX) {
+        setFloating(undefined);
+      }
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [floating]);
 
   if (shutDown) {
     return (
@@ -86,6 +151,24 @@ export function ViewerApp(props: {
       <div className={shell}>
         <header className={header}>
           <div className={heading}>
+            {hasToc && (
+              <TocButton
+                expanded={tocExpanded}
+                onClick={() => {
+                  if (sidebarFits) {
+                    setSidebarOpen((open) => !open);
+                    return;
+                  }
+                  if (floating === "dwell") {
+                    setFloating("click");
+                    return;
+                  }
+                  setFloating((open) =>
+                    open === undefined ? "click" : undefined,
+                  );
+                }}
+              />
+            )}
             <div className={titleClass}>{title}</div>
           </div>
           <div className={actions}>
@@ -107,11 +190,52 @@ export function ViewerApp(props: {
             )}
           </div>
         </header>
-        <div className={body} data-has-source-diffs={diffPanelOpen}>
-          <TableOfContents
-            headings={viewerDocument.headings}
-            articleRef={articleRef}
-          />
+        <div
+          className={body}
+          data-has-source-diffs={diffPanelOpen}
+          data-toc={
+            !hasToc
+              ? "none"
+              : sidebarFits
+                ? sidebarOpen
+                  ? "sidebar-open"
+                  : "sidebar-closed"
+                : "float"
+          }
+        >
+          {hasToc && !sidebarFits && (
+            <div
+              className={dwellEdge}
+              aria-hidden="true"
+              onPointerEnter={() => {
+                if (floating !== undefined) return;
+                dwellTimer.current = window.setTimeout(() => {
+                  setFloating("dwell");
+                }, DWELL_MS);
+              }}
+              onPointerLeave={() => {
+                window.clearTimeout(dwellTimer.current);
+              }}
+            />
+          )}
+          {hasToc && sidebarFits && (
+            <TableOfContents
+              headings={viewerDocument.headings}
+              articleRef={articleRef}
+              layout="sidebar"
+              collapsed={!sidebarOpen}
+            />
+          )}
+          {hasToc && floating !== undefined && (
+            <div ref={tocPanelRef} className={tocPanel}>
+              <TableOfContents
+                headings={viewerDocument.headings}
+                articleRef={articleRef}
+                layout="panel"
+                onNavigate={() => setFloating(undefined)}
+              />
+            </div>
+          )}
           <article ref={articleRef} className={article}>
             <div className={prose}>
               <div className={content} data-diffmap-kind="page">
@@ -161,6 +285,10 @@ async function closeViewer() {
   await fetch("/__diffmap/shutdown", { method: "POST" });
 }
 
+const DWELL_MS = 280;
+const DWELL_LEAVE_PAD_PX = 48;
+const TOC_DWELL_EDGE_PX = 12;
+
 const styles = {
   shell: style(flex({ direction: "column" }), {
     width: "100%",
@@ -180,8 +308,9 @@ const styles = {
       backgroundColor: backgroundColor.app,
     },
   ),
-  heading: style(flex({ direction: "column" }), {
+  heading: style(flex({ direction: "row", align: "center", gap: 3 }), {
     minWidth: 0,
+    flex: "1 1 auto",
   }),
   title: style(text({ size: "md", fontWeight: 600, color: "highContrast" }), {
     minWidth: 0,
@@ -193,34 +322,42 @@ const styles = {
     flexShrink: 0,
   }),
   body: style({
+    position: "relative",
     display: "grid",
-    gridTemplateColumns: "var(--diffmap-columns)",
+    gridTemplateColumns: "minmax(0, 1fr)",
     gridTemplateRows: "minmax(0, 1fr)",
-    "--diffmap-columns": "minmax(0, max-content) minmax(0, 1fr)",
+    gridTemplateAreas: '"article"',
     flex: "1 1 auto",
     minHeight: 0,
     minWidth: 0,
     overflow: "hidden",
     backgroundColor: backgroundColor.app,
-    "&[data-has-source-diffs='true']": {
-      "--diffmap-columns":
-        "minmax(0, max-content) minmax(0, 1fr) minmax(0, 1fr)",
+    "&[data-toc='sidebar-open'], &[data-toc='sidebar-closed']": {
+      gridTemplateColumns: "max-content minmax(0, 1fr)",
+      gridTemplateAreas: '"toc article"',
     },
+    "&[data-has-source-diffs='true']": {
+      gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+      gridTemplateAreas: '"article diff"',
+    },
+    "&[data-toc='sidebar-open'][data-has-source-diffs='true'], &[data-toc='sidebar-closed'][data-has-source-diffs='true']":
+      {
+        gridTemplateColumns: "max-content minmax(0, 1fr) minmax(0, 1fr)",
+        gridTemplateAreas: '"toc article diff"',
+      },
     "@media (max-width: 900px)": {
       gridTemplateColumns: "minmax(0, 1fr)",
       gridTemplateRows: "minmax(0, 1fr) auto",
+      gridTemplateAreas: '"article" "diff"',
     },
   }),
   article: style(spacing.padding({ x: 12, y: 12 }), {
-    gridColumn: "2",
+    gridArea: "article",
     flex: "1 1 auto",
     minWidth: 0,
     minHeight: 0,
     overflowY: "auto",
     backgroundColor: backgroundColor.app,
-    "@media (max-width: 900px)": {
-      gridColumn: "1",
-    },
   }),
   prose: style({
     display: "grid",
@@ -272,4 +409,28 @@ const styles = {
     maxWidth: proseMaxWidth,
     textAlign: "center",
   }),
+  dwellEdge: style({
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: TOC_DWELL_EDGE_PX,
+    zIndex: 2,
+  }),
+  tocPanel: style(
+    background.element,
+    radius.lg,
+    shadow.strong,
+    spacing.padding({ all: 2 }),
+    {
+      position: "absolute",
+      left: spacing.value(3),
+      top: spacing.value(3),
+      bottom: spacing.value(3),
+      zIndex: 3,
+      display: "flex",
+      minHeight: 0,
+      overflow: "hidden",
+    },
+  ),
 };
