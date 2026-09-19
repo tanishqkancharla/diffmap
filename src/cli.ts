@@ -11,7 +11,7 @@ const serveArgs = z.object({
 });
 
 const serveOptions = z.object({
-  port: z.coerce.number().optional().describe("Port (default 4177)"),
+  port: z.coerce.number().optional().describe("Port (default: a free port)"),
   root: z.string().optional().describe("Workspace root for file excerpts"),
 });
 
@@ -33,7 +33,7 @@ async function* runServe(c: ServeContext) {
       c.options.root === undefined
         ? resolveFromInvokeCwd(".")
         : resolveFromInvokeCwd(c.options.root),
-    port: c.options.port === undefined ? 4177 : c.options.port,
+    port: c.options.port,
   });
   if (started instanceof Error) {
     return c.error({

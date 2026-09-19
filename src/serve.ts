@@ -22,7 +22,7 @@ export type DiffmapServer = {
 export type StartServerInput = {
   filePath: string;
   workspaceRoot: string;
-  port: number;
+  port?: number;
 };
 
 const packageRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -45,6 +45,7 @@ function createClosedBarrier() {
 export async function startServer(input: StartServerInput) {
   const filePath = path.resolve(input.filePath);
   const workspaceRoot = path.resolve(input.workspaceRoot);
+  const port = input.port ?? 0;
   const source = await fs.readFile(filePath, "utf8").catch(
     (cause) =>
       new DiffmapFileError({
@@ -82,9 +83,9 @@ export async function startServer(input: StartServerInput) {
     configFile: path.join(packageRoot, "vite.config.ts"),
     root: packageRoot,
     server: {
-      port: input.port,
+      port,
       host: "127.0.0.1",
-      strictPort: input.port !== 0,
+      strictPort: port !== 0,
       fs: {
         allow: [packageRoot, workspaceRoot, path.dirname(filePath)],
       },
@@ -138,7 +139,16 @@ export async function startServer(input: StartServerInput) {
     ],
   });
 
-  await vite.listen(input.port);
+  const listened = await vite.listen(port).catch(
+    (cause) =>
+      new DiffmapServeError({
+        reason: cause instanceof Error ? cause.message : "listen failed",
+      }),
+  );
+  if (listened instanceof Error) {
+    await shutdown();
+    return listened;
+  }
   const localUrl = vite.resolvedUrls?.local[0];
   if (localUrl === undefined) {
     await shutdown();
