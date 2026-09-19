@@ -29,6 +29,7 @@ export function TableOfContents(props: {
   );
   const listClass = useStyles(styles.list);
   if (items.length === 0) return undefined;
+  const collapsed = props.layout === "sidebar" && props.collapsed === true;
 
   return (
     <nav
@@ -36,10 +37,9 @@ export function TableOfContents(props: {
       className={navClass}
       aria-label="Table of contents"
       data-diffmap-kind="toc"
-      data-open={
-        props.layout === "sidebar" ? String(props.collapsed !== true) : "true"
-      }
-      aria-hidden={props.layout === "sidebar" && props.collapsed === true}
+      data-open={String(!collapsed)}
+      aria-hidden={collapsed}
+      inert={collapsed}
     >
       <TocList
         items={items}

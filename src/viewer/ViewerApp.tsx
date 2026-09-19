@@ -121,7 +121,11 @@ export function ViewerApp(props: {
   }, [floating]);
 
   useEffect(() => {
-    if (!hasToc || sidebarFits) return;
+    if (!hasToc || sidebarFits) {
+      window.clearTimeout(dwellTimer.current);
+      dwellTimer.current = undefined;
+      return;
+    }
     const onMove = (event: MouseEvent) => {
       const stageEl = stageRef.current;
       if (stageEl === null) return;
@@ -163,6 +167,8 @@ export function ViewerApp(props: {
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("mousemove", onMove);
+      window.clearTimeout(dwellTimer.current);
+      dwellTimer.current = undefined;
     };
   }, [floating, hasToc, sidebarFits]);
 
@@ -356,26 +362,28 @@ const styles = {
   }),
   body: style({
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr)",
     gridTemplateRows: "minmax(0, 1fr)",
-    gridTemplateAreas: '"article"',
     flex: "1 1 auto",
     minHeight: 0,
     minWidth: 0,
     overflow: "hidden",
     backgroundColor: backgroundColor.app,
+    "--diffmap-columns": "minmax(0, 1fr)",
+    "--diffmap-areas": '"article"',
+    gridTemplateColumns: "var(--diffmap-columns)",
+    gridTemplateAreas: "var(--diffmap-areas)",
     "&[data-toc='sidebar-open'], &[data-toc='sidebar-closed']": {
-      gridTemplateColumns: "max-content minmax(0, 1fr)",
-      gridTemplateAreas: '"toc article"',
+      "--diffmap-columns": "max-content minmax(0, 1fr)",
+      "--diffmap-areas": '"toc article"',
     },
     "&[data-has-source-diffs='true']": {
-      gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-      gridTemplateAreas: '"article diff"',
+      "--diffmap-columns": "minmax(0, 1fr) minmax(0, 1fr)",
+      "--diffmap-areas": '"article diff"',
     },
     "&[data-toc='sidebar-open'][data-has-source-diffs='true'], &[data-toc='sidebar-closed'][data-has-source-diffs='true']":
       {
-        gridTemplateColumns: "max-content minmax(0, 1fr) minmax(0, 1fr)",
-        gridTemplateAreas: '"toc article diff"',
+        "--diffmap-columns": "max-content minmax(0, 1fr) minmax(0, 1fr)",
+        "--diffmap-areas": '"toc article diff"',
       },
     "@media (max-width: 900px)": {
       gridTemplateColumns: "minmax(0, 1fr)",
