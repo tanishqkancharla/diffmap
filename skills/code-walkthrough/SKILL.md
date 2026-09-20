@@ -36,7 +36,7 @@ That prints `https://diffmap.dev/g/<id>` (unlisted gist, not private). A spec on
 
 Shape: title, system flow (mermaid), problem / solution / goals / non-goals, sources, then phases.
 
-**Planned:** call stacks (`-` current, `+` proposed) and mermaid. Their `[[path]]` and `[[path#symbol]]` point at current source. Leave unwritten symbols unlinked. No invented `source-diff`. No `diff:path` sketches of code that isn’t written.
+**Planned:** sketch the implementation. Call stacks (`-` current, `+` proposed) are one component of that sketch — also mermaid, `[[path]]` / `[[path#symbol]]`, and pseudocode or other code blocks when those help. Links point at current source. Leave unwritten symbols unlinked. No invented `source-diff`.
 
 **Done:** after a phase lands, paste a real `git diff` of the named files into `source-diff:id:path` (include `diff --git`, `---`, `+++`, `@@`) and retarget that phase’s stack rows and mermaid `%% ref`s from the file to the hunk — `[[path]]` / `[[path#symbol]]` become `[[id:new:12-18]]` / `[[id:old:…]]` — so the Diff panel opens the change, not just the file. Mixed planned/done in one file is the point.
 
@@ -69,6 +69,8 @@ flowchart TD
 
 ### Phase 1: <Commit-sized outcome>
 
+<A sentence or two: what this phase is and why it exists.>
+
 ```callstack
  requestHandler [[src/request.ts#requestHandler]]
 -└── existingService [[src/service.ts#existingService]]
@@ -76,10 +78,18 @@ flowchart TD
     └── existingService [[src/service.ts#existingService]]
 ```
 
+```
+validateInput(record):
+  empty name → Error
+  else → record
+```
+
 - [ ] The concrete change, with files and symbols.
 - [ ] Wire it to its caller.
 - [ ] Run `<focused check>`.
 ````
+
+Each Implementation phase starts with a sentence or two summarizing the phase and why it exists — not a ritual dump. Sketch with pseudocode when it helps; stacks, mermaid, and `[[path]]` links still belong in the picture.
 
 Phases should be small enough to land alone (~200 lines). Link mermaid with `%% ref node:<id> [[path#symbol]]` or `%% ref edge:<index> [[…]]`. Call stacks use `└──` / `├──` and unified diff signs. A `#` comment on a line is for purpose, return, or side effect — skip comments that just repeat the name.
 
@@ -92,6 +102,7 @@ Full syntax: [diffmap README](https://github.com/tanishqkancharla/diffmap#link-c
 | `mermaid`             | Diagram                          |
 | `callstack`           | Stack rows                       |
 | `source-diff:id:path` | Real git patch in the Diff panel |
+| other langs           | Code block (pseudocode, types)   |
 | `html`                | Trusted HTML from this file      |
 
 `html` is unsanitized. Only for files you wrote.
