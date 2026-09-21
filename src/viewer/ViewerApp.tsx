@@ -20,12 +20,7 @@ import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
 import { DiffButton } from "./DiffButton.tsx";
 import { TocButton } from "./TocButton.tsx";
-import {
-  hasTableOfContents,
-  TableOfContents,
-  TOC_SIDEBAR_MIN_WIDTH_PX,
-} from "./TableOfContents.tsx";
-import { useMediaQuery } from "./useMediaQuery.ts";
+import { hasTableOfContents, TableOfContents } from "./TableOfContents.tsx";
 import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
 
 type ViewerMeta = {
@@ -41,9 +36,7 @@ export function ViewerApp(props: {
   const viewerDocument = props.document;
   const meta = useViewerMeta(props.mode === "local");
   const [selection, setSelection] = useState<SourceSelection>();
-  const [showDiffPanel, setShowDiffPanel] = useState(
-    viewerDocument.sourceDiffs.length > 0,
-  );
+  const [showDiffPanel, setShowDiffPanel] = useState(false);
   const hasSourceDiffs =
     viewerDocument.sourceDiffs.length > 0 || viewerDocument.hasReferences;
   const diffPanelOpen = hasSourceDiffs && showDiffPanel;
@@ -70,12 +63,8 @@ export function ViewerApp(props: {
   const stageRef = useRef<HTMLDivElement>(null);
   const dwellTimer = useRef<number>(undefined);
   const hasToc = hasTableOfContents(viewerDocument.headings);
-  const sidebarFits = useMediaQuery(
-    `(min-width: ${String(TOC_SIDEBAR_MIN_WIDTH_PX)}px)`,
-  );
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [floating, setFloating] = useState<"click" | "dwell">();
-  const tocExpanded = sidebarFits ? sidebarOpen : floating !== undefined;
+  const tocExpanded = floating !== undefined;
 
   useEffect(() => {
     document.title = title;
@@ -121,7 +110,7 @@ export function ViewerApp(props: {
   }, [floating]);
 
   useEffect(() => {
-    if (!hasToc || sidebarFits) {
+    if (!hasToc) {
       window.clearTimeout(dwellTimer.current);
       dwellTimer.current = undefined;
       return;
@@ -170,7 +159,7 @@ export function ViewerApp(props: {
       window.clearTimeout(dwellTimer.current);
       dwellTimer.current = undefined;
     };
-  }, [floating, hasToc, sidebarFits]);
+  }, [floating, hasToc]);
 
   if (shutDown) {
     return (
@@ -192,10 +181,6 @@ export function ViewerApp(props: {
               <TocButton
                 expanded={tocExpanded}
                 onClick={() => {
-                  if (sidebarFits) {
-                    setSidebarOpen((open) => !open);
-                    return;
-                  }
                   if (floating === "dwell") {
                     setFloating("click");
                     return;
@@ -228,7 +213,7 @@ export function ViewerApp(props: {
           </div>
         </header>
         <div ref={stageRef} className={stage}>
-          {hasToc && !sidebarFits && (
+          {hasToc && (
             <Drawer
               isOpen={floating !== undefined}
               onOpenChange={(open) => {
@@ -241,32 +226,11 @@ export function ViewerApp(props: {
               <TableOfContents
                 headings={viewerDocument.headings}
                 articleRef={articleRef}
-                layout="panel"
                 onNavigate={() => setFloating(undefined)}
               />
             </Drawer>
           )}
-          <div
-            className={body}
-            data-has-source-diffs={diffPanelOpen}
-            data-toc={
-              !hasToc
-                ? "none"
-                : sidebarFits
-                  ? sidebarOpen
-                    ? "sidebar-open"
-                    : "sidebar-closed"
-                  : "float"
-            }
-          >
-            {hasToc && sidebarFits && (
-              <TableOfContents
-                headings={viewerDocument.headings}
-                articleRef={articleRef}
-                layout="sidebar"
-                collapsed={!sidebarOpen}
-              />
-            )}
+          <div className={body} data-has-source-diffs={diffPanelOpen}>
             <article ref={articleRef} className={article}>
               <div className={prose}>
                 <div className={content} data-diffmap-kind="page">
@@ -368,23 +332,12 @@ const styles = {
     minWidth: 0,
     overflow: "hidden",
     backgroundColor: backgroundColor.app,
-    "--diffmap-columns": "minmax(0, 1fr)",
-    "--diffmap-areas": '"article"',
-    gridTemplateColumns: "var(--diffmap-columns)",
-    gridTemplateAreas: "var(--diffmap-areas)",
-    "&[data-toc='sidebar-open'], &[data-toc='sidebar-closed']": {
-      "--diffmap-columns": "max-content minmax(0, 1fr)",
-      "--diffmap-areas": '"toc article"',
-    },
+    gridTemplateColumns: "minmax(0, 1fr)",
+    gridTemplateAreas: '"article"',
     "&[data-has-source-diffs='true']": {
-      "--diffmap-columns": "minmax(0, 1fr) minmax(0, 1fr)",
-      "--diffmap-areas": '"article diff"',
+      gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+      gridTemplateAreas: '"article diff"',
     },
-    "&[data-toc='sidebar-open'][data-has-source-diffs='true'], &[data-toc='sidebar-closed'][data-has-source-diffs='true']":
-      {
-        "--diffmap-columns": "max-content minmax(0, 1fr) minmax(0, 1fr)",
-        "--diffmap-areas": '"toc article diff"',
-      },
     "@media (max-width: 900px)": {
       gridTemplateColumns: "minmax(0, 1fr)",
       gridTemplateRows: "minmax(0, 1fr) auto",

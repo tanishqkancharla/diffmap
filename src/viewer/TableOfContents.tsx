@@ -5,9 +5,6 @@ import type { ViewerHeading } from "../parseViewer.js";
 
 type TocItem = ViewerHeading & { children: TocItem[] };
 
-export const TOC_SIDEBAR_MIN_WIDTH_PX = 1101;
-export const TOC_WIDTH_PX = 240;
-
 export function hasTableOfContents(headings: ViewerHeading[]) {
   return tocHeadings(headings).length > 0;
 }
@@ -15,8 +12,6 @@ export function hasTableOfContents(headings: ViewerHeading[]) {
 export function TableOfContents(props: {
   headings: ViewerHeading[];
   articleRef: RefObject<HTMLElement | null>;
-  layout: "sidebar" | "panel";
-  collapsed?: boolean;
   onNavigate?: () => void;
 }) {
   const items = nestHeadings(tocHeadings(props.headings));
@@ -24,12 +19,9 @@ export function TableOfContents(props: {
     props.headings,
     props.articleRef,
   );
-  const navClass = useStyles(
-    props.layout === "panel" ? styles.panel : styles.sidebar,
-  );
+  const navClass = useStyles(styles.panel);
   const listClass = useStyles(styles.list);
   if (items.length === 0) return undefined;
-  const collapsed = props.layout === "sidebar" && props.collapsed === true;
 
   return (
     <nav
@@ -37,9 +29,6 @@ export function TableOfContents(props: {
       className={navClass}
       aria-label="Table of contents"
       data-diffmap-kind="toc"
-      data-open={String(!collapsed)}
-      aria-hidden={collapsed}
-      inert={collapsed}
     >
       <TocList
         items={items}
@@ -190,31 +179,6 @@ const tocListRules = {
 } as const;
 
 const styles = {
-  sidebar: style(spacing.padding({ left: 16, right: 6, top: 8, bottom: 8 }), {
-    boxSizing: "border-box",
-    gridArea: "toc",
-    alignSelf: "stretch",
-    width: `${TOC_WIDTH_PX}px`,
-    minWidth: `${TOC_WIDTH_PX}px`,
-    minHeight: 0,
-    height: "fit-content",
-    maxHeight: "100%",
-    marginTop: "auto",
-    marginBottom: "auto",
-    overflowX: "hidden",
-    overflowY: "auto",
-    backgroundColor: "transparent",
-    transition:
-      "width 180ms ease-in-out, min-width 180ms ease-in-out, padding 180ms ease-in-out, opacity 180ms ease-in-out",
-    "&[data-open='false']": {
-      width: 0,
-      minWidth: 0,
-      paddingInline: 0,
-      opacity: 0,
-      pointerEvents: "none",
-    },
-    ...tocListRules,
-  }),
   panel: style(spacing.padding({ left: 4, right: 4, top: 8, bottom: 8 }), {
     boxSizing: "border-box",
     width: "100%",
