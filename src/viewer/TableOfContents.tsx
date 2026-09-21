@@ -5,6 +5,9 @@ import type { ViewerHeading } from "../parseViewer.js";
 
 type TocItem = ViewerHeading & { children: TocItem[] };
 
+export const TOC_OVERLAY_MIN_WIDTH_PX = 1101;
+export const TOC_WIDTH_PX = 240;
+
 export function hasTableOfContents(headings: ViewerHeading[]) {
   return tocHeadings(headings).length > 0;
 }
@@ -12,6 +15,8 @@ export function hasTableOfContents(headings: ViewerHeading[]) {
 export function TableOfContents(props: {
   headings: ViewerHeading[];
   articleRef: RefObject<HTMLElement | null>;
+  layout: "overlay" | "panel";
+  collapsed?: boolean;
   onNavigate?: () => void;
 }) {
   const items = nestHeadings(tocHeadings(props.headings));
@@ -19,9 +24,12 @@ export function TableOfContents(props: {
     props.headings,
     props.articleRef,
   );
-  const navClass = useStyles(styles.panel);
+  const navClass = useStyles(
+    props.layout === "panel" ? styles.panel : styles.overlay,
+  );
   const listClass = useStyles(styles.list);
   if (items.length === 0) return undefined;
+  const collapsed = props.layout === "overlay" && props.collapsed === true;
 
   return (
     <nav
@@ -29,6 +37,9 @@ export function TableOfContents(props: {
       className={navClass}
       aria-label="Table of contents"
       data-diffmap-kind="toc"
+      data-open={String(!collapsed)}
+      aria-hidden={collapsed}
+      inert={collapsed}
     >
       <TocList
         items={items}
@@ -179,6 +190,28 @@ const tocListRules = {
 } as const;
 
 const styles = {
+  overlay: style(spacing.padding({ left: 16, right: 6, top: 8, bottom: 8 }), {
+    boxSizing: "border-box",
+    position: "absolute",
+    insetInlineStart: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 1,
+    width: `${TOC_WIDTH_PX}px`,
+    height: "fit-content",
+    maxHeight: "100%",
+    marginTop: "auto",
+    marginBottom: "auto",
+    overflowX: "hidden",
+    overflowY: "auto",
+    backgroundColor: "transparent",
+    pointerEvents: "auto",
+    "&[data-open='false']": {
+      opacity: 0,
+      pointerEvents: "none",
+    },
+    ...tocListRules,
+  }),
   panel: style(spacing.padding({ left: 4, right: 4, top: 8, bottom: 8 }), {
     boxSizing: "border-box",
     width: "100%",

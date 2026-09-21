@@ -20,7 +20,12 @@ import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
 import { DiffButton } from "./DiffButton.tsx";
 import { TocButton } from "./TocButton.tsx";
-import { hasTableOfContents, TableOfContents } from "./TableOfContents.tsx";
+import {
+  hasTableOfContents,
+  TableOfContents,
+  TOC_OVERLAY_MIN_WIDTH_PX,
+} from "./TableOfContents.tsx";
+import { useMediaQuery } from "./useMediaQuery.ts";
 import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
 
 type ViewerMeta = {
@@ -63,8 +68,12 @@ export function ViewerApp(props: {
   const stageRef = useRef<HTMLDivElement>(null);
   const dwellTimer = useRef<number>(undefined);
   const hasToc = hasTableOfContents(viewerDocument.headings);
+  const tocFits = useMediaQuery(
+    `(min-width: ${String(TOC_OVERLAY_MIN_WIDTH_PX)}px)`,
+  );
+  const [overlayOpen, setOverlayOpen] = useState(true);
   const [floating, setFloating] = useState<"click" | "dwell">();
-  const tocExpanded = floating !== undefined;
+  const tocExpanded = tocFits ? overlayOpen : floating !== undefined;
 
   useEffect(() => {
     document.title = title;
@@ -110,7 +119,7 @@ export function ViewerApp(props: {
   }, [floating]);
 
   useEffect(() => {
-    if (!hasToc) {
+    if (!hasToc || tocFits) {
       window.clearTimeout(dwellTimer.current);
       dwellTimer.current = undefined;
       return;
@@ -159,7 +168,7 @@ export function ViewerApp(props: {
       window.clearTimeout(dwellTimer.current);
       dwellTimer.current = undefined;
     };
-  }, [floating, hasToc]);
+  }, [floating, hasToc, tocFits]);
 
   if (shutDown) {
     return (
@@ -181,6 +190,10 @@ export function ViewerApp(props: {
               <TocButton
                 expanded={tocExpanded}
                 onClick={() => {
+                  if (tocFits) {
+                    setOverlayOpen((open) => !open);
+                    return;
+                  }
                   if (floating === "dwell") {
                     setFloating("click");
                     return;
@@ -213,7 +226,15 @@ export function ViewerApp(props: {
           </div>
         </header>
         <div ref={stageRef} className={stage}>
-          {hasToc && (
+          {hasToc && tocFits && (
+            <TableOfContents
+              headings={viewerDocument.headings}
+              articleRef={articleRef}
+              layout="overlay"
+              collapsed={!overlayOpen}
+            />
+          )}
+          {hasToc && !tocFits && (
             <Drawer
               isOpen={floating !== undefined}
               onOpenChange={(open) => {
@@ -226,6 +247,7 @@ export function ViewerApp(props: {
               <TableOfContents
                 headings={viewerDocument.headings}
                 articleRef={articleRef}
+                layout="panel"
                 onNavigate={() => setFloating(undefined)}
               />
             </Drawer>
