@@ -196,7 +196,7 @@ const styles = {
     insetInlineStart: 0,
     top: 0,
     bottom: 0,
-    zIndex: 1,
+    zIndex: 2,
     width: `${TOC_WIDTH_PX}px`,
     height: "fit-content",
     maxHeight: "100%",

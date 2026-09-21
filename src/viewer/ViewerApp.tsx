@@ -226,14 +226,6 @@ export function ViewerApp(props: {
           </div>
         </header>
         <div ref={stageRef} className={stage}>
-          {hasToc && tocFits && (
-            <TableOfContents
-              headings={viewerDocument.headings}
-              articleRef={articleRef}
-              layout="overlay"
-              collapsed={!overlayOpen}
-            />
-          )}
           {hasToc && !tocFits && (
             <Drawer
               isOpen={floating !== undefined}
@@ -278,6 +270,14 @@ export function ViewerApp(props: {
               />
             )}
           </div>
+          {hasToc && tocFits && (
+            <TableOfContents
+              headings={viewerDocument.headings}
+              articleRef={articleRef}
+              layout="overlay"
+              collapsed={!overlayOpen}
+            />
+          )}
         </div>
       </div>
     </ViewerModeContext.Provider>
