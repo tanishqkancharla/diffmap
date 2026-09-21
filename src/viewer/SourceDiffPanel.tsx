@@ -124,6 +124,13 @@ export function SourceDiffPanel(props: {
       },
     };
   }, [selection, file, linkedDiff]);
+  const rangeId = selectedLines?.id;
+  const rangeStart = selectedLines?.range.start;
+  const rangeEnd = selectedLines?.range.end;
+  const rangeSide =
+    selectedLines !== null && "side" in selectedLines.range
+      ? selectedLines.range.side
+      : undefined;
 
   const openPath = sourcePanelPath({
     filePath: file?.path,
@@ -152,14 +159,25 @@ export function SourceDiffPanel(props: {
   });
 
   useEffect(() => {
-    if (selectedLines === null) return;
+    if (
+      rangeId === undefined ||
+      rangeStart === undefined ||
+      rangeEnd === undefined
+    ) {
+      return;
+    }
     viewer.current?.scrollTo({
       type: "range",
-      ...selectedLines,
+      id: rangeId,
+      range: {
+        start: rangeStart,
+        end: rangeEnd,
+        ...(rangeSide === undefined ? {} : { side: rangeSide }),
+      },
       align: "center",
       behavior: "instant",
     });
-  }, [selectedLines]);
+  }, [rangeId, rangeStart, rangeEnd, rangeSide]);
 
   const onTokenClick: CodeViewOptions<undefined, undefined>["onTokenClick"] = (
     token,

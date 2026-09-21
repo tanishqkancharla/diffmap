@@ -65,4 +65,18 @@ test("homepage markdown is a real viewer document", async () => {
   assert.equal(levels.has(3), true);
   assert.ok(document.sourceDiffs.length >= 3);
   assert.equal(document.hasReferences, true);
+
+  const excerpt = fences.find(
+    (fence) => fence.kind === "file" && fence.path === "src/cli.ts",
+  );
+  assert.equal(excerpt?.kind, "file");
+  if (excerpt?.kind !== "file") return;
+  const cliPath = path.join(path.dirname(homePath), "..", "cli.ts");
+  const cli = await fs.readFile(cliPath, "utf8");
+  const lines = cli.split(/\n/);
+  const slice = lines.slice(excerpt.start - 1, excerpt.end).join("\n");
+  assert.equal(lines[excerpt.start - 1]?.trim().length !== 0, true);
+  assert.match(slice, /packageVersion/);
+  assert.match(slice, /\}\)\s*$/);
+  assert.equal(excerpt.source, slice);
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CodeViewDiffItem, CodeViewLineSelection } from "@pierre/diffs";
 import type { SourceReference } from "../annotations.js";
 import type { SourceDefinition, DefinitionResponse } from "../definitions.js";
@@ -49,10 +49,10 @@ export function useSourceReference(reference: SourceReference | undefined) {
   const pin = useGitHubPin();
   const hostFiles = useHostFiles();
   const mode = useViewerMode();
-  const hostResult =
-    reference?.kind === "file" && hostFiles !== undefined
-      ? readHostFileReference(hostFiles, reference)
-      : undefined;
+  const hostResult = useMemo(() => {
+    if (reference?.kind !== "file" || hostFiles === undefined) return undefined;
+    return readHostFileReference(hostFiles, reference);
+  }, [reference, hostFiles]);
   useEffect(() => {
     if (reference?.kind !== "file") return;
     if (hostFiles !== undefined) return;
