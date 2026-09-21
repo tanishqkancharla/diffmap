@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   backgroundColor,
   border,
@@ -75,6 +81,18 @@ export function ViewerApp(props: {
   const [floating, setFloating] = useState<"click" | "dwell">();
   const tocExpanded = tocFits ? overlayOpen : floating !== undefined;
 
+  const dismissFloatingToc = useCallback(() => {
+    // Maui springs the panel closed only if Dismiss/Escape/scrim run while
+    // isOpen is still true. Setting isOpen false here unmounts and snaps.
+    const drawer = document.querySelector("[data-side='start']");
+    const dismiss = drawer?.querySelector("button[tabindex='-1']");
+    if (dismiss instanceof HTMLButtonElement) {
+      dismiss.click();
+      return;
+    }
+    setFloating(undefined);
+  }, []);
+
   useEffect(() => {
     document.title = title;
   }, [title]);
@@ -90,32 +108,17 @@ export function ViewerApp(props: {
   }, []);
 
   useEffect(() => {
-    if (floating === undefined) return;
-    const close = () => setFloating(undefined);
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKey);
+    if (floating !== "dwell") return;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const onPanel =
         target.closest("#diffmap-toc") !== null ||
         target.closest("[data-side='start']") !== null;
-      if (floating === "dwell") {
-        if (onPanel) setFloating("click");
-        return;
-      }
-      if (onPanel || target.closest("#diffmap-toc-button") !== null) {
-        return;
-      }
-      close();
+      if (onPanel) setFloating("click");
     };
     window.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
+    return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [floating]);
 
   useEffect(() => {
@@ -143,7 +146,7 @@ export function ViewerApp(props: {
           panelRight !== undefined &&
           event.clientX > panelRight + DWELL_LEAVE_PAD_PX
         ) {
-          setFloating(undefined);
+          dismissFloatingToc();
         }
         return;
       }
@@ -168,7 +171,7 @@ export function ViewerApp(props: {
       window.clearTimeout(dwellTimer.current);
       dwellTimer.current = undefined;
     };
-  }, [floating, hasToc, tocFits]);
+  }, [dismissFloatingToc, floating, hasToc, tocFits]);
 
   if (shutDown) {
     return (
@@ -194,13 +197,11 @@ export function ViewerApp(props: {
                     setOverlayOpen((open) => !open);
                     return;
                   }
-                  if (floating === "dwell") {
-                    setFloating("click");
+                  if (floating !== undefined) {
+                    dismissFloatingToc();
                     return;
                   }
-                  setFloating((open) =>
-                    open === undefined ? "click" : undefined,
-                  );
+                  setFloating("click");
                 }}
               />
             )}
@@ -233,14 +234,13 @@ export function ViewerApp(props: {
                 if (!open) setFloating(undefined);
               }}
               side="start"
-              isDismissable={floating === "click"}
               aria-label="Table of contents"
             >
               <TableOfContents
                 headings={viewerDocument.headings}
                 articleRef={articleRef}
                 layout="panel"
-                onNavigate={() => setFloating(undefined)}
+                onNavigate={dismissFloatingToc}
               />
             </Drawer>
           )}
