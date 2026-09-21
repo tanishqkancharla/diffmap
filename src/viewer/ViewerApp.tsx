@@ -80,6 +80,7 @@ export function ViewerApp(props: {
   const [overlayOpen, setOverlayOpen] = useState(true);
   const [floating, setFloating] = useState<"click" | "dwell">();
   const tocExpanded = tocFits ? overlayOpen : floating !== undefined;
+  const suppressTocReopen = useRef(false);
 
   const dismissFloatingToc = useCallback(() => {
     // Maui springs the panel closed only if Dismiss/Escape/scrim run while
@@ -108,17 +109,33 @@ export function ViewerApp(props: {
   }, []);
 
   useEffect(() => {
-    if (floating !== "dwell") return;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
+      const onButton = target.closest("#diffmap-toc-button") !== null;
+      if (onButton && floating !== undefined) {
+        // Capture before Maui's dismissable overlay sees the same pointerdown
+        // and clears `floating`; the later click must not reopen.
+        suppressTocReopen.current = true;
+      }
+      if (floating !== "dwell") return;
+      if (onButton) return;
       const onPanel =
         target.closest("#diffmap-toc") !== null ||
         target.closest("[data-side='start']") !== null;
       if (onPanel) setFloating("click");
     };
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointerdown", onPointerDown, true);
+    const onPointerUp = () => {
+      window.setTimeout(() => {
+        suppressTocReopen.current = false;
+      }, 0);
+    };
+    window.addEventListener("pointerup", onPointerUp, true);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
+    };
   }, [floating]);
 
   useEffect(() => {
@@ -195,6 +212,11 @@ export function ViewerApp(props: {
                 onClick={() => {
                   if (tocFits) {
                     setOverlayOpen((open) => !open);
+                    return;
+                  }
+                  if (suppressTocReopen.current) {
+                    suppressTocReopen.current = false;
+                    if (floating !== undefined) dismissFloatingToc();
                     return;
                   }
                   if (floating !== undefined) {
