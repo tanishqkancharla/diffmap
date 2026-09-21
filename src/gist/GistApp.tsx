@@ -7,7 +7,8 @@ import type { ViewerDocument } from "../parseViewer.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
 import { loadGistMarkdown, type GistDocument } from "./fetchGist.ts";
 import { GistPinContext } from "./pin.ts";
-import { GistLanding, GistLoading, GistStatus } from "./GistStatus.tsx";
+import { HostHome } from "../host/HostHome.tsx";
+import { GistLoading, GistStatus } from "./GistStatus.tsx";
 import {
   gistPath,
   parseGistPath,
@@ -83,7 +84,7 @@ export function GistApp() {
     return () => abort.abort();
   }, [route]);
 
-  if (route.kind === "home") return <GistLanding />;
+  if (route.kind === "home") return <HostHome />;
   if (route.kind === "invalid") {
     return (
       <GistStatus title="Not a gist id">

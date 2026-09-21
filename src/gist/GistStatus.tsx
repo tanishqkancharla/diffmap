@@ -61,52 +61,6 @@ export function GistLoading(props: { title?: string }) {
   );
 }
 
-export function GistLanding() {
-  const code = useStyles(styles.code);
-  return (
-    <GistStatus title="diffmap">
-      <P>
-        A hosted viewer for diffmap walkthroughs. This page fetches a GitHub
-        gist or a public repo file in your browser. There is no server holding
-        the markdown.
-      </P>
-      <P>
-        Canonical gist URL:{" "}
-        <code className={code}>https://diffmap.dev/g/&lt;gistId&gt;</code>.
-        Optional file:{" "}
-        <code className={code}>/g/&lt;gistId&gt;/&lt;file.md&gt;</code>. GitHub
-        spec:{" "}
-        <code className={code}>
-          https://diffmap.dev/&lt;owner&gt;/&lt;repo&gt;/pull/&lt;n&gt;/&lt;path.md&gt;
-        </code>{" "}
-        or{" "}
-        <code className={code}>
-          /&lt;owner&gt;/&lt;repo&gt;/commit/&lt;sha&gt;/&lt;path.md&gt;
-        </code>
-        . Heading hashes stay in the fragment, same as the local viewer.
-      </P>
-      <P>
-        Share a secret gist (requires <code className={code}>gh</code>
-        ):
-      </P>
-      <P>
-        <code className={code}>
-          npx @tanishqkancharla/diffmap share path/to.md
-        </code>
-      </P>
-      <P>
-        Secret gists are unlisted, not private. Anyone with the id can read
-        them. Unauthenticated GitHub API is 60 requests per hour per IP.
-      </P>
-      <P>
-        <Link href="https://github.com/tanishqkancharla/diffmap">
-          tanishqkancharla/diffmap
-        </Link>
-      </P>
-    </GistStatus>
-  );
-}
-
 const styles = {
   shell: style(flex({ direction: "column" }), {
     width: "100%",
@@ -144,8 +98,5 @@ const styles = {
   }),
   loading: style(flex({ direction: "row", alignItems: "center" }), {
     minHeight: spacing.value(12),
-  }),
-  code: style(text({ size: "sm", color: "highContrast" }), {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
   }),
 };

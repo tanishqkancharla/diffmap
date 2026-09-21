@@ -24,6 +24,7 @@ import {
 import type { SourceDefinition } from "../definitions.js";
 import { useGistPin } from "../gist/pin.ts";
 import { useGitHubPin } from "../github/pin.ts";
+import { useHostFiles } from "../host/files.ts";
 import {
   matchingSourceDiff,
   requestSource,
@@ -80,6 +81,7 @@ export function SourceDiffPanel(props: {
   const code = useStyles(styles.code);
   const github = useGitHubPin();
   const gist = useGistPin();
+  const hostFiles = useHostFiles();
   const selection = props.selection;
   const source = useSourceReference(selection?.reference);
   const resolvedFile = source instanceof Error ? undefined : source;
@@ -103,7 +105,7 @@ export function SourceDiffPanel(props: {
         ? source.message
         : selection?.reference.kind === "file" &&
             source === undefined &&
-            mode !== "gist"
+            (mode === "local" || mode === "github" || hostFiles !== undefined)
           ? "Opening source…"
           : undefined;
   const selectedLines = useMemo<CodeViewLineSelection | null>(() => {

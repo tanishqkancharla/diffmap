@@ -1,10 +1,15 @@
 import { colors, radius, spacing, text } from "maui";
 import { style, useStyles } from "purse-styles";
+import { useViewerMode } from "./viewerMode.ts";
 
 export function HtmlPlaceholder(props: { inline?: boolean }) {
   const inline = props.inline === true;
   const className = useStyles(inline ? styles.inline : styles.block);
-  const copy = "HTML from this gist is not rendered.";
+  const mode = useViewerMode();
+  const copy =
+    mode === "gist"
+      ? "HTML from this gist is not rendered."
+      : "HTML is not rendered on the hosted viewer.";
   if (inline) return <span className={className}>{copy}</span>;
   return (
     <aside className={className} data-diffmap-kind="html-disabled">

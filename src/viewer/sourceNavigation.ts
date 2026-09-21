@@ -5,6 +5,7 @@ import type { SourceDefinition, DefinitionResponse } from "../definitions.js";
 import { DiffmapDefinitionError } from "../errors.js";
 import { useGitHubPin } from "../github/pin.ts";
 import { fetchPinnedBlob, findSymbolLineRange } from "../github/fetchRepo.ts";
+import { useHostFiles } from "../host/files.ts";
 import { useViewerMode } from "./viewerMode.ts";
 
 export async function requestSource(
@@ -46,10 +47,15 @@ export function useSourceReference(reference: SourceReference | undefined) {
     result: SourceDefinition | Error;
   }>();
   const pin = useGitHubPin();
+  const hostFiles = useHostFiles();
   const mode = useViewerMode();
+  const hostResult =
+    reference?.kind === "file" && hostFiles !== undefined
+      ? readHostFileReference(hostFiles, reference)
+      : undefined;
   useEffect(() => {
     if (reference?.kind !== "file") return;
-    if (mode === "gist") return;
+    if (hostFiles !== undefined) return;
     let active = true;
     if (pin !== undefined) {
       // Pinned GitHub spec: load this path at the spec commit SHA, never main.
@@ -89,6 +95,7 @@ export function useSourceReference(reference: SourceReference | undefined) {
         active = false;
       };
     }
+    if (mode !== "local") return;
     const params = new URLSearchParams({ path: reference.path });
     if (reference.symbol !== undefined) params.set("symbol", reference.symbol);
     if (reference.start !== undefined)
@@ -101,8 +108,35 @@ export function useSourceReference(reference: SourceReference | undefined) {
     return () => {
       active = false;
     };
-  }, [reference, pin, mode]);
+  }, [reference, pin, mode, hostFiles]);
+  if (hostResult !== undefined) return hostResult;
   return resolution?.reference === reference ? resolution?.result : undefined;
+}
+
+function readHostFileReference(
+  files: Record<string, string>,
+  reference: Extract<SourceReference, { kind: "file" }>,
+): SourceDefinition | Error {
+  const contents = files[reference.path];
+  if (contents === undefined) {
+    return new DiffmapDefinitionError({
+      reason: `No hosted file for ${reference.path}.`,
+    });
+  }
+  const lineCount = Math.max(1, contents.split(/\r?\n/).length);
+  const range =
+    reference.symbol !== undefined
+      ? findSymbolLineRange(contents, reference.symbol)
+      : {
+          start: reference.start ?? 1,
+          end: reference.end ?? lineCount,
+        };
+  return {
+    path: reference.path,
+    contents,
+    start: range.start,
+    end: range.end,
+  };
 }
 
 export function matchingSourceDiff(
