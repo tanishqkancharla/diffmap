@@ -332,11 +332,13 @@ const styles = {
     minWidth: 0,
     overflow: "hidden",
     backgroundColor: backgroundColor.app,
-    gridTemplateColumns: "minmax(0, 1fr)",
-    gridTemplateAreas: '"article"',
+    "--diffmap-columns": "minmax(0, 1fr)",
+    "--diffmap-areas": '"article"',
+    gridTemplateColumns: "var(--diffmap-columns)",
+    gridTemplateAreas: "var(--diffmap-areas)",
     "&[data-has-source-diffs='true']": {
-      gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-      gridTemplateAreas: '"article diff"',
+      "--diffmap-columns": "minmax(0, 1fr) minmax(0, 1fr)",
+      "--diffmap-areas": '"article diff"',
     },
     "@media (max-width: 900px)": {
       gridTemplateColumns: "minmax(0, 1fr)",
