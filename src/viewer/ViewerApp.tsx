@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   backgroundColor,
   border,
@@ -23,7 +29,7 @@ import { TocButton } from "./TocButton.tsx";
 import {
   hasTableOfContents,
   TableOfContents,
-  TOC_SIDEBAR_MIN_WIDTH_PX,
+  TOC_OVERLAY_MIN_WIDTH_PX,
 } from "./TableOfContents.tsx";
 import { useMediaQuery } from "./useMediaQuery.ts";
 import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
@@ -41,9 +47,7 @@ export function ViewerApp(props: {
   const viewerDocument = props.document;
   const meta = useViewerMeta(props.mode === "local");
   const [selection, setSelection] = useState<SourceSelection>();
-  const [showDiffPanel, setShowDiffPanel] = useState(
-    viewerDocument.sourceDiffs.length > 0,
-  );
+  const [showDiffPanel, setShowDiffPanel] = useState(false);
   const hasSourceDiffs =
     viewerDocument.sourceDiffs.length > 0 || viewerDocument.hasReferences;
   const diffPanelOpen = hasSourceDiffs && showDiffPanel;
@@ -70,12 +74,25 @@ export function ViewerApp(props: {
   const stageRef = useRef<HTMLDivElement>(null);
   const dwellTimer = useRef<number>(undefined);
   const hasToc = hasTableOfContents(viewerDocument.headings);
-  const sidebarFits = useMediaQuery(
-    `(min-width: ${String(TOC_SIDEBAR_MIN_WIDTH_PX)}px)`,
+  const tocFits = useMediaQuery(
+    `(min-width: ${String(TOC_OVERLAY_MIN_WIDTH_PX)}px)`,
   );
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [overlayOpen, setOverlayOpen] = useState(true);
   const [floating, setFloating] = useState<"click" | "dwell">();
-  const tocExpanded = sidebarFits ? sidebarOpen : floating !== undefined;
+  const tocExpanded = tocFits ? overlayOpen : floating !== undefined;
+  const suppressTocReopen = useRef(false);
+
+  const dismissFloatingToc = useCallback(() => {
+    // Maui springs the panel closed only if Dismiss/Escape/scrim run while
+    // isOpen is still true. Setting isOpen false here unmounts and snaps.
+    const drawer = document.querySelector("[data-side='start']");
+    const dismiss = drawer?.querySelector("button[tabindex='-1']");
+    if (dismiss instanceof HTMLButtonElement) {
+      dismiss.click();
+      return;
+    }
+    setFloating(undefined);
+  }, []);
 
   useEffect(() => {
     document.title = title;
@@ -92,36 +109,37 @@ export function ViewerApp(props: {
   }, []);
 
   useEffect(() => {
-    if (floating === undefined) return;
-    const close = () => setFloating(undefined);
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKey);
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
+      const onButton = target.closest("#diffmap-toc-button") !== null;
+      if (onButton && floating !== undefined) {
+        // Capture before Maui's dismissable overlay sees the same pointerdown
+        // and clears `floating`; the later click must not reopen.
+        suppressTocReopen.current = true;
+      }
+      if (floating !== "dwell") return;
+      if (onButton) return;
       const onPanel =
         target.closest("#diffmap-toc") !== null ||
         target.closest("[data-side='start']") !== null;
-      if (floating === "dwell") {
-        if (onPanel) setFloating("click");
-        return;
-      }
-      if (onPanel || target.closest("#diffmap-toc-button") !== null) {
-        return;
-      }
-      close();
+      if (onPanel) setFloating("click");
     };
-    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointerdown", onPointerDown, true);
+    const onPointerUp = () => {
+      window.setTimeout(() => {
+        suppressTocReopen.current = false;
+      }, 0);
+    };
+    window.addEventListener("pointerup", onPointerUp, true);
     return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
     };
   }, [floating]);
 
   useEffect(() => {
-    if (!hasToc || sidebarFits) {
+    if (!hasToc || tocFits) {
       window.clearTimeout(dwellTimer.current);
       dwellTimer.current = undefined;
       return;
@@ -145,7 +163,7 @@ export function ViewerApp(props: {
           panelRight !== undefined &&
           event.clientX > panelRight + DWELL_LEAVE_PAD_PX
         ) {
-          setFloating(undefined);
+          dismissFloatingToc();
         }
         return;
       }
@@ -170,7 +188,7 @@ export function ViewerApp(props: {
       window.clearTimeout(dwellTimer.current);
       dwellTimer.current = undefined;
     };
-  }, [floating, hasToc, sidebarFits]);
+  }, [dismissFloatingToc, floating, hasToc, tocFits]);
 
   if (shutDown) {
     return (
@@ -192,17 +210,20 @@ export function ViewerApp(props: {
               <TocButton
                 expanded={tocExpanded}
                 onClick={() => {
-                  if (sidebarFits) {
-                    setSidebarOpen((open) => !open);
+                  if (tocFits) {
+                    setOverlayOpen((open) => !open);
                     return;
                   }
-                  if (floating === "dwell") {
-                    setFloating("click");
+                  if (suppressTocReopen.current) {
+                    suppressTocReopen.current = false;
+                    if (floating !== undefined) dismissFloatingToc();
                     return;
                   }
-                  setFloating((open) =>
-                    open === undefined ? "click" : undefined,
-                  );
+                  if (floating !== undefined) {
+                    dismissFloatingToc();
+                    return;
+                  }
+                  setFloating("click");
                 }}
               />
             )}
@@ -228,45 +249,24 @@ export function ViewerApp(props: {
           </div>
         </header>
         <div ref={stageRef} className={stage}>
-          {hasToc && !sidebarFits && (
+          {hasToc && !tocFits && (
             <Drawer
               isOpen={floating !== undefined}
               onOpenChange={(open) => {
                 if (!open) setFloating(undefined);
               }}
               side="start"
-              isDismissable={floating === "click"}
               aria-label="Table of contents"
             >
               <TableOfContents
                 headings={viewerDocument.headings}
                 articleRef={articleRef}
                 layout="panel"
-                onNavigate={() => setFloating(undefined)}
+                onNavigate={dismissFloatingToc}
               />
             </Drawer>
           )}
-          <div
-            className={body}
-            data-has-source-diffs={diffPanelOpen}
-            data-toc={
-              !hasToc
-                ? "none"
-                : sidebarFits
-                  ? sidebarOpen
-                    ? "sidebar-open"
-                    : "sidebar-closed"
-                  : "float"
-            }
-          >
-            {hasToc && sidebarFits && (
-              <TableOfContents
-                headings={viewerDocument.headings}
-                articleRef={articleRef}
-                layout="sidebar"
-                collapsed={!sidebarOpen}
-              />
-            )}
+          <div className={body} data-has-source-diffs={diffPanelOpen}>
             <article ref={articleRef} className={article}>
               <div className={prose}>
                 <div className={content} data-diffmap-kind="page">
@@ -292,6 +292,14 @@ export function ViewerApp(props: {
               />
             )}
           </div>
+          {hasToc && tocFits && (
+            <TableOfContents
+              headings={viewerDocument.headings}
+              articleRef={articleRef}
+              layout="overlay"
+              collapsed={!overlayOpen}
+            />
+          )}
         </div>
       </div>
     </ViewerModeContext.Provider>
@@ -372,19 +380,10 @@ const styles = {
     "--diffmap-areas": '"article"',
     gridTemplateColumns: "var(--diffmap-columns)",
     gridTemplateAreas: "var(--diffmap-areas)",
-    "&[data-toc='sidebar-open'], &[data-toc='sidebar-closed']": {
-      "--diffmap-columns": "max-content minmax(0, 1fr)",
-      "--diffmap-areas": '"toc article"',
-    },
     "&[data-has-source-diffs='true']": {
       "--diffmap-columns": "minmax(0, 1fr) minmax(0, 1fr)",
       "--diffmap-areas": '"article diff"',
     },
-    "&[data-toc='sidebar-open'][data-has-source-diffs='true'], &[data-toc='sidebar-closed'][data-has-source-diffs='true']":
-      {
-        "--diffmap-columns": "max-content minmax(0, 1fr) minmax(0, 1fr)",
-        "--diffmap-areas": '"toc article diff"',
-      },
     "@media (max-width: 900px)": {
       gridTemplateColumns: "minmax(0, 1fr)",
       gridTemplateRows: "minmax(0, 1fr) auto",

@@ -5,7 +5,7 @@ import type { ViewerHeading } from "../parseViewer.js";
 
 type TocItem = ViewerHeading & { children: TocItem[] };
 
-export const TOC_SIDEBAR_MIN_WIDTH_PX = 1101;
+export const TOC_OVERLAY_MIN_WIDTH_PX = 1101;
 export const TOC_WIDTH_PX = 240;
 
 export function hasTableOfContents(headings: ViewerHeading[]) {
@@ -15,7 +15,7 @@ export function hasTableOfContents(headings: ViewerHeading[]) {
 export function TableOfContents(props: {
   headings: ViewerHeading[];
   articleRef: RefObject<HTMLElement | null>;
-  layout: "sidebar" | "panel";
+  layout: "overlay" | "panel";
   collapsed?: boolean;
   onNavigate?: () => void;
 }) {
@@ -25,11 +25,11 @@ export function TableOfContents(props: {
     props.articleRef,
   );
   const navClass = useStyles(
-    props.layout === "panel" ? styles.panel : styles.sidebar,
+    props.layout === "panel" ? styles.panel : styles.overlay,
   );
   const listClass = useStyles(styles.list);
   if (items.length === 0) return undefined;
-  const collapsed = props.layout === "sidebar" && props.collapsed === true;
+  const collapsed = props.layout === "overlay" && props.collapsed === true;
 
   return (
     <nav
@@ -190,13 +190,14 @@ const tocListRules = {
 } as const;
 
 const styles = {
-  sidebar: style(spacing.padding({ left: 16, right: 6, top: 8, bottom: 8 }), {
+  overlay: style(spacing.padding({ left: 16, right: 6, top: 8, bottom: 8 }), {
     boxSizing: "border-box",
-    gridArea: "toc",
-    alignSelf: "stretch",
+    position: "absolute",
+    insetInlineStart: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 2,
     width: `${TOC_WIDTH_PX}px`,
-    minWidth: `${TOC_WIDTH_PX}px`,
-    minHeight: 0,
     height: "fit-content",
     maxHeight: "100%",
     marginTop: "auto",
@@ -204,12 +205,8 @@ const styles = {
     overflowX: "hidden",
     overflowY: "auto",
     backgroundColor: "transparent",
-    transition:
-      "width 180ms ease-in-out, min-width 180ms ease-in-out, padding 180ms ease-in-out, opacity 180ms ease-in-out",
+    pointerEvents: "auto",
     "&[data-open='false']": {
-      width: 0,
-      minWidth: 0,
-      paddingInline: 0,
       opacity: 0,
       pointerEvents: "none",
     },

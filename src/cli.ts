@@ -2,6 +2,7 @@
 
 import { Cli, z } from "incur";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
+import { packageVersion } from "./packageVersion.js";
 import { listRunningDiffmaps } from "./registry.js";
 import { startServer } from "./serve.js";
 import { shareMarkdownFile } from "./share.js";
@@ -48,7 +49,7 @@ async function* runServe(c: ServeContext) {
 
 const cli = Cli.create("diffmap", {
   description: "Serve a spec locally, or share it as a gist",
-  version: "0.1.3",
+  version: packageVersion,
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
