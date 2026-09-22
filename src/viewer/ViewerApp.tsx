@@ -9,7 +9,6 @@ import {
   backgroundColor,
   border,
   colors,
-  Drawer,
   flex,
   flexItem,
   H1,
@@ -29,9 +28,8 @@ import { TocButton } from "./TocButton.tsx";
 import {
   hasTableOfContents,
   TableOfContents,
-  TOC_OVERLAY_MIN_WIDTH_PX,
+  TOC_SIDE_MARGIN_PX,
 } from "./TableOfContents.tsx";
-import { useMediaQuery } from "./useMediaQuery.ts";
 import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
 
 type ViewerMeta = {
@@ -71,27 +69,14 @@ export function ViewerApp(props: {
   const closedCopy = useStyles(styles.closedCopy);
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const dwellTimer = useRef<number>(undefined);
   const hasToc = hasTableOfContents(viewerDocument.headings);
-  const tocFits = useMediaQuery(
-    `(min-width: ${String(TOC_OVERLAY_MIN_WIDTH_PX)}px)`,
-  );
-  const [overlayOpen, setOverlayOpen] = useState(true);
-  const [floating, setFloating] = useState<"click" | "dwell">();
-  const tocExpanded = tocFits ? overlayOpen : floating !== undefined;
-  const suppressTocReopen = useRef(false);
-
-  const dismissFloatingToc = useCallback(() => {
-    // Maui springs the panel closed only if Dismiss/Escape/scrim run while
-    // isOpen is still true. Setting isOpen false here unmounts and snaps.
-    const drawer = document.querySelector("[data-side='start']");
-    const dismiss = drawer?.querySelector("button[tabindex='-1']");
-    if (dismiss instanceof HTMLButtonElement) {
-      dismiss.click();
-      return;
-    }
-    setFloating(undefined);
+  const [tocOpen, setTocOpen] = useState<"click" | "dwell">();
+  const tocExpanded = tocOpen !== undefined;
+  const onDwellOpen = useCallback(() => {
+    setTocOpen((mode) => (mode === "click" ? mode : "dwell"));
+  }, []);
+  const onDwellClose = useCallback(() => {
+    setTocOpen((mode) => (mode === "click" ? mode : undefined));
   }, []);
 
   useEffect(() => {
@@ -99,96 +84,10 @@ export function ViewerApp(props: {
   }, [title]);
 
   useEffect(() => {
-    return () => window.clearTimeout(dwellTimer.current);
-  }, []);
-
-  useEffect(() => {
     const id = decodeURIComponent(window.location.hash.replace(/^#/, ""));
     if (id === "") return;
     document.getElementById(id)?.scrollIntoView({ block: "start" });
   }, []);
-
-  useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const onButton = target.closest("#diffmap-toc-button") !== null;
-      if (onButton && floating !== undefined) {
-        // Capture before Maui's dismissable overlay sees the same pointerdown
-        // and clears `floating`; the later click must not reopen.
-        suppressTocReopen.current = true;
-      }
-      if (floating !== "dwell") return;
-      if (onButton) return;
-      const onPanel =
-        target.closest("#diffmap-toc") !== null ||
-        target.closest("[data-side='start']") !== null;
-      if (onPanel) setFloating("click");
-    };
-    window.addEventListener("pointerdown", onPointerDown, true);
-    const onPointerUp = () => {
-      window.setTimeout(() => {
-        suppressTocReopen.current = false;
-      }, 0);
-    };
-    window.addEventListener("pointerup", onPointerUp, true);
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown, true);
-      window.removeEventListener("pointerup", onPointerUp, true);
-    };
-  }, [floating]);
-
-  useEffect(() => {
-    if (!hasToc || tocFits) {
-      window.clearTimeout(dwellTimer.current);
-      dwellTimer.current = undefined;
-      return;
-    }
-    const onMove = (event: MouseEvent) => {
-      const stageEl = stageRef.current;
-      if (stageEl === null) return;
-      const bounds = stageEl.getBoundingClientRect();
-      const x = event.clientX - bounds.left;
-      const inStage =
-        event.clientX >= bounds.left &&
-        event.clientX <= bounds.right &&
-        event.clientY >= bounds.top &&
-        event.clientY <= bounds.bottom;
-      if (floating === "dwell") {
-        const panelRight =
-          document.querySelector("[data-side='start']")?.getBoundingClientRect()
-            .right ??
-          document.getElementById("diffmap-toc")?.getBoundingClientRect().right;
-        if (
-          panelRight !== undefined &&
-          event.clientX > panelRight + DWELL_LEAVE_PAD_PX
-        ) {
-          dismissFloatingToc();
-        }
-        return;
-      }
-      if (floating !== undefined) return;
-      if (inStage && x <= TOC_DWELL_EDGE_PX) {
-        if (dwellTimer.current !== undefined) return;
-        dwellTimer.current = window.setTimeout(() => {
-          dwellTimer.current = undefined;
-          setFloating("dwell");
-        }, DWELL_MS);
-        return;
-      }
-      if (x <= TOC_DWELL_CANCEL_PX && inStage) return;
-      window.clearTimeout(dwellTimer.current);
-      dwellTimer.current = undefined;
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("mousemove", onMove);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("mousemove", onMove);
-      window.clearTimeout(dwellTimer.current);
-      dwellTimer.current = undefined;
-    };
-  }, [dismissFloatingToc, floating, hasToc, tocFits]);
 
   if (shutDown) {
     return (
@@ -210,20 +109,9 @@ export function ViewerApp(props: {
               <TocButton
                 expanded={tocExpanded}
                 onClick={() => {
-                  if (tocFits) {
-                    setOverlayOpen((open) => !open);
-                    return;
-                  }
-                  if (suppressTocReopen.current) {
-                    suppressTocReopen.current = false;
-                    if (floating !== undefined) dismissFloatingToc();
-                    return;
-                  }
-                  if (floating !== undefined) {
-                    dismissFloatingToc();
-                    return;
-                  }
-                  setFloating("click");
+                  setTocOpen((mode) =>
+                    mode === undefined ? "click" : undefined,
+                  );
                 }}
               />
             )}
@@ -248,27 +136,10 @@ export function ViewerApp(props: {
             )}
           </div>
         </header>
-        <div ref={stageRef} className={stage}>
-          {hasToc && !tocFits && (
-            <Drawer
-              isOpen={floating !== undefined}
-              onOpenChange={(open) => {
-                if (!open) setFloating(undefined);
-              }}
-              side="start"
-              aria-label="Table of contents"
-            >
-              <TableOfContents
-                headings={viewerDocument.headings}
-                articleRef={articleRef}
-                layout="panel"
-                onNavigate={dismissFloatingToc}
-              />
-            </Drawer>
-          )}
+        <div className={stage}>
           <div className={body} data-has-source-diffs={diffPanelOpen}>
             <article ref={articleRef} className={article}>
-              <div className={prose}>
+              <div className={prose} data-has-toc={hasToc ? "true" : "false"}>
                 <div className={content} data-diffmap-kind="page">
                   <ComarkView
                     document={viewerDocument}
@@ -292,12 +163,13 @@ export function ViewerApp(props: {
               />
             )}
           </div>
-          {hasToc && tocFits && (
+          {hasToc && (
             <TableOfContents
               headings={viewerDocument.headings}
               articleRef={articleRef}
-              layout="overlay"
-              collapsed={!overlayOpen}
+              open={tocExpanded}
+              onDwellOpen={onDwellOpen}
+              onDwellClose={onDwellClose}
             />
           )}
         </div>
@@ -324,11 +196,6 @@ function useViewerMeta(enabled: boolean) {
 async function closeViewer() {
   await fetch("/__diffmap/shutdown", { method: "POST" });
 }
-
-const DWELL_MS = 280;
-const DWELL_LEAVE_PAD_PX = 48;
-const TOC_DWELL_EDGE_PX = 48;
-const TOC_DWELL_CANCEL_PX = 80;
 
 const styles = {
   shell: style(flex({ direction: "column" }), {
@@ -404,6 +271,9 @@ const styles = {
     width: "100%",
     maxWidth: "none",
     minWidth: 0,
+    "&[data-has-toc='true']": {
+      gridTemplateColumns: `minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr) minmax(0, ${proseMaxWidth}) minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr)`,
+    },
   }),
   content: style({
     gridColumn: "2 / 3",
