@@ -285,20 +285,26 @@ const tocListRules = {
 
 const styles = {
   rail: style({
-    position: "absolute",
-    insetInlineEnd: spacing.value(6),
+    // Sit in the prose grid's right gutter (column 3), not on the stage edge.
+    // Sticky + the article scrollport height keeps the lines in view and clear
+    // of the scrollbar; opening Diff keeps them on the article column.
+    gridColumn: "3",
+    position: "sticky",
     top: 0,
-    bottom: 0,
+    alignSelf: "start",
+    justifySelf: "stretch",
+    boxSizing: "border-box",
+    width: "100%",
+    minWidth: 0,
+    height: "100cqh",
     zIndex: 3,
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "flex-end",
-    width: "max-content",
-    maxWidth: "100%",
     pointerEvents: "none",
   }),
-  cluster: style(spacing.padding({ top: 4, bottom: 4, left: 8, right: 2 }), {
+  cluster: style(spacing.padding({ top: 4, bottom: 4, left: 6, right: 2 }), {
     position: "relative",
     display: "flex",
     flexDirection: "column",
@@ -335,8 +341,8 @@ const styles = {
       top: "50%",
       zIndex: 1,
       boxSizing: "border-box",
-      width: "min(240px, calc(100vw - 24px))",
-      maxHeight: "min(32rem, calc(100vh - 8rem))",
+      width: "min(240px, calc(100cqw - 24px))",
+      maxHeight: "min(32rem, calc(100cqh - 24px))",
       overflowX: "hidden",
       overflowY: "auto",
       overscrollBehavior: "contain",

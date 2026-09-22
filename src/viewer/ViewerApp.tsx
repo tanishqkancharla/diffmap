@@ -153,6 +153,15 @@ export function ViewerApp(props: {
                     }}
                   />
                 </div>
+                {hasToc && (
+                  <TableOfContents
+                    headings={viewerDocument.headings}
+                    articleRef={articleRef}
+                    open={tocExpanded}
+                    onDwellOpen={onDwellOpen}
+                    onDwellClose={onDwellClose}
+                  />
+                )}
               </div>
             </article>
             {diffPanelOpen && (
@@ -163,15 +172,6 @@ export function ViewerApp(props: {
               />
             )}
           </div>
-          {hasToc && (
-            <TableOfContents
-              headings={viewerDocument.headings}
-              articleRef={articleRef}
-              open={tocExpanded}
-              onDwellOpen={onDwellOpen}
-              onDwellClose={onDwellClose}
-            />
-          )}
         </div>
       </div>
     </ViewerModeContext.Provider>
@@ -264,6 +264,8 @@ const styles = {
     minHeight: 0,
     overflowY: "auto",
     backgroundColor: backgroundColor.app,
+    // Scrollport size for the sticky gutter rail (`100cqh`).
+    containerType: "size",
   }),
   prose: style({
     display: "grid",
