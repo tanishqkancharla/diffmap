@@ -14,9 +14,9 @@ import type { ViewerHeading } from "../parseViewer.js";
 
 type TocItem = ViewerHeading & { children: TocItem[] };
 
-const TOC_LINE_MAX_PX = 32;
+const TOC_LINE_MAX_PX = 24;
 const TOC_LINE_MIN_PX = 8;
-const TOC_LINE_STEP_PX = 8;
+const TOC_LINE_STEP_PX = 6;
 const DWELL_MS = 160;
 const LEAVE_MS = 100;
 const TOC_MOTION = `opacity 180ms ${motionEasing}, transform 180ms ${motionEasing}`;
@@ -309,7 +309,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-end",
-    gap: spacing.value(3),
+    gap: spacing.value(6),
     pointerEvents: "auto",
     "&[data-open='true'] [data-diffmap-kind='toc-line']": {
       opacity: 0,
