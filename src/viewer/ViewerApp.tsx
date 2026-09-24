@@ -279,6 +279,7 @@ const styles = {
   }),
   content: style({
     gridColumn: "2 / 3",
+    gridRow: "1",
     width: "100%",
     maxWidth: "none",
     minWidth: 0,

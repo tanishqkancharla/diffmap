@@ -3,6 +3,7 @@ import {
   background,
   colors,
   focusRing,
+  motionDurationMs,
   motionEasing,
   radius,
   shadow,
@@ -17,9 +18,9 @@ type TocItem = ViewerHeading & { children: TocItem[] };
 const TOC_LINE_MAX_PX = 24;
 const TOC_LINE_MIN_PX = 8;
 const TOC_LINE_STEP_PX = 6;
-const DWELL_MS = 160;
+const DWELL_MS = 50;
 const LEAVE_MS = 100;
-const TOC_MOTION = `opacity 180ms ${motionEasing}, transform 180ms ${motionEasing}`;
+const TOC_MOTION = `opacity ${String(motionDurationMs)}ms ${motionEasing}, transform ${String(motionDurationMs)}ms ${motionEasing}`;
 
 /** Equal side gutters so the line rail fits and the article column stays centered. */
 export const TOC_SIDE_MARGIN_PX = 48;
@@ -285,10 +286,11 @@ const tocListRules = {
 
 const styles = {
   rail: style({
-    // Sit in the prose grid's right gutter (column 3), not on the stage edge.
-    // Sticky + the article scrollport height keeps the lines in view and clear
-    // of the scrollbar; opening Diff keeps them on the article column.
-    gridColumn: "3",
+    // Sit in the prose grid's left gutter (column 1). Lines share that outer
+    // edge and grow inward. Sticky height keeps them in view, off the
+    // scrollbar, and on the article when Diff is open.
+    gridColumn: "1",
+    gridRow: "1",
     position: "sticky",
     top: 0,
     alignSelf: "start",
@@ -301,14 +303,14 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
-    alignItems: "flex-end",
+    alignItems: "flex-start",
     pointerEvents: "none",
   }),
-  cluster: style(spacing.padding({ top: 4, bottom: 4, left: 6, right: 2 }), {
+  cluster: style(spacing.padding({ top: 4, bottom: 4, left: 2, right: 6 }), {
     position: "relative",
     display: "flex",
     flexDirection: "column",
-    alignItems: "flex-end",
+    alignItems: "flex-start",
     gap: spacing.value(6),
     pointerEvents: "auto",
     "&[data-open='true'] [data-diffmap-kind='toc-line']": {
@@ -322,7 +324,7 @@ const styles = {
     borderRadius: "999px",
     backgroundColor: colors.gray[8],
     opacity: 1,
-    transition: `opacity 180ms ${motionEasing}`,
+    transition: `opacity ${String(motionDurationMs)}ms ${motionEasing}`,
     "@media (prefers-reduced-motion: reduce)": {
       transition: "none",
     },
@@ -337,7 +339,7 @@ const styles = {
     spacing.padding({ x: 3, y: 3 }),
     {
       position: "absolute",
-      insetInlineEnd: 0,
+      insetInlineStart: 0,
       top: "50%",
       zIndex: 1,
       boxSizing: "border-box",
@@ -346,10 +348,10 @@ const styles = {
       overflowX: "hidden",
       overflowY: "auto",
       overscrollBehavior: "contain",
-      transformOrigin: "right center",
+      transformOrigin: "left center",
       opacity: 0,
       pointerEvents: "none",
-      transform: "translateY(-50%) translateX(6px) scale(0.98)",
+      transform: "translateY(-50%) translateX(-6px) scale(0.98)",
       transition: TOC_MOTION,
       "@media (prefers-reduced-motion: reduce)": {
         transition: "none",
