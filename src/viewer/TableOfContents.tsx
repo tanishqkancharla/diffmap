@@ -3,7 +3,6 @@ import {
   background,
   colors,
   focusRing,
-  motionDurationMs,
   motionEasing,
   radius,
   shadow,
@@ -20,7 +19,8 @@ const TOC_LINE_MIN_PX = 8;
 const TOC_LINE_STEP_PX = 6;
 const DWELL_MS = 50;
 const LEAVE_MS = 100;
-const TOC_MOTION = `opacity ${String(motionDurationMs)}ms ${motionEasing}, transform ${String(motionDurationMs)}ms ${motionEasing}`;
+const TOC_TRANSITION_MS = 220;
+const TOC_MOTION = `opacity ${String(TOC_TRANSITION_MS)}ms ${motionEasing}, transform ${String(TOC_TRANSITION_MS)}ms ${motionEasing}`;
 
 /** Equal side gutters so the line rail fits and the article column stays centered. */
 export const TOC_SIDE_MARGIN_PX = 48;
@@ -324,7 +324,7 @@ const styles = {
     borderRadius: "999px",
     backgroundColor: colors.gray[8],
     opacity: 1,
-    transition: `opacity ${String(motionDurationMs)}ms ${motionEasing}`,
+    transition: `opacity ${String(TOC_TRANSITION_MS)}ms ${motionEasing}`,
     "@media (prefers-reduced-motion: reduce)": {
       transition: "none",
     },
