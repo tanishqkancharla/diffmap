@@ -36,7 +36,7 @@ That prints `https://diffmap.dev/g/<id>` (unlisted gist, not private). A spec on
 
 Shape: title, problem and solution (system flows live in those sections), goals / non-goals, phases, then **References**.
 
-**Planned:** sketch the implementation. Mermaid and call stacks (`-` current, `+` proposed) both show a flow — use each where it fits, in the problem, the solution, or a phase, interleaved with the sentences around it. Also `[[path]]` / `[[path#symbol]]`, and pseudocode or other code blocks when those help. Links point at current source. Leave unwritten symbols unlinked. No invented `source-diff`.
+**Planned:** sketch the implementation. Mermaid, call stacks (`-` current, `+` proposed), and pseudocode all tell the story — use each where it fits, in the problem, the solution, or a phase, interleaved with the sentences around it. Also `[[path]]` / `[[path#symbol]]` and other code blocks when those help. Links point at current source. Leave unwritten symbols unlinked. No invented `source-diff`.
 
 **Done:** after a phase lands, paste a real `git diff` of the named files into `source-diff:id:path` (include `diff --git`, `---`, `+++`, `@@`) and retarget that phase’s stack rows and mermaid `%% ref`s from the file to the hunk — `[[path]]` / `[[path#symbol]]` become `[[id:new:12-18]]` / `[[id:old:…]]` — so the Diff panel opens the change, not just the file. Mixed planned/done in one file is the point.
 
@@ -67,6 +67,14 @@ flowchart TD
     %% ref node:A [[src/request.ts#requestHandler]]
 ```
 
+An empty name stops. Anything else is the record.
+
+```
+validateInput(record):
+  empty name → Error
+  else → record
+```
+
 ## Goals
 
 ## Non-goals
@@ -94,6 +102,8 @@ flowchart LR
     %% ref node:B [[src/service.ts#existingService]]
 ```
 
+Reject an empty name before the service runs:
+
 ```
 validateInput(record):
   empty name → Error
@@ -109,7 +119,7 @@ validateInput(record):
 - [`src/request.ts`](../src/request.ts) — Why it matters.
 ````
 
-Each Implementation phase starts with a sentence or two summarizing the phase and why it exists — not a ritual dump. Sketch with pseudocode when it helps. In the problem, the solution, and each phase, put mermaid and call stacks next to the prose they explain. Pick the diagram for that beat. Either one belongs in any of those sections — the template is one telling, not a slot for each diagram type.
+Each Implementation phase starts with a sentence or two summarizing the phase and why it exists — not a ritual dump. In the problem, the solution, and each phase, put mermaid, call stacks, and pseudocode next to the prose they explain. Pick the diagram for that beat. Any of them belongs in any of those sections — the template is one telling, not a slot for each diagram type.
 
 Phases should be small enough to land alone (~200 lines). Link mermaid with `%% ref node:<id> [[path#symbol]]` or `%% ref edge:<index> [[…]]`. Call stacks use `└──` / `├──` and unified diff signs. A `#` comment on a line is for purpose, return, or side effect — skip comments that just repeat the name.
 
