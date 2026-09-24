@@ -34,9 +34,9 @@ That prints `https://diffmap.dev/g/<id>` (unlisted gist, not private). A spec on
 
 ## What to put in the file
 
-Shape: title, system flow (mermaid), problem / solution / goals / non-goals, sources, then phases.
+Shape: title, problem and solution (system flows live in those sections), goals / non-goals, phases, then **References**.
 
-**Planned:** sketch the implementation. Call stacks (`-` current, `+` proposed) are one component of that sketch — also mermaid, `[[path]]` / `[[path#symbol]]`, and pseudocode or other code blocks when those help. Links point at current source. Leave unwritten symbols unlinked. No invented `source-diff`.
+**Planned:** sketch the implementation. Mermaid and call stacks (`-` current, `+` proposed) both show a flow — use each where it fits, in the problem, the solution, or a phase, interleaved with the sentences around it. Also `[[path]]` / `[[path#symbol]]`, and pseudocode or other code blocks when those help. Links point at current source. Leave unwritten symbols unlinked. No invented `source-diff`.
 
 **Done:** after a phase lands, paste a real `git diff` of the named files into `source-diff:id:path` (include `diff --git`, `---`, `+++`, `@@`) and retarget that phase’s stack rows and mermaid `%% ref`s from the file to the hunk — `[[path]]` / `[[path#symbol]]` become `[[id:new:12-18]]` / `[[id:old:…]]` — so the Diff panel opens the change, not just the file. Mixed planned/done in one file is the point.
 
@@ -45,25 +45,31 @@ A bad `source-diff` blanks the whole page. If the patch would be invalid, skip i
 ````md
 # <Feature>
 
-## System flow
+## Problem overview
+
+<What’s going wrong.>
+
+```callstack
+ requestHandler [[src/request.ts#requestHandler]]
+ └── existingService [[src/service.ts#existingService]]
+```
+
+Empty names fall through to the service.
+
+## Solution overview
+
+Validate, then the same call.
 
 ```mermaid
 flowchart TD
-    A[Entry] --> B[Result]
+    A[Entry] --> V[validateInput]
+    V --> B[Result]
     %% ref node:A [[src/request.ts#requestHandler]]
 ```
-
-## Problem overview
-
-## Solution overview
 
 ## Goals
 
 ## Non-goals
-
-## Important files, docs, and websites
-
-- [`src/request.ts`](../src/request.ts) — Why it matters.
 
 ## Implementation
 
@@ -78,6 +84,16 @@ flowchart TD
     └── existingService [[src/service.ts#existingService]]
 ```
 
+That new step sits between the handler and the service:
+
+```mermaid
+flowchart LR
+    A[requestHandler] --> V[validateInput]
+    V --> B[existingService]
+    %% ref node:A [[src/request.ts#requestHandler]]
+    %% ref node:B [[src/service.ts#existingService]]
+```
+
 ```
 validateInput(record):
   empty name → Error
@@ -87,9 +103,13 @@ validateInput(record):
 - [ ] The concrete change, with files and symbols.
 - [ ] Wire it to its caller.
 - [ ] Run `<focused check>`.
+
+## References
+
+- [`src/request.ts`](../src/request.ts) — Why it matters.
 ````
 
-Each Implementation phase starts with a sentence or two summarizing the phase and why it exists — not a ritual dump. Sketch with pseudocode when it helps; stacks, mermaid, and `[[path]]` links still belong in the picture.
+Each Implementation phase starts with a sentence or two summarizing the phase and why it exists — not a ritual dump. Sketch with pseudocode when it helps. In the problem, the solution, and each phase, put mermaid and call stacks next to the prose they explain. Pick the diagram for that beat. Either one belongs in any of those sections — the template is one telling, not a slot for each diagram type.
 
 Phases should be small enough to land alone (~200 lines). Link mermaid with `%% ref node:<id> [[path#symbol]]` or `%% ref edge:<index> [[…]]`. Call stacks use `└──` / `├──` and unified diff signs. A `#` comment on a line is for purpose, return, or side effect — skip comments that just repeat the name.
 
