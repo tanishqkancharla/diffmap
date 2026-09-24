@@ -25,6 +25,13 @@ const TOC_MOTION = `opacity ${String(TOC_TRANSITION_MS)}ms ${motionEasing}, tran
 /** Equal side gutters so the line rail fits and the article column stays centered. */
 export const TOC_SIDE_MARGIN_PX = 48;
 
+/**
+ * Same cutoff that used to open the wide overlay (1101px). Applied to the
+ * article column's remaining width, so a resize or an open Diff panel can
+ * drop below it even when the viewport used to qualify.
+ */
+export const TOC_OPEN_MIN_WIDTH_PX = 1101;
+
 export function hasTableOfContents(headings: ViewerHeading[]) {
   return tocHeadings(headings).length > 0;
 }

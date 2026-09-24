@@ -28,6 +28,7 @@ import { TocButton } from "./TocButton.tsx";
 import {
   hasTableOfContents,
   TableOfContents,
+  TOC_OPEN_MIN_WIDTH_PX,
   TOC_SIDE_MARGIN_PX,
 } from "./TableOfContents.tsx";
 import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
@@ -70,14 +71,60 @@ export function ViewerApp(props: {
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
   const hasToc = hasTableOfContents(viewerDocument.headings);
-  const [tocOpen, setTocOpen] = useState<"click" | "dwell">();
+  const tocDismissed = useRef(false);
+  const tocPinned = useRef(false);
+  const tocFits = useRef(window.innerWidth >= TOC_OPEN_MIN_WIDTH_PX);
+  const remeasureToc = useRef<() => void>(() => {});
+  const [tocOpen, setTocOpen] = useState<TocMode | undefined>(() =>
+    hasToc && window.innerWidth >= TOC_OPEN_MIN_WIDTH_PX ? "space" : undefined,
+  );
   const tocExpanded = tocOpen !== undefined;
   const onDwellOpen = useCallback(() => {
-    setTocOpen((mode) => (mode === "click" ? mode : "dwell"));
+    setTocOpen((mode) =>
+      mode === "click" || mode === "space" ? mode : "dwell",
+    );
   }, []);
   const onDwellClose = useCallback(() => {
-    setTocOpen((mode) => (mode === "click" ? mode : undefined));
+    setTocOpen((mode) => {
+      if (mode === "click" || mode === "space") return mode;
+      if (tocFits.current && !tocDismissed.current) {
+        return tocPinned.current ? "click" : "space";
+      }
+      return undefined;
+    });
   }, []);
+
+  useEffect(() => {
+    if (!hasToc) return;
+    const measure = () => {
+      const node = articleRef.current;
+      if (node !== null && node.clientWidth === 0) return;
+      const width = node?.clientWidth ?? window.innerWidth;
+      const next = width >= TOC_OPEN_MIN_WIDTH_PX;
+      const previous = tocFits.current;
+      tocFits.current = next;
+      if (previous === next) return;
+      if (!next) {
+        setTocOpen(undefined);
+        return;
+      }
+      setTocOpen((mode) => {
+        if (mode === "click" || mode === "dwell") return mode;
+        if (tocDismissed.current) return undefined;
+        return tocPinned.current ? "click" : "space";
+      });
+    };
+    remeasureToc.current = measure;
+    const observer = new ResizeObserver(measure);
+    const articleNode = articleRef.current;
+    if (articleNode) observer.observe(articleNode);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+      remeasureToc.current = () => {};
+    };
+  }, [hasToc]);
 
   useEffect(() => {
     document.title = title;
@@ -109,9 +156,15 @@ export function ViewerApp(props: {
               <TocButton
                 expanded={tocExpanded}
                 onClick={() => {
-                  setTocOpen((mode) =>
-                    mode === undefined ? "click" : undefined,
-                  );
+                  if (tocExpanded) {
+                    tocDismissed.current = true;
+                    tocPinned.current = false;
+                    setTocOpen(undefined);
+                    return;
+                  }
+                  tocDismissed.current = false;
+                  tocPinned.current = true;
+                  setTocOpen("click");
                 }}
               />
             )}
@@ -121,7 +174,10 @@ export function ViewerApp(props: {
             {hasSourceDiffs && (
               <DiffButton
                 pressed={showDiffPanel}
-                onClick={() => setShowDiffPanel((open) => !open)}
+                onClick={() => {
+                  setShowDiffPanel((open) => !open);
+                  window.requestAnimationFrame(() => remeasureToc.current());
+                }}
               />
             )}
             {props.headerActions}
@@ -150,6 +206,9 @@ export function ViewerApp(props: {
                         annotation: line,
                         reference: line.references[0]!,
                       });
+                      window.requestAnimationFrame(() =>
+                        remeasureToc.current(),
+                      );
                     }}
                   />
                 </div>
@@ -177,6 +236,8 @@ export function ViewerApp(props: {
     </ViewerModeContext.Provider>
   );
 }
+
+type TocMode = "click" | "dwell" | "space";
 
 function useViewerMeta(enabled: boolean) {
   const [meta, setMeta] = useState<ViewerMeta>();
