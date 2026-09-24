@@ -19,7 +19,7 @@ const TOC_LINE_MIN_PX = 8;
 const TOC_LINE_STEP_PX = 6;
 const DWELL_MS = 50;
 const LEAVE_MS = 100;
-const TOC_TRANSITION_MS = 220;
+const TOC_TRANSITION_MS = 180;
 const TOC_MOTION = `opacity ${String(TOC_TRANSITION_MS)}ms ${motionEasing}, transform ${String(TOC_TRANSITION_MS)}ms ${motionEasing}`;
 
 /** Equal side gutters so the line rail fits and the article column stays centered. */
