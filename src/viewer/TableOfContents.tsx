@@ -1,55 +1,157 @@
-import { useEffect, useState, type RefObject } from "react";
-import { colors, focusRing, radius, spacing, text } from "maui";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import {
+  background,
+  colors,
+  focusRing,
+  motionEasing,
+  radius,
+  shadow,
+  spacing,
+  text,
+} from "maui";
 import { style, useStyles } from "purse-styles";
 import type { ViewerHeading } from "../parseViewer.js";
 
 type TocItem = ViewerHeading & { children: TocItem[] };
 
-export const TOC_OVERLAY_MIN_WIDTH_PX = 1101;
-export const TOC_WIDTH_PX = 240;
+const TOC_LINE_MAX_PX = 24;
+const TOC_LINE_MIN_PX = 8;
+const TOC_LINE_STEP_PX = 6;
+const DWELL_MS = 50;
+const LEAVE_MS = 100;
+const TOC_TRANSITION_MS = 180;
+const TOC_MOTION = `opacity ${String(TOC_TRANSITION_MS)}ms ${motionEasing}, transform ${String(TOC_TRANSITION_MS)}ms ${motionEasing}`;
+
+/** Equal side gutters so the line rail fits and the article column stays centered. */
+export const TOC_SIDE_MARGIN_PX = 48;
+
+/**
+ * Same cutoff that used to open the wide overlay (1101px). Applied to the
+ * article column's remaining width, so a resize or an open Diff panel can
+ * drop below it even when the viewport used to qualify.
+ */
+export const TOC_OPEN_MIN_WIDTH_PX = 1101;
 
 export function hasTableOfContents(headings: ViewerHeading[]) {
   return tocHeadings(headings).length > 0;
 }
 
+export function tocLineWidth(level: number, shallowestLevel: number) {
+  const depth = Math.max(0, level - shallowestLevel);
+  return Math.max(TOC_LINE_MIN_PX, TOC_LINE_MAX_PX - depth * TOC_LINE_STEP_PX);
+}
+
 export function TableOfContents(props: {
   headings: ViewerHeading[];
   articleRef: RefObject<HTMLElement | null>;
-  layout: "overlay" | "panel";
-  collapsed?: boolean;
-  onNavigate?: () => void;
+  open: boolean;
+  onDwellOpen: () => void;
+  onDwellClose: () => void;
 }) {
-  const items = nestHeadings(tocHeadings(props.headings));
+  const headings = tocHeadings(props.headings);
+  const items = nestHeadings(headings);
   const { activeId, setActiveId } = useActiveHeading(
     props.headings,
     props.articleRef,
   );
-  const navClass = useStyles(
-    props.layout === "panel" ? styles.panel : styles.overlay,
-  );
+  const railClass = useStyles(styles.rail);
+  const clusterClass = useStyles(styles.cluster);
+  const lineClass = useStyles(styles.line);
+  const cardClass = useStyles(styles.card);
   const listClass = useStyles(styles.list);
+  const hoveringRef = useRef(false);
+  const dwellTimer = useRef<number | undefined>(undefined);
+  const closeTimer = useRef<number | undefined>(undefined);
+  const onDwellOpen = props.onDwellOpen;
+  const onDwellClose = props.onDwellClose;
+
+  useEffect(() => {
+    const onPageLeave = () => {
+      // Leaving the window must close a movement-opened nav, never open one.
+      // A left-edge exit used to land in the dwell zone and spring the drawer.
+      hoveringRef.current = false;
+      window.clearTimeout(dwellTimer.current);
+      window.clearTimeout(closeTimer.current);
+      dwellTimer.current = undefined;
+      closeTimer.current = undefined;
+      onDwellClose();
+    };
+    document.documentElement.addEventListener("mouseleave", onPageLeave);
+    return () => {
+      document.documentElement.removeEventListener("mouseleave", onPageLeave);
+      window.clearTimeout(dwellTimer.current);
+      window.clearTimeout(closeTimer.current);
+    };
+  }, [onDwellClose]);
+
   if (items.length === 0) return undefined;
-  const collapsed = props.layout === "overlay" && props.collapsed === true;
+
+  const shallowest = headings.reduce(
+    (min, heading) => Math.min(min, heading.level),
+    6,
+  );
 
   return (
     <nav
       id="diffmap-toc"
-      className={navClass}
+      className={railClass}
       aria-label="Table of contents"
       data-diffmap-kind="toc"
-      data-open={String(!collapsed)}
-      aria-hidden={collapsed}
-      inert={collapsed}
+      data-open={props.open ? "true" : "false"}
     >
-      <TocList
-        items={items}
-        className={listClass}
-        activeId={activeId}
-        onSelect={(id) => {
-          setActiveId(id);
-          props.onNavigate?.();
+      <div
+        className={clusterClass}
+        data-open={props.open ? "true" : "false"}
+        onPointerEnter={() => {
+          hoveringRef.current = true;
+          window.clearTimeout(closeTimer.current);
+          closeTimer.current = undefined;
+          if (props.open || dwellTimer.current !== undefined) return;
+          dwellTimer.current = window.setTimeout(() => {
+            dwellTimer.current = undefined;
+            if (!hoveringRef.current) return;
+            onDwellOpen();
+          }, DWELL_MS);
         }}
-      />
+        onPointerLeave={() => {
+          hoveringRef.current = false;
+          window.clearTimeout(dwellTimer.current);
+          dwellTimer.current = undefined;
+          window.clearTimeout(closeTimer.current);
+          closeTimer.current = window.setTimeout(() => {
+            closeTimer.current = undefined;
+            if (hoveringRef.current) return;
+            onDwellClose();
+          }, LEAVE_MS);
+        }}
+      >
+        {headings.map((heading) => (
+          <span
+            key={heading.id}
+            className={lineClass}
+            data-diffmap-kind="toc-line"
+            data-level={heading.level}
+            data-current={activeId === heading.id ? "true" : "false"}
+            style={{ width: tocLineWidth(heading.level, shallowest) }}
+          />
+        ))}
+        <div
+          className={cardClass}
+          data-diffmap-kind="toc-card"
+          data-open={props.open ? "true" : "false"}
+          aria-hidden={!props.open}
+          inert={!props.open}
+        >
+          <TocList
+            items={items}
+            className={listClass}
+            activeId={activeId}
+            onSelect={(id) => {
+              setActiveId(id);
+            }}
+          />
+        </div>
+      </div>
     </nav>
   );
 }
@@ -171,57 +273,104 @@ function useActiveHeading(
 }
 
 const tocListRules = {
-  "&[data-diffmap-kind='toc'] ol": {
+  "&[data-diffmap-kind='toc-card'] ol": {
     listStyle: "none",
     counterReset: "none",
     margin: 0,
     padding: 0,
   },
-  "&[data-diffmap-kind='toc'] ol ol": {
+  "&[data-diffmap-kind='toc-card'] ol ol": {
     paddingInlineStart: spacing.value(6),
   },
-  "&[data-diffmap-kind='toc'] ol > li::before": {
+  "&[data-diffmap-kind='toc-card'] ol > li::before": {
     content: "none",
   },
-  "&[data-diffmap-kind='toc'] a": {
+  "&[data-diffmap-kind='toc-card'] a": {
     fontWeight: 400,
     textDecoration: "none",
   },
 } as const;
 
 const styles = {
-  overlay: style(spacing.padding({ left: 16, right: 6, top: 8, bottom: 8 }), {
-    boxSizing: "border-box",
-    position: "absolute",
-    insetInlineStart: 0,
+  rail: style({
+    // Sit in the prose grid's left gutter (column 1). Lines share that outer
+    // edge and grow inward. Sticky height keeps them in view, off the
+    // scrollbar, and on the article when Diff is open.
+    gridColumn: "1",
+    gridRow: "1",
+    position: "sticky",
     top: 0,
-    bottom: 0,
-    zIndex: 2,
-    width: `${TOC_WIDTH_PX}px`,
-    height: "fit-content",
-    maxHeight: "100%",
-    marginTop: "auto",
-    marginBottom: "auto",
-    overflowX: "hidden",
-    overflowY: "auto",
-    backgroundColor: "transparent",
-    pointerEvents: "auto",
-    "&[data-open='false']": {
-      opacity: 0,
-      pointerEvents: "none",
-    },
-    ...tocListRules,
-  }),
-  panel: style(spacing.padding({ left: 4, right: 4, top: 8, bottom: 8 }), {
+    alignSelf: "start",
+    justifySelf: "stretch",
     boxSizing: "border-box",
     width: "100%",
-    minHeight: "100%",
-    overflowY: "auto",
-    backgroundColor: "transparent",
-    boxShadow: "none",
-    borderRadius: 0,
-    ...tocListRules,
+    minWidth: 0,
+    height: "100cqh",
+    zIndex: 3,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "flex-start",
+    pointerEvents: "none",
   }),
+  cluster: style(spacing.padding({ top: 4, bottom: 4, left: 2, right: 6 }), {
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: spacing.value(6),
+    pointerEvents: "auto",
+    "&[data-open='true'] [data-diffmap-kind='toc-line']": {
+      opacity: 0,
+    },
+  }),
+  line: style({
+    display: "block",
+    height: "2px",
+    flexShrink: 0,
+    borderRadius: "999px",
+    backgroundColor: colors.gray[8],
+    opacity: 1,
+    transition: `opacity ${String(TOC_TRANSITION_MS)}ms ${motionEasing}`,
+    "@media (prefers-reduced-motion: reduce)": {
+      transition: "none",
+    },
+    "&[data-current='true']": {
+      backgroundColor: colors.gray[12],
+    },
+  }),
+  card: style(
+    radius.lg,
+    shadow.medium,
+    background.element,
+    spacing.padding({ x: 3, y: 3 }),
+    {
+      position: "absolute",
+      insetInlineStart: 0,
+      top: "50%",
+      zIndex: 1,
+      boxSizing: "border-box",
+      width: "min(240px, calc(100cqw - 24px))",
+      maxHeight: "min(32rem, calc(100cqh - 24px))",
+      overflowX: "hidden",
+      overflowY: "auto",
+      overscrollBehavior: "contain",
+      transformOrigin: "left center",
+      opacity: 0,
+      pointerEvents: "none",
+      transform: "translateY(-50%) translateX(-6px) scale(0.98)",
+      transition: TOC_MOTION,
+      "@media (prefers-reduced-motion: reduce)": {
+        transition: "none",
+      },
+      "&[data-open='true']": {
+        opacity: 1,
+        pointerEvents: "auto",
+        transform: "translateY(-50%) translateX(0px) scale(1)",
+      },
+      ...tocListRules,
+    },
+  ),
   list: style(text({ size: "sm", fontWeight: 400, color: "lowContrast" })),
   item: style({
     "&::before": {
@@ -243,6 +392,10 @@ const styles = {
       "&[aria-current='location']": {
         color: colors.accent[9],
         fontWeight: 500,
+        backgroundColor: colors.accent[3],
+      },
+      "&[aria-current='location']:hover": {
+        backgroundColor: colors.accent[4],
       },
     },
   ),
