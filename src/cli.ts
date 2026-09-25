@@ -6,6 +6,14 @@ import { packageVersion } from "./packageVersion.js";
 import { listRunningDiffmaps } from "./registry.js";
 import { startServer } from "./serve.js";
 import { shareMarkdownFile } from "./share.js";
+import {
+  detectInstallMethod,
+  fetchLatestVersion,
+  packageName,
+  resolveUpdateArgv,
+  runCommand,
+  runUpdate,
+} from "./update.js";
 
 const serveArgs = z.object({
   file: z.string().describe("Path to the markdown file"),
@@ -53,7 +61,7 @@ const cli = Cli.create("diffmap", {
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
-  hint: "`serve <spec.md>` runs the local viewer. `share <spec.md>` publishes a secret gist.",
+  hint: "`serve <spec.md>` runs the local viewer. `share <spec.md>` publishes a secret gist. `update` (or `--update`) installs the latest diffmap.",
   examples: [
     {
       args: { file: "spec.md" },
@@ -130,6 +138,32 @@ const cli = Cli.create("diffmap", {
       }
       return c.ok({ instances });
     },
+  })
+  .command("update", {
+    description: `Update diffmap to the latest ${packageName} on npm (same as --update)`,
+    output: z.object({
+      status: z.enum(["up-to-date", "updated", "manual"]),
+      message: z.string(),
+      current: z.string(),
+      previous: z.string().optional(),
+      latest: z.string().optional(),
+      command: z.string().optional(),
+    }),
+    async run(c) {
+      const result = await runUpdate({
+        currentVersion: packageVersion,
+        fetchLatestVersion,
+        detectInstallMethod,
+        runCommand,
+      });
+      if (result instanceof Error) {
+        return c.error({
+          code: "UPDATE_FAILED",
+          message: result.message,
+        });
+      }
+      return c.ok(result);
+    },
   });
 
-await cli.serve();
+await cli.serve(resolveUpdateArgv(process.argv.slice(2)));
