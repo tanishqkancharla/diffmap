@@ -139,14 +139,14 @@ diff --git a/src/viewer/ViewerApp.tsx b/src/viewer/ViewerApp.tsx
 
 `start:end:path`. Locally the server reads the workspace file. Here the bundled file is sliced the same way.
 
-```50:64:src/cli.ts
+```58:72:src/cli.ts
 const cli = Cli.create("diffmap", {
   description: "Serve a spec locally, or share it as a gist",
   version: packageVersion,
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
-  hint: "`serve <spec.md>` runs the local viewer. `share <spec.md>` publishes a secret gist.",
+  hint: "`serve <spec.md>` runs the local viewer. `share <spec.md>` publishes a secret gist. `update` (or `--update`) installs the latest diffmap.",
   examples: [
     {
       args: { file: "spec.md" },

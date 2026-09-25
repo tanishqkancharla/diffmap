@@ -43,6 +43,14 @@ List every running viewer, including viewers using custom ports:
 npx @tanishqkancharla/diffmap list
 ```
 
+Update a global install to the latest `@tanishqkancharla/diffmap` on npm. `diffmap --update` does the same thing:
+
+```sh
+diffmap update
+```
+
+If you are already on the latest version, it says so and exits. Otherwise it runs the global install for the package manager that installed diffmap (`npm install --global`, `pnpm add --global`, or `bun add --global`) and prints the old and new versions. Under `npx`, or when it cannot tell how diffmap was installed, it prints the command to run instead of installing anything.
+
 Request the page with `Accept: text/markdown` to read the current source file
 instead of the rendered HTML. Use the URL printed by `serve`:
 
