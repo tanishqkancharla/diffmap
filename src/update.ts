@@ -8,11 +8,11 @@ const latestSpec = `${packageName}@latest`;
 const registryUrl =
   "https://registry.npmjs.org/@tanishqkancharla%2Fdiffmap/latest";
 
-export type InstallMethod = "npm" | "pnpm" | "bun" | "npx" | "unknown";
+type InstallMethod = "npm" | "pnpm" | "bun" | "npx" | "unknown";
 
 type Command = { command: string; args: string[] };
 
-export type UpdateResult =
+type UpdateResult =
   | { status: "up-to-date"; current: string; latest: string; message: string }
   | {
       status: "updated";
@@ -29,7 +29,7 @@ export type UpdateResult =
       message: string;
     };
 
-export type UpdateDeps = {
+type UpdateDeps = {
   currentVersion: string;
   fetchLatestVersion: () => Promise<string | Error>;
   detectInstallMethod: () => Promise<InstallMethod>;
@@ -104,7 +104,7 @@ function normalizePath(value: string) {
 }
 
 /** Infers the install method from the real path of the running entry script. */
-export function detectInstallMethodFromPath(input: {
+function detectInstallMethodFromPath(input: {
   entryPath: string;
   env: Record<string, string | undefined>;
   npmGlobalRoot?: string | undefined;
@@ -130,7 +130,7 @@ export function detectInstallMethodFromPath(input: {
   return "unknown";
 }
 
-export function globalInstallCommand(method: "npm" | "pnpm" | "bun"): Command {
+function globalInstallCommand(method: "npm" | "pnpm" | "bun"): Command {
   if (method === "pnpm") {
     return { command: "pnpm", args: ["add", "--global", latestSpec] };
   }

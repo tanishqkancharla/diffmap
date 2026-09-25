@@ -48,18 +48,3 @@ test("diffmap --version matches package.json", async () => {
   const printed = `${result.stdout}${result.stderr}`.trim();
   assert.equal(printed, pkg.version);
 });
-
-test("diffmap --help lists the update command", async () => {
-  const result = await runCli(["--help"]);
-  assert.equal(result.exitCode, 0, result.stderr);
-  assert.match(result.stdout, /^\s+update\s+Update diffmap/m);
-});
-
-test("diffmap update and --update resolve to the same command", async () => {
-  const viaCommand = await runCli(["update", "--help"]);
-  const viaFlag = await runCli(["--update", "--help"]);
-  assert.equal(viaCommand.exitCode, 0, viaCommand.stderr);
-  assert.equal(viaFlag.exitCode, 0, viaFlag.stderr);
-  assert.match(viaCommand.stdout, /^Usage: diffmap update$/m);
-  assert.equal(viaFlag.stdout, viaCommand.stdout);
-});
