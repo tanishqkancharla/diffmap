@@ -1,11 +1,13 @@
 #!/usr/bin/env -S node --import tsx
 
+import os from "node:os";
 import { Cli, z } from "incur";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
 import { packageVersion } from "./packageVersion.js";
 import { listRunningDiffmaps } from "./registry.js";
 import { startServer } from "./serve.js";
 import { shareMarkdownFile } from "./share.js";
+import { installSkill, skillName, skillTargetDir } from "./skill.js";
 import {
   detectInstallMethod,
   fetchLatestVersion,
@@ -161,6 +163,34 @@ const cli = Cli.create("diffmap", {
           code: "UPDATE_FAILED",
           message: result.message,
         });
+      }
+      return c.ok(result);
+    },
+  })
+  .command("install-skill", {
+    description: `Install or refresh the ${skillName} agent skill from this package into .agents/skills`,
+    options: z.object({
+      global: z
+        .boolean()
+        .optional()
+        .describe("Install into ~/.agents/skills instead of ./.agents/skills"),
+    }),
+    output: z.object({
+      status: z.enum(["current", "installed", "updated"]),
+      message: z.string(),
+      path: z.string(),
+      version: z.string(),
+      previous: z.string().optional(),
+    }),
+    async run(c) {
+      const root =
+        c.options.global === true ? os.homedir() : resolveFromInvokeCwd(".");
+      const result = await installSkill({
+        targetDir: skillTargetDir(root),
+        version: packageVersion,
+      });
+      if (result instanceof Error) {
+        return c.error({ code: "DIFFMAP", message: result.message });
       }
       return c.ok(result);
     },

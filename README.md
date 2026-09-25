@@ -26,6 +26,19 @@ npx skills add tanishqkancharla/diffmap --skill generate-spec
 
 Keeps a spec in `specs/` that stays true to what's planned versus already in the tree. Serve it with diffmap. Share from a GitHub PR (`https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`) or `npx @tanishqkancharla/diffmap share`.
 
+The skill also ships inside the npm package, so the CLI can install it for you:
+
+```sh
+npx @tanishqkancharla/diffmap install-skill            # ./.agents/skills/generate-spec
+npx @tanishqkancharla/diffmap install-skill --global   # ~/.agents/skills/generate-spec
+```
+
+It lands in the same place `npx skills add` puts it, with the package version recorded in `.diffmap-version`. Running it again just says the skill is current, unless the package is a different version, in which case it refreshes the copy.
+
+### For agents
+
+If you're an agent setting up diffmap: install diffmap (or just use `npx`), run `install-skill` if the `generate-spec` skill isn't there or is from an older diffmap, then read the skill and follow it. That's the whole onboarding. Use judgment on the details, like global vs. project install, or skipping the install if the skill is already loaded.
+
 Options:
 
 - `--port <n>` — pin a listen port (default: a free port)

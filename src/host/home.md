@@ -139,7 +139,7 @@ diff --git a/src/viewer/ViewerApp.tsx b/src/viewer/ViewerApp.tsx
 
 `start:end:path`. Locally the server reads the workspace file. Here the bundled file is sliced the same way.
 
-```58:72:src/cli.ts
+```60:74:src/cli.ts
 const cli = Cli.create("diffmap", {
   description: "Serve a spec locally, or share it as a gist",
   version: packageVersion,
