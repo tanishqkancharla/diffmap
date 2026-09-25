@@ -1,6 +1,6 @@
 {
   "name": "@tanishqkancharla/diffmap",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Serve a spec or code walkthrough as a local page",
   "license": "MIT",
   "author": "Tanishq Kancharla",
