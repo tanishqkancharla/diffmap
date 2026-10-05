@@ -1,4 +1,0 @@
-interface:
-  display_name: "Generate Spec"
-  short_description: "Keep a living spec of planned vs done and serve it with diffmap"
-  default_prompt: "Use $generate-spec to keep a spec up to date while you plan and implement."

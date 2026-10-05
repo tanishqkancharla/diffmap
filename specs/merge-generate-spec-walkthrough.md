@@ -1,5 +1,7 @@
 # Merge generate-spec and code-walkthrough
 
+This records the earlier merge. The current skill is [generate-diffmap](../skills/generate-diffmap/SKILL.md), which covers both specs and code walkthroughs.
+
 ## System flow
 
 The spec is a picture of the work: **what’s already in the tree, and what’s still planned.** It lives at `specs/<name>.md` for the life of that work. The agent keeps it honest as the plan changes and as code lands. Other people read it from a GitHub PR or a gist — hosting for that is already on main.
@@ -19,8 +21,6 @@ flowchart TD
   SpecFile --> Stop[Agent must not touch the code]
   Walk --> TmpFile["tmp/.../walkthrough.md"]
   TmpFile --> Diffs[Real source-diff]
-  %% ref node:Spec [[skills/generate-spec/SKILL.md]]
-  %% ref node:Walk [[skills/code-walkthrough/SKILL.md]]
 ```
 
 Two opposite skills, two files. The spec never learns what landed. The walkthrough never was the plan.
@@ -50,7 +50,7 @@ sequenceDiagram
   Agent->>Agent: maybe write code
   Agent->>Doc: still true?
   Doc-->>User: same page, up to date
-  %% ref node:Agent [[skills/generate-spec/SKILL.md]]
+  %% ref node:Agent [[skills/generate-diffmap/SKILL.md]]
   %% ref node:Doc [[src/contentPlugin.ts#diffmapContentPlugin]]
 ```
 
@@ -82,8 +82,8 @@ Gist share and GitHub-hosted spec URLs already exist. The skill can mention them
 
 ## Important files, docs, and websites
 
-- [`skills/generate-spec/SKILL.md`](../skills/generate-spec/SKILL.md) — Living spec. Same file for plan and what landed.
-- [`skills/code-walkthrough/SKILL.md`](../skills/code-walkthrough/SKILL.md) — Same body, `name: code-walkthrough`.
+- [`skills/generate-diffmap/SKILL.md`](../skills/generate-diffmap/SKILL.md) — Living spec. Same file for plan and what landed.
+- `skills/code-walkthrough/SKILL.md` — Same body, `name: code-walkthrough`.
 - [`README.md`](../README.md) — One install line; `serve` / `share` / list.
 - [`src/cli.ts`](../src/cli.ts) — `diffmap serve`, `share`, `list`.
 - [`src/contentPlugin.ts`](../src/contentPlugin.ts) — Parse errors export `parseError` instead of throwing.
@@ -98,9 +98,9 @@ Gist share and GitHub-hosted spec URLs already exist. The skill can mention them
 
 ```callstack
  agent
--├── generate-spec  # plan, then freeze [[skills/generate-spec/SKILL.md]]
--└── code-walkthrough  # new tmp file [[skills/code-walkthrough/SKILL.md]]
-+└── generate-spec [[skills/generate-spec/SKILL.md]]
+-├── generate-spec  # plan, then freeze
+-└── code-walkthrough  # new tmp file
++└── generate-spec [[skills/generate-diffmap/SKILL.md]]
      ├── write specs/<name>.md
      ├── diffmap serve [[src/cli.ts]]
      └── keep that file true [[prompt:new:4]]
@@ -120,8 +120,8 @@ index 5c14d70..04d9792 100644
 +  default_prompt: "Use $generate-spec to keep a spec up to date while you plan and implement."
 ```
 
-- [x] Rewrite [`skills/generate-spec/SKILL.md`](../skills/generate-spec/SKILL.md) around the living spec. Drop counter-equivalent / do-not-implement / do-not-plan.
-- [x] Same text in [`skills/code-walkthrough/SKILL.md`](../skills/code-walkthrough/SKILL.md) (`name: code-walkthrough`).
+- [x] Rewrite [`skills/generate-diffmap/SKILL.md`](../skills/generate-diffmap/SKILL.md) around the living spec. Drop counter-equivalent / do-not-implement / do-not-plan.
+- [x] Same text in `skills/code-walkthrough/SKILL.md` (`name: code-walkthrough`).
 - [x] Update both `openai.yaml` prompts and the README install blurb.
 - [x] `npm run format:check`
 
@@ -130,7 +130,7 @@ index 5c14d70..04d9792 100644
 The skill template is call stacks and mermaid for planned work, real `source-diff` only after land, `list` before serve, skip a bad patch. No `diff:path` sketches.
 
 ```callstack
- generate-spec [[skills/generate-spec/SKILL.md]]
+ generate-spec [[skills/generate-diffmap/SKILL.md]]
 -├── Q&A until settled
 -├── spec with diff:path sketches
 -└── stop

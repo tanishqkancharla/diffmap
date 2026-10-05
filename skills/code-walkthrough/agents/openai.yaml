@@ -1,4 +1,0 @@
-interface:
-  display_name: "Code Walkthrough"
-  short_description: "Keep a living spec of planned vs done and serve it with diffmap"
-  default_prompt: "Use $code-walkthrough to keep a spec that shows what's already landed and what's still planned."

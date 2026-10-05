@@ -350,24 +350,6 @@ const styles = {
     "& ul > li[data-task]::before, & ol > li[data-task]::before": {
       content: "none",
     },
-    "& ul > li[data-task] > .diffmap-task-checkbox, & ol > li[data-task] > .diffmap-task-checkbox":
-      {
-        // Maui proseHtml md listPadding.
-        position: "absolute",
-        left: "-20px",
-        top: "6px",
-      },
-    "& .diffmap-task-checkbox label > span:last-child": {
-      position: "absolute",
-      width: "1px",
-      height: "1px",
-      padding: 0,
-      margin: "-1px",
-      overflow: "hidden",
-      clip: "rect(0, 0, 0, 0)",
-      whiteSpace: "nowrap",
-      border: 0,
-    },
   }),
   closed: style(
     flex({

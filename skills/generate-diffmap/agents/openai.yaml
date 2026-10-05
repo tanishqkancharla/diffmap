@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generate Diffmap"
+  short_description: "Create living specs and code walkthroughs with diffmap"
+  default_prompt: "Use $generate-diffmap to create and update a living spec while planning, implementing, or explaining code changes."

@@ -21,7 +21,7 @@ Hosted viewer: `https://diffmap.dev/g/<gistId>` (optional `/<file.md>`; `#headin
 ## Agent skills
 
 ```sh
-npx skills add tanishqkancharla/diffmap --skill generate-spec
+npx skills add tanishqkancharla/diffmap --skill generate-diffmap
 ```
 
 Keeps a spec in `specs/` that stays true to what's planned versus already in the tree. Serve it with diffmap. Share from a GitHub PR (`https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`) or `npx @tanishqkancharla/diffmap share`.
@@ -68,7 +68,7 @@ import {
 } from "@tanishqkancharla/diffmap";
 ```
 
-`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The generate-spec skill owns document shape; the viewer does not.
+`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The generate-diffmap skill owns document shape; the viewer does not.
 
 ## Fences
 

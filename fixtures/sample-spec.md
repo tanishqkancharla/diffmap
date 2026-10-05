@@ -63,6 +63,6 @@ The CLI description covers both specs and walkthroughs.
 ```
 
 - [ ] Add a `pnpm spec` alias that runs the same CLI.
-- [ ] Teach generate-spec to serve `specs/<name>.md` after writing it.
+- [ ] Teach generate-diffmap to serve `specs/<name>.md` after writing it.
 - [ ] Smoke that mermaid and diffs render. Delete any harness. Do not commit this check.
 - [ ] Run `pnpm --filter diffmap typecheck`.

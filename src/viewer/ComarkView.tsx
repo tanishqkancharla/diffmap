@@ -1,9 +1,7 @@
 import { createElement, type ReactNode, useState } from "react";
 import {
   Checkbox,
-  colors,
-  monospace,
-  radius,
+  Code,
   spacing,
   Table,
   TableHeader,
@@ -89,7 +87,15 @@ function renderElement(
     );
   }
   if (node.tag === "code") {
-    return <InlineChip key={key}>{children}</InlineChip>;
+    return (
+      <Code
+        key={key}
+        {...domAttrs(node)}
+        style={{ whiteSpace: "normal", overflowWrap: "anywhere" }}
+      >
+        {children}
+      </Code>
+    );
   }
   if (voidTags.has(node.tag)) {
     return createElement(node.tag, { key, ...domAttrs(node) });
@@ -158,10 +164,13 @@ function renderTable(
 
 function TaskListItem(props: { node: ViewerElement; children: ReactNode }) {
   const [checked, setChecked] = useState(props.node.attrs.checked === true);
+  const className = useStyles(taskListItemClass);
   return (
     <li
       id={props.node.attrs.id}
-      className={props.node.attrs.className}
+      className={[className, props.node.attrs.className]
+        .filter(Boolean)
+        .join(" ")}
       data-task=""
     >
       <span className="diffmap-task-checkbox">
@@ -171,7 +180,7 @@ function TaskListItem(props: { node: ViewerElement; children: ReactNode }) {
           setChecked={setChecked}
         />
       </span>
-      {props.children}
+      <div className="diffmap-task-content">{props.children}</div>
     </li>
   );
 }
@@ -194,16 +203,28 @@ function domAttrs(node: ViewerElement) {
   };
 }
 
-function InlineChip(props: { children?: ReactNode }) {
-  const className = useStyles(inlineCodeClass);
-  return <code className={className}>{props.children}</code>;
-}
-
-const inlineCodeClass = style(
-  monospace,
-  radius.md,
-  spacing.padding({ x: 2, y: 1 }),
-  {
-    backgroundColor: colors.gray[4],
+const taskListItemClass = style({
+  display: "grid",
+  gridTemplateColumns: "auto minmax(0, 1fr)",
+  alignItems: "start",
+  columnGap: spacing.value(3),
+  "& > .diffmap-task-checkbox": {
+    display: "flex",
+    alignItems: "center",
+    minHeight: "1lh",
   },
-);
+  "& > .diffmap-task-content": {
+    minWidth: 0,
+  },
+  "& .diffmap-task-checkbox label > span:last-child": {
+    position: "absolute",
+    width: "1px",
+    height: "1px",
+    padding: 0,
+    margin: "-1px",
+    overflow: "hidden",
+    clip: "rect(0, 0, 0, 0)",
+    whiteSpace: "nowrap",
+    border: 0,
+  },
+});

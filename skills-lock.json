@@ -2,10 +2,9 @@
   "version": 1,
   "skills": {
     "maui": {
-      "source": "tanishqkancharla/maui",
-      "sourceType": "github",
-      "skillPath": "skills/maui/SKILL.md",
-      "computedHash": "8951ac45db1b9477201131ccf5b3d09c7990ca921dc14b3d924fdb57deb15f79"
+      "source": "@tanishqkancharla/maui",
+      "sourceType": "node_modules",
+      "computedHash": "507b2ad5d953f9a032f776b44cf7e18bbab8206b8779a07e925b17fe37d2dd09"
     }
   }
 }

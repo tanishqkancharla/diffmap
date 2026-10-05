@@ -14,9 +14,9 @@ import type { ViewerHeading } from "../parseViewer.js";
 
 type TocItem = ViewerHeading & { children: TocItem[] };
 
-const TOC_LINE_MAX_PX = 24;
-const TOC_LINE_MIN_PX = 8;
-const TOC_LINE_STEP_PX = 6;
+const TOC_LINE_MAX_PX = 16;
+const TOC_LINE_MIN_PX = 4;
+const TOC_LINE_STEP_PX = 4;
 const DWELL_MS = 50;
 const LEAVE_MS = 100;
 const TOC_TRANSITION_MS = 180;
@@ -315,10 +315,11 @@ const styles = {
   }),
   cluster: style(spacing.padding({ top: 4, bottom: 4, left: 2, right: 6 }), {
     position: "relative",
+    minWidth: "40px",
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-start",
-    gap: spacing.value(6),
+    gap: spacing.value(3),
     pointerEvents: "auto",
     "&[data-open='true'] [data-diffmap-kind='toc-line']": {
       opacity: 0,
@@ -326,7 +327,7 @@ const styles = {
   }),
   line: style({
     display: "block",
-    height: "2px",
+    height: "1px",
     flexShrink: 0,
     borderRadius: "999px",
     backgroundColor: colors.gray[8],

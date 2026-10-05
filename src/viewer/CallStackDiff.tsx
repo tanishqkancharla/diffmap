@@ -1,5 +1,12 @@
-import { backgroundColor, colors, focusRing, spacing, text } from "maui";
-import { style, useStyles } from "purse-styles";
+import {
+  backgroundColor,
+  colors,
+  focusRing,
+  LARGE_SCALE,
+  spacing,
+  text,
+} from "maui";
+import { defineVars, style, useStyles } from "purse-styles";
 import { codeFontFamily } from "../codeFont.js";
 import type { SourceAnnotation, SourceNavigation } from "../annotations.js";
 import { pierreShell } from "./pierre.js";
@@ -80,6 +87,10 @@ export function CallStackDiff(
   );
 }
 
+const rowSize = defineVars({
+  height: { default: "28px", [LARGE_SCALE]: "40px" },
+});
+
 const styles = {
   shell: style(
     text({ size: "sm", fontWeight: 500, color: "highContrast" }),
@@ -120,10 +131,11 @@ const styles = {
         alignItems: "stretch",
         flex: "1 1 auto",
         minWidth: 0,
-        minHeight: "28px",
+        minHeight: rowSize.height,
         overflow: "hidden",
       },
       "& .stack-label": {
+        alignSelf: "center",
         flex: "1 1 auto",
         minWidth: 0,
         paddingBlock: "3px",

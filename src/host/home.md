@@ -7,7 +7,7 @@ TOC on the left, article here, Diff on the right. Click a stack row or a mermaid
 ## Install the skill
 
 ```sh
-npx skills add tanishqkancharla/diffmap --skill generate-spec
+npx skills add tanishqkancharla/diffmap --skill generate-diffmap
 ```
 
 That keeps a living spec in `specs/<name>.md`. Same file for the life of the work: what’s already in the tree, and what’s still planned. Don’t start a second walkthrough later.
@@ -172,7 +172,7 @@ Write `specs/<name>.md`. Serve it while you plan. When the plan changes, edit th
 ### Phase 1: Spec and serve
 
 ```callstack
- generate-spec
+ generate-diffmap
  └── specs/name.md
      └── diffmap serve [[src/cli.ts]]
 ```
