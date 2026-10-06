@@ -2,7 +2,15 @@
 
 This records the earlier merge. The current skill is [generate-diffmap](../skills/generate-diffmap/SKILL.md), which covers both specs and code walkthroughs.
 
-## System flow
+## Problem overview
+
+The skills fought each other. One wrote a plan and then refused to update it. The other wrote a post-hoc walkthrough in a different folder. You couldn’t watch one page go from “here’s the idea” to “here’s what shipped.”
+
+## Solution overview
+
+Folded both into `generate-spec`. The skill is short: keep a spec that matches the work. Don’t interview forever before there’s a page. Don’t start a second markdown file for the same effort. `code-walkthrough` is the same body under a second install name. README: one `npx skills add tanishqkancharla/diffmap --skill generate-spec`.
+
+Gist share and GitHub-hosted spec URLs already exist. The skill can mention them. Don’t rebuild hosting.
 
 The spec is a picture of the work: **what’s already in the tree, and what’s still planned.** It lives at `specs/<name>.md` for the life of that work. The agent keeps it honest as the plan changes and as code lands. Other people read it from a GitHub PR or a gist — hosting for that is already on main.
 
@@ -10,7 +18,7 @@ Not two skills. Not a walkthrough file you start later. Same doc.
 
 Product is **diffmap** (`tanishqkancharla/diffmap`, npm `@tanishqkancharla/diffmap`, `https://diffmap.dev`). Skill install name stays `generate-spec`. Do not `npm publish`.
 
-### Before
+### Before the merge
 
 ```mermaid
 flowchart TD
@@ -25,7 +33,7 @@ flowchart TD
 
 Two opposite skills, two files. The spec never learns what landed. The walkthrough never was the plan.
 
-### What we want
+### After the merge
 
 ```mermaid
 flowchart TD
@@ -56,16 +64,6 @@ sequenceDiagram
 
 Call stacks and mermaid are how you _see_ planned vs current. Real `source-diff` is only for code that actually landed (fake patches take down the whole page). Share is `diffmap share` or push the spec on a PR; `https://diffmap.dev/.../pull/n/path` pins to one SHA.
 
-## Problem overview
-
-The skills fought each other. One wrote a plan and then refused to update it. The other wrote a post-hoc walkthrough in a different folder. You couldn’t watch one page go from “here’s the idea” to “here’s what shipped.”
-
-## Solution overview
-
-Folded both into `generate-spec`. The skill is short: keep a spec that matches the work. Don’t interview forever before there’s a page. Don’t start a second markdown file for the same effort. `code-walkthrough` is the same body under a second install name. README: one `npx skills add tanishqkancharla/diffmap --skill generate-spec`.
-
-Gist share and GitHub-hosted spec URLs already exist. The skill can mention them. Don’t rebuild hosting.
-
 ## Goals
 
 - One spec file the reader can use to see done vs planned.
@@ -80,21 +78,19 @@ Gist share and GitHub-hosted spec URLs already exist. The skill can mention them
 - Publishing npm, renaming the skill, or rebuilding gist/PR hosting.
 - Viewer reading git for you.
 
-## Important files, docs, and websites
-
-- [`skills/generate-diffmap/SKILL.md`](../skills/generate-diffmap/SKILL.md) — Living spec. Same file for plan and what landed.
-- `skills/code-walkthrough/SKILL.md` — Same body, `name: code-walkthrough`.
-- [`README.md`](../README.md) — One install line; `serve` / `share` / list.
-- [`src/cli.ts`](../src/cli.ts) — `diffmap serve`, `share`, `list`.
-- [`src/contentPlugin.ts`](../src/contentPlugin.ts) — Parse errors export `parseError` instead of throwing.
-- [`fixtures/spec-then-implement.md`](../fixtures/spec-then-implement.md) — Mixed planned/done fixture.
-- [Hosted example of this spec](https://diffmap.dev/tanishqkancharla/diffmap/pull/5/specs/merge-generate-spec-walkthrough.md)
-
 ## Implementation
 
-### Phase 1: One skill, one living spec
+### ✅ Phase 1: One skill, one living spec
 
-`generate-spec` is now a short living-spec skill. `code-walkthrough` is the same body with a different `name:`. README has one install line. The git patches for those markdown files contain nested fences, so they are not embedded here (they would blank the page). Open the files instead.
+**Today**
+
+`generate-spec` writes a plan and then refuses to update it. `code-walkthrough` writes a separate post-hoc file under `tmp/`.
+
+**Proposed**
+
+Rewrite `generate-spec` around one living spec and drop the counter-equivalent, do-not-implement, and do-not-plan rules. `code-walkthrough` gets the same text under its own `name:`. Both `openai.yaml` prompts and the README install blurb change to match.
+
+Before this phase, an agent picked one of two skills based on whether the user wanted a plan or an explanation. Each skill produced its own file, and neither came back to the other's. After it, the agent always uses `generate-spec`, and that one skill writes the spec, serves it, and keeps it true as work lands:
 
 ```callstack
  agent
@@ -105,6 +101,8 @@ Gist share and GitHub-hosted spec URLs already exist. The skill can mention them
      ├── diffmap serve [[src/cli.ts]]
      └── keep that file true [[prompt:new:4]]
 ```
+
+`code-walkthrough` keeps the same body under its own `name:` so existing installs still work, and the README collapses to one install line. The skill files contain nested fences, so their patches are not embedded here; they would blank the page. The prompt change shows the new promise most directly: the agent keeps the spec up to date instead of writing a phased plan once.
 
 ```source-diff:prompt:skills/generate-spec/agents/openai.yaml
 diff --git a/skills/generate-spec/agents/openai.yaml b/skills/generate-spec/agents/openai.yaml
@@ -120,14 +118,17 @@ index 5c14d70..04d9792 100644
 +  default_prompt: "Use $generate-spec to keep a spec up to date while you plan and implement."
 ```
 
-- [x] Rewrite [`skills/generate-diffmap/SKILL.md`](../skills/generate-diffmap/SKILL.md) around the living spec. Drop counter-equivalent / do-not-implement / do-not-plan.
-- [x] Same text in `skills/code-walkthrough/SKILL.md` (`name: code-walkthrough`).
-- [x] Update both `openai.yaml` prompts and the README install blurb.
-- [x] `npm run format:check`
+### ✅ Phase 2: Don’t lie in the markdown
 
-### Phase 2: Don’t lie in the markdown
+**Today**
 
-The skill template is call stacks and mermaid for planned work, real `source-diff` only after land, `list` before serve, skip a bad patch. No `diff:path` sketches.
+The skill interviews until the plan is settled, sketches changes as `diff:path` fences, and stops.
+
+**Proposed**
+
+Show planned work with call stacks and Mermaid, and embed a real `source-diff` only after the code lands. Drop the `diff:path` example from the skill.
+
+The old template asked questions until the plan was settled, then wrote the spec with `diff:path` sketches of code that did not exist yet, and stopped. Those sketches looked like real patches, so readers could not tell planned work from landed work. The new template writes planned work as call stacks and returns to the same file once code lands:
 
 ```callstack
  generate-spec [[skills/generate-diffmap/SKILL.md]]
@@ -138,23 +139,42 @@ The skill template is call stacks and mermaid for planned work, real `source-dif
 +└── later: same file, real source-diff for what landed
 ```
 
-- [x] Template + fence notes: call stacks up front; `source-diff` only when the code exists; drop the `diff:path` example from the skill.
-- [x] `npm run format:check`
+Two smaller rules come with it. The agent runs `diffmap list` before `serve` so it reuses a running viewer, and it explains a patch in prose instead of embedding one that would fail to parse.
 
-### Phase 3: Viewer polish
+### ✅ Phase 3: Viewer polish
 
-Local viewer shows a parse error page instead of a Vite crash, re-reads the H1 on `/__diffmap/meta`, and opens Diff when a real `source-diff` is present.
+**Today**
+
+A spec that fails to parse crashes Vite, the title never refreshes after an edit, and Diff stays closed even when the spec has real patches.
+
+**Proposed**
+
+Show a parse error page, re-read the title on each `/__diffmap/meta` request, and open Diff when the spec has a `source-diff`.
+
+A living spec is edited while its viewer is open, so the viewer has to survive a half-written file and keep up with changes.
+
+Parsing happens in the content plugin. Instead of throwing, it now exports the error message alongside a null document, so Vite keeps serving. The entry point reads that export and renders an error page in place of the viewer:
 
 ```callstack
  diffmapContentPlugin [[src/contentPlugin.ts#diffmapContentPlugin]]
  └── parseViewerDocument [[src/parseViewer.ts#parseViewerDocument]] [[plugin:new:18]]
 -    └── throw
 +    └── export parseError [[plugin:new:19-21]] [[main:new:15-21]]
+```
+
+Once a phase lands, its spec carries real patches. `ViewerApp` now opens the Diff panel on load when it finds any, so the reader sees the changed code first:
+
+```callstack
  ViewerApp [[src/viewer/ViewerApp.tsx#ViewerApp]]
--└── Diff stays closed
+-└── leave Diff closed
 +└── open Diff when sourceDiffs show up [[viewer:new:35-37]]
+```
+
+Last, the title. The server used to report the H1 it read at startup. `/__diffmap/meta` now re-reads the file on each request, so renaming the spec updates the header:
+
+```callstack
  handleDiffmapRequest [[src/serve.ts]]
- └── GET /__diffmap/meta [[serve:new:261-264]] [[serve:new:269]]
+ └── GET /__diffmap/meta # re-read the H1 from disk [[serve:new:261-264]] [[serve:new:269]]
 ```
 
 ```source-diff:plugin:src/contentPlugin.ts
@@ -251,13 +271,26 @@ index 4c251e1..11c7409 100644
        }),
 ```
 
-- [x] Parse error page; re-read title from `/__diffmap/meta`; auto-open Diff when `sourceDiffs` is non-empty.
-- [x] `npm run typecheck` and `npm run lint`
+### ✅ Phase 4: Check it
 
-### Phase 4: Check it
+**Today**
 
-Mixed fixture is [`fixtures/spec-then-implement.md`](../fixtures/spec-then-implement.md) (nested fences, so no `source-diff` of that file here). `npm test`, `typecheck`, and `lint` passed. README no longer sells two opposite skills.
+No fixture covers a spec with both landed and planned phases.
 
-- [x] Mixed planned/done fixture.
-- [x] Checks: `npm run format`, `lint`, `typecheck`, `test`.
-- [x] `npm run format:check` (and typecheck/lint if Phase 3 landed)
+**Proposed**
+
+Add a mixed fixture and run the full checks.
+
+The new fixture, [`fixtures/spec-then-implement.md`](../fixtures/spec-then-implement.md), holds one landed phase with a real `source-diff` and one planned phase with only a call stack, the two states a living spec mixes. Its patch is not embedded here because the file contains nested fences.
+
+With the fixture in place, `npm run format`, `lint`, `typecheck`, and `test` all passed, and the README no longer describes two opposite skills.
+
+## References
+
+- [`skills/generate-diffmap/SKILL.md`](../skills/generate-diffmap/SKILL.md) — Living spec. Same file for plan and what landed.
+- `skills/code-walkthrough/SKILL.md` — Same body, `name: code-walkthrough`.
+- [`README.md`](../README.md) — One install line; `serve` / `share` / list.
+- [`src/cli.ts`](../src/cli.ts) — `diffmap serve`, `share`, `list`.
+- [`src/contentPlugin.ts`](../src/contentPlugin.ts) — Parse errors export `parseError` instead of throwing.
+- [`fixtures/spec-then-implement.md`](../fixtures/spec-then-implement.md) — Mixed planned/done fixture.
+- [Hosted example of this spec](https://diffmap.dev/tanishqkancharla/diffmap/pull/5/specs/merge-generate-spec-walkthrough.md)

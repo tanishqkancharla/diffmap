@@ -38,7 +38,9 @@ Keep each phase small enough to commit on its own. Prefix in-progress phase head
 
 Start each phase with **Today** and **Proposed**. Use a few simple sentences for each: Today describes the behavior before the phase; Proposed explains the change and why it helps. Keep this comparison when the phase is completed.
 
-Explain the implementation with pseudocode, Mermaid diagrams, and call stack diffs. Choose the forms that clarify the work and place them next to the behavior they explain. Call stack diffs use `-` for the original code, `+` for the change, and `└──` / `├──` for the call tree. Use `#` comments to explain a purpose, return value, or side effect.
+After Today and Proposed, tell the phase's work as a story: walk through the change in the order a reader needs it, and interleave pseudocode, Mermaid diagrams, and call stack diffs between short paragraphs. Each paragraph sets up the next visual, and each visual shows the step the paragraph just described. Do not stack visuals without prose between them, and do not end a phase with a task list or checkboxes. Call stack diffs use `-` for the original code, `+` for the change, and `└──` / `├──` for the call tree. Use `#` comments to explain a purpose, return value, or side effect.
+
+Name each call stack row after a real function or method. When a row summarizes work instead, write it as a verb phrase that says what the code does, not a noun for the thing involved. Write `+├── run executor schema migrations`, not `+├── Executor schema migrations`, and `+└── load the encrypted credential provider`, not `+└── encrypted credential provider`. Write `#` comments as actions too.
 
 Write pseudocode in the source repo's main language, using its familiar syntax and a matching code fence.
 
@@ -61,11 +63,15 @@ The handler passes records straight to the service. Empty names reach storage.
 
 Validate each record before calling the service. Return an error for an empty name so storage receives valid records.
 
+The handler gains one step between receiving a record and saving it:
+
 ```callstack
  requestHandler [[src/request.ts#requestHandler]]
 +├── validateInput # reject empty names
  └── existingService [[src/service.ts#existingService]]
 ```
+
+A valid record continues to the service unchanged. An invalid one stops at validation and returns an error, so nothing reaches storage:
 
 ```mermaid
 flowchart LR
@@ -75,6 +81,8 @@ flowchart LR
     %% ref node:A [[src/request.ts#requestHandler]]
     %% ref node:B [[src/service.ts#existingService]]
 ```
+
+In code, the check is an early return before the existing call:
 
 ```ts
 function requestHandler(record: RecordInput) {

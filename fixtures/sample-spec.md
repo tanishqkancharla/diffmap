@@ -1,20 +1,18 @@
 # Spec fixture
 
-## System flow
-
-```mermaid
-flowchart TD
-  A[Spec markdown] --> B[Local page]
-  B --> C[Implementer]
-```
-
 ## Problem overview
 
 Specs lived as markdown files with no local page, so mermaid, call stacks, and diff previews were hard to read. Prose may name paths such as `{workspace}/.halo/extensions/<id>/`.
 
 ## Solution overview
 
-`pnpm exec diffmap` serves the spec with the same Maui page as a code walkthrough. The spec keeps its own section shape.
+`pnpm exec diffmap` serves the spec with the same Maui page as a code walkthrough. The spec keeps its own section shape. The author writes the markdown, diffmap renders it locally, and the implementer reads that page.
+
+```mermaid
+flowchart TD
+  A[Spec markdown] --> B[Local page]
+  B --> C[Implementer]
+```
 
 ## Goals
 
@@ -25,24 +23,28 @@ Specs lived as markdown files with no local page, so mermaid, call stacks, and d
 
 - Changing the spec section order.
 
-## Important files, docs, and websites
-
-- [`src/cli.ts`](../src/cli.ts) — Starts the local server for both specs and walkthroughs.
-
 ## Implementation
 
 ### Phase 1: Serve the spec file
 
-The CLI already parses markdown. Point it at a spec path. `startServer` now builds the Vite page instead of writing walkthrough HTML:
+**Today**
+
+The CLI only serves walkthroughs. `startServer` writes walkthrough HTML, so a spec has no page.
+
+**Proposed**
+
+Point the CLI at a spec path and have `startServer` build the Vite page instead. A `pnpm spec` alias runs the same CLI, and generate-diffmap serves `specs/<name>.md` after writing it.
+
+Serving starts in `startServer`. Today it reads the file as a walkthrough and writes static HTML. Instead, it creates a Vite server that renders any markdown file with the Maui page, and requests flow through the same handler as before:
 
 ```callstack
  startServer
--└── readWalkthroughOnly
-+└── createViteServer
+-└── readWalkthroughOnly # write static walkthrough HTML
++└── createViteServer # build the Maui page for any markdown file
     └── handleDiffmapRequest
 ```
 
-`StartServerInput` is the listen contract: file, workspace root, and port.
+Vite needs to know which file to render and where excerpts resolve from. `StartServerInput` carries both, plus the port to listen on:
 
 ```ts
 // src/serve.ts
@@ -53,7 +55,7 @@ type StartServerInput = {
 };
 ```
 
-The CLI description covers both specs and walkthroughs.
+Last, the CLI help text stops calling every file a walkthrough, so `diffmap --help` describes both uses:
 
 ```diff
  // src/cli.ts
@@ -62,7 +64,6 @@ The CLI description covers both specs and walkthroughs.
 +  description: "Serve a spec or code walkthrough markdown file as a local page",
 ```
 
-- [ ] Add a `pnpm spec` alias that runs the same CLI.
-- [ ] Teach generate-diffmap to serve `specs/<name>.md` after writing it.
-- [ ] Smoke that mermaid and diffs render. Delete any harness. Do not commit this check.
-- [ ] Run `pnpm --filter diffmap typecheck`.
+## References
+
+- [`src/cli.ts`](../src/cli.ts) — Starts the local server for both specs and walkthroughs.
