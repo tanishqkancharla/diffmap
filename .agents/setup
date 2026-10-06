@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Prepares a fresh Amp orb: pinned npm + dependencies from package-lock.json.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() {
+	local label="$1"
+	shift
+	echo "==> $label"
+	local start=$SECONDS
+	"$@"
+	echo "    done in $((SECONDS - start))s"
+}
+
+# Match the npm version pinned in package.json's packageManager field.
+pinned_npm="$(node -p "require('./package.json').packageManager.split('@')[1]")"
+if [ "$(npm --version)" != "$pinned_npm" ]; then
+	step "install npm@$pinned_npm" npm install --global --no-audit --no-fund "npm@$pinned_npm"
+fi
+
+# npm install is a fast no-op when node_modules already matches the lockfile
+# (warm snapshot); npm ci would delete and reinstall everything every time.
+# --no-save keeps npm from rewriting the committed lockfile.
+step "npm install" npm install --no-save --no-audit --no-fund --prefer-offline
