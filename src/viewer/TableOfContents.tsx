@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { motion, useReducedMotion, type Transition } from "motion/react";
 import {
   background,
   colors,
   focusRing,
   motionEasing,
+  overlayMotion,
   radius,
   shadow,
   spacing,
@@ -14,13 +16,28 @@ import type { ViewerHeading } from "../parseViewer.js";
 
 type TocItem = ViewerHeading & { children: TocItem[] };
 
-const TOC_LINE_MAX_PX = 16;
-const TOC_LINE_MIN_PX = 4;
-const TOC_LINE_STEP_PX = 4;
+const TOC_LINE_MAX_PX = 12;
+const TOC_LINE_MIN_PX = 3;
+const TOC_LINE_STEP_PX = 3;
 const DWELL_MS = 50;
 const LEAVE_MS = 100;
 const TOC_TRANSITION_MS = 180;
-const TOC_MOTION = `opacity ${String(TOC_TRANSITION_MS)}ms ${motionEasing}, transform ${String(TOC_TRANSITION_MS)}ms ${motionEasing}`;
+
+// Maui's Dialog motion (no-bounce spring in, ease-in out), about 25% faster
+// so the menu keeps up with hover.
+const cardEnter: Transition = {
+  type: "spring",
+  visualDuration: 0.15,
+  bounce: overlayMotion.dialogEnter.bounce,
+};
+const cardExit: Transition = {
+  duration: 0.09,
+  ease: "easeIn",
+};
+const cardReduced: Transition = {
+  duration: overlayMotion.reduced.durationMs / 1000,
+  ease: "easeInOut",
+};
 
 /** Equal side gutters so the line rail fits and the article column stays centered. */
 export const TOC_SIDE_MARGIN_PX = 48;
@@ -58,6 +75,7 @@ export function TableOfContents(props: {
   const clusterClass = useStyles(styles.cluster);
   const lineClass = useStyles(styles.line);
   const cardClass = useStyles(styles.card);
+  const reduceMotion = Boolean(useReducedMotion());
   const listClass = useStyles(styles.list);
   const hoveringRef = useRef(false);
   const dwellTimer = useRef<number | undefined>(undefined);
@@ -135,8 +153,19 @@ export function TableOfContents(props: {
             style={{ width: tocLineWidth(heading.level, shallowest) }}
           />
         ))}
-        <div
+        <motion.div
           className={cardClass}
+          // Motion owns transform, so it also applies the vertical centering.
+          style={{ y: "-50%" }}
+          initial={false}
+          animate={
+            props.open
+              ? { opacity: 1, scale: 1 }
+              : { opacity: 0, scale: reduceMotion ? 1 : 0.94 }
+          }
+          transition={
+            reduceMotion ? cardReduced : props.open ? cardEnter : cardExit
+          }
           data-diffmap-kind="toc-card"
           data-open={props.open ? "true" : "false"}
           aria-hidden={!props.open}
@@ -150,7 +179,7 @@ export function TableOfContents(props: {
               setActiveId(id);
             }}
           />
-        </div>
+        </motion.div>
       </div>
     </nav>
   );
@@ -319,7 +348,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-start",
-    gap: spacing.value(3),
+    gap: "12px",
     pointerEvents: "auto",
     "&[data-open='true'] [data-diffmap-kind='toc-line']": {
       opacity: 0,
@@ -357,17 +386,9 @@ const styles = {
       overflowY: "auto",
       overscrollBehavior: "contain",
       transformOrigin: "left center",
-      opacity: 0,
       pointerEvents: "none",
-      transform: "translateY(-50%) translateX(-6px) scale(0.98)",
-      transition: TOC_MOTION,
-      "@media (prefers-reduced-motion: reduce)": {
-        transition: "none",
-      },
       "&[data-open='true']": {
-        opacity: 1,
         pointerEvents: "auto",
-        transform: "translateY(-50%) translateX(0px) scale(1)",
       },
       ...tocListRules,
     },
