@@ -1,19 +1,80 @@
-import { useEffect, useMemo, useRef } from "react";
-import { backgroundColor, colors, fontFamily } from "maui";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Button,
+  Close,
+  Dialog,
+  Maximize,
+  backgroundColor,
+  colors,
+  fontFamily,
+  spacing,
+} from "maui";
 import { style, useStyles } from "purse-styles";
 import { mermaidSvg } from "../mermaid.js";
 import type { DiagramAnnotation } from "../diagramAnnotations.js";
 import type { SourceNavigation } from "../annotations.js";
 import { linkDiagram } from "./diagramLinks.js";
 
-export function MermaidBlock(
-  props: {
-    source: string;
-    annotations: DiagramAnnotation[];
-  } & SourceNavigation,
-) {
+type MermaidProps = {
+  source: string;
+  annotations: DiagramAnnotation[];
+} & SourceNavigation;
+
+export function MermaidBlock(props: MermaidProps) {
+  const [fullscreen, setFullscreen] = useState(false);
+  const frame = useStyles(styles.frame);
+  const expand = useStyles(styles.expand);
+  const dialog = useStyles(styles.dialog);
+  const header = useStyles(styles.header);
+  return (
+    <div className={frame}>
+      <MermaidDiagram {...props} fullscreen={false} />
+      <Button
+        className={expand}
+        size="sm"
+        variant="quiet"
+        aria-label="Full screen"
+        onClick={() => setFullscreen(true)}
+      >
+        <Maximize size="xs" />
+      </Button>
+      <Dialog
+        isOpen={fullscreen}
+        onOpenChange={setFullscreen}
+        size="lg"
+        aria-label="Diagram"
+        className={dialog}
+      >
+        <div className={header}>
+          <Button
+            size="sm"
+            variant="quiet"
+            slot="close"
+            aria-label="Exit full screen"
+          >
+            <Close size="xs" />
+          </Button>
+        </div>
+        <MermaidDiagram
+          {...props}
+          fullscreen
+          onSelectAnnotation={(annotation) => {
+            // The Diff panel opens behind the dialog, so leave full screen.
+            setFullscreen(false);
+            props.onSelectAnnotation(annotation);
+          }}
+        />
+      </Dialog>
+    </div>
+  );
+}
+
+function MermaidDiagram(props: MermaidProps & { fullscreen: boolean }) {
   const container = useRef<HTMLDivElement>(null);
-  const shell = useStyles(styles.shell);
+  const shell = useStyles(
+    styles.shell,
+    props.fullscreen ? styles.fullscreenShell : styles.inlineShell,
+  );
   const svg = useMemo(
     () =>
       mermaidSvg({
@@ -91,9 +152,37 @@ export function MermaidBlock(
 }
 
 const styles = {
+  frame: style({
+    position: "relative",
+    width: "100%",
+    minWidth: 0,
+  }),
+  expand: style({
+    position: "absolute",
+    top: 0,
+    insetInlineEnd: 0,
+  }),
+  dialog: style({
+    width: "calc(100vw - 32px)",
+    height: "calc(100dvh - 32px)",
+    padding: spacing.value(6),
+    "& > [role='dialog']": { flex: 1, minHeight: 0, gap: spacing.value(2) },
+  }),
+  header: style({
+    display: "flex",
+    justifyContent: "flex-end",
+  }),
+  inlineShell: style({
+    maxHeight: "60vh",
+    "& svg": { maxHeight: "60vh" },
+  }),
+  fullscreenShell: style({
+    flex: 1,
+    "& svg": { height: "100%" },
+  }),
   shell: style({
     width: "100%",
-    maxHeight: "60vh",
+    minHeight: 0,
     overflow: "auto",
     minWidth: 0,
     border: 0,
@@ -120,7 +209,6 @@ const styles = {
       display: "block",
       width: "100%",
       height: "auto",
-      maxHeight: "60vh",
     },
   }),
 };

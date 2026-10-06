@@ -209,11 +209,16 @@ motionDurationMs; // 80
 motionStreamDurationMs; // 80 — Streamdown word fade
 motionEasing; // "ease-in-out"
 motion.standard("opacity", "transform"); // 80ms ease-in-out on those properties
+overlayMotion; // shared tooltip, dialog, backdrop, and reduced timings
 ```
 
 Use `motion.standard` for opacity, transform, box-shadow, color. **Never** for hover `background` / `background-color`.
 
-Tooltips use a snappy spring (not `motion.standard`). Crossfade enter is a 0.3s spring (`bounce` 0.2); exit uses `motionDurationMs` / ease-in-out. Streaming markdown uses `motionStreamDurationMs`.
+`overlayMotion` defines tooltip enter (120ms entrance curve), tooltip exit
+(80ms ease-in), dialog enter (200ms entrance curve), dialog exit (120ms
+ease-in), backdrop (100ms), and opacity-only reduced motion (80ms). Crossfade
+enter is a 0.3s spring (`bounce` 0.2); exit uses `motionDurationMs` /
+ease-in-out. Streaming markdown uses `motionStreamDurationMs`.
 
 ## Sizing and icons
 

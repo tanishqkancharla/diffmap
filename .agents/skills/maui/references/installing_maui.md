@@ -2,6 +2,12 @@
 
 Maui is a TypeScript-first design system styled with `purse-styles`. Wrap the app in `MauiProvider`, then import tokens and components from `"maui"`.
 
+Install Maui with its required `motion` peer dependency:
+
+```sh
+pnpm add maui@npm:@tanishqkancharla/maui motion@^13.2.0
+```
+
 ```ts
 import { style } from "purse-styles"
 import {

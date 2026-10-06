@@ -52,18 +52,31 @@ Full-viewport portal. `onClickOutside` fires when the backdrop itself is the mou
 
 ## `Dialog`
 
-`Overlay` + focus lock + scale/fade in. Children are the dialog body (padding 32px, `background.element`, 4px radius). Not React Aria Dialog — you own title and close.
+Accessible React Aria modal with focus containment/restoration, Escape handling,
+outside-click dismissal, scroll locking, and reversible scale/fade motion. The
+page is covered by a neutral 10% black scrim and the solid surface uses an
+outline border with no blur or shadow.
 
 ```tsx
-{
-  open && (
-    <Dialog onClickOutside={() => setOpen(false)}>
-      <H3>Confirm</H3>
-      <P>This cannot be undone.</P>
-      <Button onClick={() => setOpen(false)}>Close</Button>
-    </Dialog>
-  );
-}
+<Dialog isOpen={open} onOpenChange={setOpen}>
+  <DialogTitle>Delete project?</DialogTitle>
+  <DialogBody>
+    <P>This cannot be undone.</P>
+  </DialogBody>
+  <DialogActions>
+    <Button slot="close">Cancel</Button>
+    <Button variant="primary" variantColor="red">
+      Delete
+    </Button>
+  </DialogActions>
+</Dialog>
 ```
+
+Keep `Dialog` mounted and control it with `isOpen`; conditional mounting prevents
+the exit animation. `size` is `"sm" | "md" | "lg"` (`"sm"` default, 440px;
+`"md"` is 640px for forms).
+`isDismissable` defaults to true. Use `role="alertdialog"` and disable pointer and
+keyboard dismissal when a response is required. Actions are composed rather than
+passed as callback props so forms, loading states, links, and custom controls work.
 
 Edge-anchored mobile nav is [`Drawer`](drawer.md), not this Dialog and not Overlay.

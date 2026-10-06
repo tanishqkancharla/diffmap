@@ -18,6 +18,7 @@ export function gistAppConfig(): UserConfig {
         "react-dom",
         "react/jsx-dev-runtime",
         "maui",
+        "motion/react",
         "purse-styles",
         "@pierre/diffs/react",
         "beautiful-mermaid",
