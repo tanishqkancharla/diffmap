@@ -15,7 +15,8 @@
     "bin.js",
     "index.html",
     "src",
-    "vite.config.ts"
+    "vite.config.ts",
+    "vite.gist.config.ts"
   ],
   "type": "module",
   "exports": {
