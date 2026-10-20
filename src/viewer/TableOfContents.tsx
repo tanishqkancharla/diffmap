@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { motion, useReducedMotion, type Transition } from "motion/react";
 import {
   background,
@@ -43,11 +50,10 @@ const cardReduced: Transition = {
 export const TOC_SIDE_MARGIN_PX = 48;
 
 /**
- * Same cutoff that used to open the wide overlay (1101px). Applied to the
- * article column's remaining width, so a resize or an open Diff panel can
- * drop below it even when the viewport used to qualify.
+ * Left gutter width at which the list sits there as-is. Narrower gutters (a
+ * small window, or an open Diff panel) collapse it to lines and a hover card.
  */
-export const TOC_OPEN_MIN_WIDTH_PX = 1101;
+const TOC_DOCKED_MIN_GUTTER_PX = 220;
 
 export function hasTableOfContents(headings: ViewerHeading[]) {
   return tocHeadings(headings).length > 0;
@@ -61,9 +67,6 @@ export function tocLineWidth(level: number, shallowestLevel: number) {
 export function TableOfContents(props: {
   headings: ViewerHeading[];
   articleRef: RefObject<HTMLElement | null>;
-  open: boolean;
-  onDwellOpen: () => void;
-  onDwellClose: () => void;
 }) {
   const headings = tocHeadings(props.headings);
   const items = nestHeadings(headings);
@@ -71,17 +74,59 @@ export function TableOfContents(props: {
     props.headings,
     props.articleRef,
   );
+  const navRef = useRef<HTMLElement>(null);
+  const docked = useDocked(navRef);
   const railClass = useStyles(styles.rail);
+  const dockedClass = useStyles(styles.docked);
+  const listClass = useStyles(styles.list);
+
+  if (items.length === 0) return undefined;
+
+  const list = (
+    <TocList
+      items={items}
+      className={listClass}
+      activeId={activeId}
+      onSelect={setActiveId}
+    />
+  );
+
+  return (
+    <nav
+      ref={navRef}
+      id="diffmap-toc"
+      className={railClass}
+      aria-label="Table of contents"
+      data-diffmap-kind="toc"
+      data-docked={docked ? "true" : "false"}
+    >
+      {docked ? (
+        <div className={dockedClass} data-diffmap-kind="toc-list">
+          {list}
+        </div>
+      ) : (
+        <TocRail headings={headings} activeId={activeId}>
+          {list}
+        </TocRail>
+      )}
+    </nav>
+  );
+}
+
+/** Heading lines that open the list in a floating card on hover. */
+function TocRail(props: {
+  headings: ViewerHeading[];
+  activeId: string | undefined;
+  children: ReactNode;
+}) {
   const clusterClass = useStyles(styles.cluster);
   const lineClass = useStyles(styles.line);
   const cardClass = useStyles(styles.card);
   const reduceMotion = Boolean(useReducedMotion());
-  const listClass = useStyles(styles.list);
+  const [open, setOpen] = useState(false);
   const hoveringRef = useRef(false);
   const dwellTimer = useRef<number | undefined>(undefined);
   const closeTimer = useRef<number | undefined>(undefined);
-  const onDwellOpen = props.onDwellOpen;
-  const onDwellClose = props.onDwellClose;
 
   useEffect(() => {
     const onPageLeave = () => {
@@ -92,7 +137,7 @@ export function TableOfContents(props: {
       window.clearTimeout(closeTimer.current);
       dwellTimer.current = undefined;
       closeTimer.current = undefined;
-      onDwellClose();
+      setOpen(false);
     };
     document.documentElement.addEventListener("mouseleave", onPageLeave);
     return () => {
@@ -100,88 +145,69 @@ export function TableOfContents(props: {
       window.clearTimeout(dwellTimer.current);
       window.clearTimeout(closeTimer.current);
     };
-  }, [onDwellClose]);
+  }, []);
 
-  if (items.length === 0) return undefined;
-
-  const shallowest = headings.reduce(
+  const shallowest = props.headings.reduce(
     (min, heading) => Math.min(min, heading.level),
     6,
   );
 
   return (
-    <nav
-      id="diffmap-toc"
-      className={railClass}
-      aria-label="Table of contents"
-      data-diffmap-kind="toc"
-      data-open={props.open ? "true" : "false"}
-    >
-      <div
-        className={clusterClass}
-        data-open={props.open ? "true" : "false"}
-        onPointerEnter={() => {
-          hoveringRef.current = true;
-          window.clearTimeout(closeTimer.current);
-          closeTimer.current = undefined;
-          if (props.open || dwellTimer.current !== undefined) return;
-          dwellTimer.current = window.setTimeout(() => {
-            dwellTimer.current = undefined;
-            if (!hoveringRef.current) return;
-            onDwellOpen();
-          }, DWELL_MS);
-        }}
-        onPointerLeave={() => {
-          hoveringRef.current = false;
-          window.clearTimeout(dwellTimer.current);
+    <div
+      className={clusterClass}
+      data-open={open ? "true" : "false"}
+      onPointerEnter={() => {
+        hoveringRef.current = true;
+        window.clearTimeout(closeTimer.current);
+        closeTimer.current = undefined;
+        if (open || dwellTimer.current !== undefined) return;
+        dwellTimer.current = window.setTimeout(() => {
           dwellTimer.current = undefined;
-          window.clearTimeout(closeTimer.current);
-          closeTimer.current = window.setTimeout(() => {
-            closeTimer.current = undefined;
-            if (hoveringRef.current) return;
-            onDwellClose();
-          }, LEAVE_MS);
-        }}
+          if (!hoveringRef.current) return;
+          setOpen(true);
+        }, DWELL_MS);
+      }}
+      onPointerLeave={() => {
+        hoveringRef.current = false;
+        window.clearTimeout(dwellTimer.current);
+        dwellTimer.current = undefined;
+        window.clearTimeout(closeTimer.current);
+        closeTimer.current = window.setTimeout(() => {
+          closeTimer.current = undefined;
+          if (hoveringRef.current) return;
+          setOpen(false);
+        }, LEAVE_MS);
+      }}
+    >
+      {props.headings.map((heading) => (
+        <span
+          key={heading.id}
+          className={lineClass}
+          data-diffmap-kind="toc-line"
+          data-level={heading.level}
+          data-current={props.activeId === heading.id ? "true" : "false"}
+          style={{ width: tocLineWidth(heading.level, shallowest) }}
+        />
+      ))}
+      <motion.div
+        className={cardClass}
+        // Motion owns transform, so it also applies the vertical centering.
+        style={{ y: "-50%" }}
+        initial={false}
+        animate={
+          open
+            ? { opacity: 1, scale: 1 }
+            : { opacity: 0, scale: reduceMotion ? 1 : 0.94 }
+        }
+        transition={reduceMotion ? cardReduced : open ? cardEnter : cardExit}
+        data-diffmap-kind="toc-card"
+        data-open={open ? "true" : "false"}
+        aria-hidden={!open}
+        inert={!open}
       >
-        {headings.map((heading) => (
-          <span
-            key={heading.id}
-            className={lineClass}
-            data-diffmap-kind="toc-line"
-            data-level={heading.level}
-            data-current={activeId === heading.id ? "true" : "false"}
-            style={{ width: tocLineWidth(heading.level, shallowest) }}
-          />
-        ))}
-        <motion.div
-          className={cardClass}
-          // Motion owns transform, so it also applies the vertical centering.
-          style={{ y: "-50%" }}
-          initial={false}
-          animate={
-            props.open
-              ? { opacity: 1, scale: 1 }
-              : { opacity: 0, scale: reduceMotion ? 1 : 0.94 }
-          }
-          transition={
-            reduceMotion ? cardReduced : props.open ? cardEnter : cardExit
-          }
-          data-diffmap-kind="toc-card"
-          data-open={props.open ? "true" : "false"}
-          aria-hidden={!props.open}
-          inert={!props.open}
-        >
-          <TocList
-            items={items}
-            className={listClass}
-            activeId={activeId}
-            onSelect={(id) => {
-              setActiveId(id);
-            }}
-          />
-        </motion.div>
-      </div>
-    </nav>
+        {props.children}
+      </motion.div>
+    </div>
   );
 }
 
@@ -268,6 +294,29 @@ function nestHeadings(headings: ViewerHeading[]): TocItem[] {
   return items;
 }
 
+/**
+ * The nav fills the gutter column in both modes, so its width is the gutter's
+ * and does not depend on which mode renders inside it.
+ */
+function useDocked(navRef: RefObject<HTMLElement | null>) {
+  const [docked, setDocked] = useState(false);
+
+  useLayoutEffect(() => {
+    const node = navRef.current;
+    if (node === null) return;
+    const measure = () => {
+      if (node.clientWidth === 0) return;
+      setDocked(node.clientWidth >= TOC_DOCKED_MIN_GUTTER_PX);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [navRef]);
+
+  return docked;
+}
+
 function useActiveHeading(
   headings: ViewerHeading[],
   articleRef: RefObject<HTMLElement | null>,
@@ -302,19 +351,19 @@ function useActiveHeading(
 }
 
 const tocListRules = {
-  "&[data-diffmap-kind='toc-card'] ol": {
+  "& ol": {
     listStyle: "none",
     counterReset: "none",
     margin: 0,
     padding: 0,
   },
-  "&[data-diffmap-kind='toc-card'] ol ol": {
+  "& ol ol": {
     paddingInlineStart: spacing.value(6),
   },
-  "&[data-diffmap-kind='toc-card'] ol > li::before": {
+  "& ol > li::before": {
     content: "none",
   },
-  "&[data-diffmap-kind='toc-card'] a": {
+  "& a": {
     fontWeight: 400,
     textDecoration: "none",
   },
@@ -393,6 +442,19 @@ const styles = {
       ...tocListRules,
     },
   ),
+  // The same list as the card, laid straight into the gutter: no surface,
+  // shadow, or hover-to-open. Stays inside the gutter so it never covers prose.
+  docked: style(spacing.padding({ right: 6 }), {
+    boxSizing: "border-box",
+    width: "100%",
+    maxWidth: "240px",
+    maxHeight: "calc(100cqh - 24px)",
+    overflowX: "hidden",
+    overflowY: "auto",
+    overscrollBehavior: "contain",
+    pointerEvents: "auto",
+    ...tocListRules,
+  }),
   list: style(text({ size: "sm", fontWeight: 400, color: "lowContrast" })),
   item: style({
     "&::before": {

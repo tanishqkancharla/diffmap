@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   backgroundColor,
   border,
@@ -24,11 +18,9 @@ import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
 import { DiffButton } from "./DiffButton.tsx";
-import { TocButton } from "./TocButton.tsx";
 import {
   hasTableOfContents,
   TableOfContents,
-  TOC_OPEN_MIN_WIDTH_PX,
   TOC_SIDE_MARGIN_PX,
 } from "./TableOfContents.tsx";
 import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
@@ -71,61 +63,6 @@ export function ViewerApp(props: {
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
   const hasToc = hasTableOfContents(viewerDocument.headings);
-  const tocDismissed = useRef(false);
-  const tocPinned = useRef(false);
-  const tocFits = useRef(window.innerWidth >= TOC_OPEN_MIN_WIDTH_PX);
-  const remeasureToc = useRef<() => void>(() => {});
-  const [tocOpen, setTocOpen] = useState<TocMode | undefined>(() =>
-    hasToc && window.innerWidth >= TOC_OPEN_MIN_WIDTH_PX ? "space" : undefined,
-  );
-  const tocExpanded = tocOpen !== undefined;
-  const onDwellOpen = useCallback(() => {
-    setTocOpen((mode) =>
-      mode === "click" || mode === "space" ? mode : "dwell",
-    );
-  }, []);
-  const onDwellClose = useCallback(() => {
-    setTocOpen((mode) => {
-      if (mode === "click" || mode === "space") return mode;
-      if (tocFits.current && !tocDismissed.current) {
-        return tocPinned.current ? "click" : "space";
-      }
-      return undefined;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!hasToc) return;
-    const measure = () => {
-      const node = articleRef.current;
-      if (node !== null && node.clientWidth === 0) return;
-      const width = node?.clientWidth ?? window.innerWidth;
-      const next = width >= TOC_OPEN_MIN_WIDTH_PX;
-      const previous = tocFits.current;
-      tocFits.current = next;
-      if (previous === next) return;
-      if (!next) {
-        setTocOpen(undefined);
-        return;
-      }
-      setTocOpen((mode) => {
-        if (mode === "click" || mode === "dwell") return mode;
-        if (tocDismissed.current) return undefined;
-        return tocPinned.current ? "click" : "space";
-      });
-    };
-    remeasureToc.current = measure;
-    const observer = new ResizeObserver(measure);
-    const articleNode = articleRef.current;
-    if (articleNode) observer.observe(articleNode);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-      remeasureToc.current = () => {};
-    };
-  }, [hasToc]);
-
   useEffect(() => {
     document.title = title;
   }, [title]);
@@ -152,32 +89,13 @@ export function ViewerApp(props: {
       <div className={shell}>
         <header className={header}>
           <div className={heading}>
-            {hasToc && (
-              <TocButton
-                expanded={tocExpanded}
-                onClick={() => {
-                  if (tocExpanded) {
-                    tocDismissed.current = true;
-                    tocPinned.current = false;
-                    setTocOpen(undefined);
-                    return;
-                  }
-                  tocDismissed.current = false;
-                  tocPinned.current = true;
-                  setTocOpen("click");
-                }}
-              />
-            )}
             <div className={titleClass}>{title}</div>
           </div>
           <div className={actions}>
             {hasSourceDiffs && (
               <DiffButton
                 pressed={showDiffPanel}
-                onClick={() => {
-                  setShowDiffPanel((open) => !open);
-                  window.requestAnimationFrame(() => remeasureToc.current());
-                }}
+                onClick={() => setShowDiffPanel((open) => !open)}
               />
             )}
             {props.headerActions}
@@ -206,9 +124,6 @@ export function ViewerApp(props: {
                         annotation: line,
                         reference: line.references[0]!,
                       });
-                      window.requestAnimationFrame(() =>
-                        remeasureToc.current(),
-                      );
                     }}
                   />
                 </div>
@@ -216,9 +131,6 @@ export function ViewerApp(props: {
                   <TableOfContents
                     headings={viewerDocument.headings}
                     articleRef={articleRef}
-                    open={tocExpanded}
-                    onDwellOpen={onDwellOpen}
-                    onDwellClose={onDwellClose}
                   />
                 )}
               </div>
@@ -236,8 +148,6 @@ export function ViewerApp(props: {
     </ViewerModeContext.Provider>
   );
 }
-
-type TocMode = "click" | "dwell" | "space";
 
 function useViewerMeta(enabled: boolean) {
   const [meta, setMeta] = useState<ViewerMeta>();
