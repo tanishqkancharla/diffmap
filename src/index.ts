@@ -13,6 +13,7 @@ export type {
   ViewerHeading,
   ViewerHtml,
   ViewerNode,
+  ViewerReference,
   ViewerText,
   ViewerView,
 } from "./parseViewer.js";

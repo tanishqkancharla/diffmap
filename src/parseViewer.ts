@@ -2,6 +2,11 @@ import * as errore from "errore";
 import { parsePatchFiles, type CodeViewDiffItem } from "@pierre/diffs";
 import { parseAST } from "md4x/napi";
 import type { ComarkElement, ComarkNode } from "md4x/napi";
+import {
+  parseReference,
+  referenceLabel,
+  type SourceAnnotation,
+} from "./annotations.js";
 import { DiffmapAnnotationError, DiffmapParseError } from "./errors.js";
 import { parseMermaidDiagram } from "./mermaid.js";
 import { parseFence, type Fence } from "./parseFence.js";
@@ -19,7 +24,12 @@ export type ViewerHeading = {
   id: string;
 };
 
-export type ViewerNode = ViewerText | ViewerElement | ViewerHtml | ViewerView;
+export type ViewerNode =
+  | ViewerText
+  | ViewerElement
+  | ViewerHtml
+  | ViewerView
+  | ViewerReference;
 
 export type ViewerText = {
   type: "text";
@@ -44,6 +54,12 @@ export type ViewerView = {
   fence: Fence;
 };
 
+/** A `[[path#symbol]]` in prose. The annotation text is the short label. */
+export type ViewerReference = {
+  type: "reference";
+  annotation: SourceAnnotation;
+};
+
 export type ViewerElementAttrs = {
   id: string | undefined;
   href: string | undefined;
@@ -64,7 +80,7 @@ export function parseViewerDocument(source: string, path = "spec") {
     catch: (cause) => new DiffmapParseError({ cause }),
   });
   if (tree instanceof Error) return tree;
-  const nodes = tree.nodes.flatMap(fromNode);
+  const nodes = tree.nodes.flatMap((node) => fromNode(node));
   const fences = collectFences(nodes);
   const sourceDiffs: CodeViewDiffItem[] = [];
   for (const fence of fences) {
@@ -101,12 +117,15 @@ export function parseViewerDocument(source: string, path = "spec") {
     }
     sourceDiffs.push({ id: fence.id, type: "diff", fileDiff });
   }
-  const annotations = fences.flatMap((fence) => {
-    if (fence.kind === "callstack") return fence.lines;
-    if (fence.kind === "mermaid")
-      return fence.annotations.map((link) => link.annotation);
-    return [];
-  });
+  const annotations = [
+    ...fences.flatMap((fence) => {
+      if (fence.kind === "callstack") return fence.lines;
+      if (fence.kind === "mermaid")
+        return fence.annotations.map((link) => link.annotation);
+      return [];
+    }),
+    ...collectReferences(nodes),
+  ];
   const mermaidFences = fences.flatMap((fence) =>
     fence.kind === "mermaid" ? [fence] : [],
   );
@@ -192,6 +211,14 @@ function collectFences(nodes: ViewerNode[]): Fence[] {
   return nodes.flatMap((node) => {
     if (node.type === "view") return [node.fence];
     if (node.type === "element") return collectFences(node.children);
+    return [];
+  });
+}
+
+function collectReferences(nodes: ViewerNode[]): SourceAnnotation[] {
+  return nodes.flatMap((node) => {
+    if (node.type === "reference") return [node.annotation];
+    if (node.type === "element") return collectReferences(node.children);
     return [];
   });
 }
@@ -283,26 +310,58 @@ function uniqueHeadingId(text: string, usedIds: Set<string>) {
 
 function viewerNodeText(node: ViewerNode): string {
   if (node.type === "text") return node.value;
+  if (node.type === "reference") return node.annotation.text;
   if (node.type !== "element") return "";
   return node.children.map(viewerNodeText).join("");
 }
 
-function fromNode(node: ComarkNode): ViewerNode[] {
+function fromNode(node: ComarkNode, literal = false): ViewerNode[] {
   if (!Array.isArray(node)) {
-    return [{ type: "text", value: node }];
+    return literal ? [{ type: "text", value: node }] : proseText(node);
   }
-  const converted = fromElement(node);
+  const converted = fromElement(node, literal);
   if (converted === undefined) return [];
   if (Array.isArray(converted)) return converted;
   return [converted];
 }
 
+/** Splits `[[path#symbol]]` references out of prose text. */
+function proseText(value: string): ViewerNode[] {
+  const nodes: ViewerNode[] = [];
+  let last = 0;
+  for (const match of value.matchAll(/\[\[([^[\]\n]+)\]\]/g)) {
+    const reference = parseReference(match[1]!);
+    if (reference === undefined) continue;
+    if (match.index > last)
+      nodes.push({ type: "text", value: value.slice(last, match.index) });
+    const text =
+      reference.kind === "file"
+        ? referenceLabel({
+            ...reference,
+            path: reference.path.split("/").pop()!,
+          })
+        : match[1]!;
+    nodes.push({
+      type: "reference",
+      annotation: { text, references: [reference] },
+    });
+    last = match.index + match[0].length;
+  }
+  if (last < value.length)
+    nodes.push({ type: "text", value: value.slice(last) });
+  return nodes;
+}
+
 function fromElement(
   element: ComarkElement,
+  literal: boolean,
 ): ViewerNode | ViewerNode[] | undefined {
   const [tag, , ...children] = element;
   if (tag === null) return undefined;
-  if (tag === "template") return children.flatMap(fromNode);
+  // Code spans show the syntax literally; links cannot nest a button.
+  const literalChildren = literal || tag === "code" || tag === "a";
+  if (tag === "template")
+    return children.flatMap((child) => fromNode(child, literalChildren));
   if (tag === "pre") {
     return fenceView(stringAttr(element, "language"), comarkText(children));
   }
@@ -315,7 +374,9 @@ function fromElement(
   }
   if (tag === "file") return fileView(element, children);
   if (tag === "html") return htmlView(element, children);
-  const convertedChildren = children.flatMap(fromNode);
+  const convertedChildren = children.flatMap((child) =>
+    fromNode(child, literalChildren),
+  );
   return {
     type: "element",
     tag,
@@ -352,7 +413,7 @@ function fileView(
   children: ComarkNode[],
 ): ViewerView | ViewerNode[] {
   const path = stringAttr(element, "path");
-  if (path === undefined) return children.flatMap(fromNode);
+  if (path === undefined) return children.flatMap((child) => fromNode(child));
   const start = lineAttr(element, "start");
   const end = lineAttr(element, "end");
   // MDC ::file with no range loads the whole file.

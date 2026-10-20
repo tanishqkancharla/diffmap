@@ -221,3 +221,11 @@ Click a linked shape, edge line, or edge label, or focus it with Tab and press
 Enter or Space. Directives are Mermaid comments, so they remain hidden and do
 not change the diagram when rendered by other Mermaid tools. Missing diagram
 targets display an error. See [the runnable example](fixtures/references.md).
+
+## Link from prose
+
+Write any reference in a paragraph, list item, or table cell, such as
+`See [[src/store.ts#Store.save]] for the write path.` It renders as clickable
+inline code labeled with the file name and fragment (`store.ts#Store.save`) and
+opens the same source panel. References inside code spans and link text stay
+literal, so `` `[[path]]` `` shows the syntax itself.

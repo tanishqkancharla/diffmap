@@ -39,7 +39,7 @@ export function parseAnnotation(line: string): SourceAnnotation {
   return { text, references };
 }
 
-function parseReference(value: string): SourceReference | undefined {
+export function parseReference(value: string): SourceReference | undefined {
   const diff = /^([\w-]+):(old|new):([1-9]\d*)(?:-([1-9]\d*))?$/.exec(value);
   if (diff !== null)
     return {

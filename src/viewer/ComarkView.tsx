@@ -2,6 +2,9 @@ import { createElement, type ReactNode, useState } from "react";
 import {
   Checkbox,
   Code,
+  colors,
+  focusRing,
+  radius,
   spacing,
   Table,
   TableHeader,
@@ -17,7 +20,7 @@ import type {
   ViewerElement,
   ViewerNode,
 } from "../parseViewer.js";
-import type { SourceNavigation } from "../annotations.js";
+import type { SourceAnnotation, SourceNavigation } from "../annotations.js";
 import { Fence } from "./Fence.tsx";
 import { HtmlPlaceholder } from "./HtmlPlaceholder.tsx";
 import { useViewerMode } from "./viewerMode.ts";
@@ -57,6 +60,11 @@ function renderNode(
   }
   if (node.type === "view") {
     return <Fence key={key} fence={node.fence} {...navigation} />;
+  }
+  if (node.type === "reference") {
+    return (
+      <InlineReference key={key} annotation={node.annotation} {...navigation} />
+    );
   }
   return renderElement(node, key, navigation, trustedHtml);
 }
@@ -162,6 +170,24 @@ function renderTable(
   );
 }
 
+function InlineReference(
+  props: { annotation: SourceAnnotation } & SourceNavigation,
+) {
+  const className = useStyles(inlineReferenceClass);
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-pressed={props.selectedAnnotation === props.annotation}
+      aria-controls="source-diff-panel"
+      title={props.annotation.text}
+      onClick={() => props.onSelectAnnotation(props.annotation)}
+    >
+      <Code>{props.annotation.text}</Code>
+    </button>
+  );
+}
+
 function TaskListItem(props: { node: ViewerElement; children: ReactNode }) {
   const [checked, setChecked] = useState(props.node.attrs.checked === true);
   const className = useStyles(taskListItemClass);
@@ -187,6 +213,7 @@ function TaskListItem(props: { node: ViewerElement; children: ReactNode }) {
 
 function nodeText(node: ViewerNode): string {
   if (node.type === "text") return node.value;
+  if (node.type === "reference") return node.annotation.text;
   if (node.type !== "element") return "";
   return node.children.map(nodeText).join("");
 }
@@ -202,6 +229,26 @@ function domAttrs(node: ViewerElement) {
     start: node.attrs.start,
   };
 }
+
+const inlineReferenceClass = style(
+  radius.sm,
+  {
+    display: "inline",
+    padding: 0,
+    border: 0,
+    font: "inherit",
+    color: "inherit",
+    background: "transparent",
+    cursor: "pointer",
+    "& > code": { color: colors.blue[11] },
+    "&:hover > code": { backgroundColor: colors.blue[3] },
+    "&[aria-pressed='true'] > code": {
+      backgroundColor: colors.blue[4],
+      color: colors.blue[12],
+    },
+  },
+  focusRing(),
+);
 
 const taskListItemClass = style({
   display: "grid",

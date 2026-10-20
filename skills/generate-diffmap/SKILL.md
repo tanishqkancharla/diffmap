@@ -95,7 +95,7 @@ function requestHandler(record: RecordInput) {
 
 ## Source references
 
-`[[path/to/file.ts#symbolName]]` links to a current TypeScript or JavaScript declaration. Use a qualified name such as `[[src/store.ts#Store.save]]` for ambiguous symbols. `[[path]]` links a whole file; `[[path#L12-L30]]` links a line range. Paths are relative to the viewer's repo root.
+`[[path/to/file.ts#symbolName]]` links to a current TypeScript or JavaScript declaration. Use a qualified name such as `[[src/store.ts#Store.save]]` for ambiguous symbols. `[[path]]` links a whole file; `[[path#L12-L30]]` links a line range. Paths are relative to the viewer's repo root. References also work in prose, where they render as clickable inline code; wrap one in backticks to show the syntax literally.
 
 For completed changes, copy the file's actual Git patch, including `diff --git`, `---`, `+++`, and `@@` lines, into a `source-diff:id:path` fence. Give each patch a unique ID. Use the new path for a renamed file and the old path for a deleted file. For an untracked file, run `git diff --no-index -- /dev/null <path>`; exit code 1 means the files differ.
 

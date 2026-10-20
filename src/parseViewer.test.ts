@@ -74,6 +74,50 @@ test("parseViewerDocument accepts a spec with valid mermaid", async () => {
   );
 });
 
+test("parseViewerDocument turns prose [[path#symbol]] into a short reference", () => {
+  const source =
+    "See [[packages/server/src/agent/Thread.ts#Thread.attach]] here, not `[[path]]` or [x [[a.ts]]](https://x.dev).\n";
+  const document = parseViewerDocument(source);
+  assert.equal(document instanceof Error, false);
+  if (document instanceof Error) return;
+  assert.equal(document.hasReferences, true);
+  const paragraph = document.nodes[0];
+  assert.equal(paragraph?.type, "element");
+  if (paragraph?.type !== "element") return;
+  assert.deepEqual(
+    paragraph.children.map((node) =>
+      node.type === "element"
+        ? { tag: node.tag, children: node.children }
+        : node,
+    ),
+    [
+      { type: "text", value: "See " },
+      {
+        type: "reference",
+        annotation: {
+          text: "Thread.ts#Thread.attach",
+          references: [
+            {
+              kind: "file",
+              path: "packages/server/src/agent/Thread.ts",
+              symbol: "Thread.attach",
+            },
+          ],
+        },
+      },
+      { type: "text", value: " here, not " },
+      { tag: "code", children: [{ type: "text", value: "[[path]]" }] },
+      { type: "text", value: " or " },
+      { tag: "a", children: [{ type: "text", value: "x [[a.ts]]" }] },
+      { type: "text", value: "." },
+    ],
+  );
+  assert.equal(
+    parseViewerDocument("See [[missing:new:1]].\n") instanceof Error,
+    true,
+  );
+});
+
 test("parseViewerDocument fails on broken mermaid with file and diagram", () => {
   const source = brokenMermaidSpec();
   const parsed = parseViewerDocument(source, "broken.md");
