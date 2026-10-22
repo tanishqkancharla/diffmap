@@ -4,6 +4,7 @@ import type { GistPin } from "../gist/pin.ts";
 import { githubGistUrl } from "../gist/route.ts";
 import type { GitHubPin } from "../github/pin.ts";
 import { githubBlobUrl } from "../github/route.ts";
+import { shortSha } from "../github/shortSha.ts";
 
 const PR_DIFF_PREFIX = "pr:";
 
@@ -77,10 +78,10 @@ export function sourcePanelPin(input: {
     return { kind: "spec", label: "from this spec" };
   }
   if (input.github !== undefined && input.path !== undefined) {
-    const shortSha = input.github.sha.slice(0, 7);
+    const labelSha = shortSha(input.github.sha);
     return {
       kind: "github",
-      label: `${input.github.owner}/${input.github.repo} @ ${shortSha}`,
+      label: `${input.github.owner}/${input.github.repo} @ ${labelSha}`,
       href: githubBlobUrl(
         input.github.owner,
         input.github.repo,

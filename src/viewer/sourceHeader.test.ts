@@ -27,6 +27,21 @@ function diffItem(id: string, name: string): CodeViewDiffItem {
   };
 }
 
+test("github file pin lowercases a mixed-case SHA in the label", () => {
+  const pin = sourcePanelPin({
+    origin: "file",
+    path: "src/cli.ts",
+    github: { ...github, sha: sha.toUpperCase() },
+  });
+  assert.equal(pin.kind, "github");
+  if (pin.kind !== "github") return;
+  assert.equal(pin.label, "tanishqkancharla/diffmap @ ef78bf4");
+  assert.equal(
+    pin.href,
+    `https://github.com/tanishqkancharla/diffmap/blob/${sha.toUpperCase()}/src/cli.ts`,
+  );
+});
+
 test("github file pin is owner/repo @ shortsha linking to the blob at the pin SHA", () => {
   const path = "src/cli.ts";
   const pin = sourcePanelPin({
