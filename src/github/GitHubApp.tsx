@@ -7,6 +7,7 @@ import { ViewerApp } from "../viewer/ViewerApp.tsx";
 import { GistLoading, GistStatus } from "../gist/GistStatus.tsx";
 import { loadPinnedSpec, type PinnedSpec } from "./fetchRepo.ts";
 import { GitHubPinContext } from "./pin.ts";
+import { shortSha } from "./shortSha.ts";
 import {
   githubBlobUrl,
   githubCommitPath,
@@ -219,7 +220,7 @@ function GitHubHeader(props: {
   pullNumber?: number;
   pullUrl?: string;
 }) {
-  const shortSha = props.sha.slice(0, 7);
+  const labelSha = shortSha(props.sha);
   const blobUrl = githubBlobUrl(props.owner, props.repo, props.sha, props.path);
   const pullHref =
     props.pullUrl ??
@@ -229,7 +230,7 @@ function GitHubHeader(props: {
   return (
     <>
       {pullHref !== undefined && <Link href={pullHref}>PR</Link>}
-      <Link href={blobUrl}>{`${props.owner}/${props.repo}@${shortSha}`}</Link>
+      <Link href={blobUrl}>{`${props.owner}/${props.repo}@${labelSha}`}</Link>
     </>
   );
 }
