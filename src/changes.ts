@@ -126,7 +126,10 @@ export function windowLabel(deltas: Delta[], window: DeltaWindow) {
   const newest = deltas[window.newest]!;
   if (window.newest === window.oldest)
     return newest.kind === "commit" ? newest.subject : deltaName(newest);
-  return `${deltaName(deltas[window.oldest]!)}…${deltaName(newest)}`;
+  const oldest = deltas[window.oldest]!;
+  const from =
+    oldest.kind === "commit" ? oldest.parent.slice(0, 7) : deltaName(oldest);
+  return `${from}…${deltaName(newest)}`;
 }
 
 export type ChangedFile = {

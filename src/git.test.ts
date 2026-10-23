@@ -8,13 +8,61 @@ import test from "node:test";
 import {
   changedFileItem,
   revWindow,
+  windowLabel,
   windowRev,
   type Changes,
+  type Delta,
   type DeltaWindow,
 } from "./changes.js";
 import { listDeltas, readChanges, readDocumentChanges } from "./git.js";
 
 const execFileAsync = promisify(execFile);
+
+test("range labels run from the diff base to its destination", () => {
+  const deltas: Delta[] = [
+    { kind: "unstaged", additions: 1, deletions: 0 },
+    { kind: "staged", additions: 1, deletions: 0 },
+    {
+      kind: "commit",
+      sha: "cccccccc",
+      parent: "bbbbbbbb",
+      subject: "Newest",
+      additions: 1,
+      deletions: 0,
+    },
+    {
+      kind: "commit",
+      sha: "bbbbbbbb",
+      parent: "aaaaaaaa",
+      subject: "Oldest",
+      additions: 1,
+      deletions: 0,
+    },
+    {
+      kind: "commit",
+      sha: "aaaaaaaa",
+      parent: "00000000",
+      subject: "Base",
+      additions: 1,
+      deletions: 0,
+    },
+  ];
+  assert.equal(
+    windowLabel(deltas, { newest: 2, oldest: 3 }),
+    "aaaaaaa…ccccccc",
+  );
+  assert.equal(windowLabel(deltas, { newest: 1, oldest: 3 }), "aaaaaaa…Staged");
+  assert.equal(
+    windowLabel(deltas, { newest: 0, oldest: 3 }),
+    "aaaaaaa…Unstaged",
+  );
+  assert.equal(
+    windowLabel(deltas, { newest: 0, oldest: 1 }),
+    "Staged…Unstaged",
+  );
+  assert.equal(windowLabel(deltas, { newest: 2, oldest: 2 }), "Newest");
+  assert.equal(windowLabel(deltas, { newest: 0, oldest: 4 }), "All commits");
+});
 
 async function withRepo(
   run: (

@@ -44,6 +44,8 @@ Write pseudocode in the source repo's main language, using its familiar syntax a
 
 Link existing source with `[[path]]` or `[[path#symbol]]`. Show symbols that are still planned as plain text. The spec can contain planned, in-progress, and completed phases together.
 
+End each phase with its `changes` summary fence, after all explanatory prose, diagrams, call stacks, and pseudocode, and before the next phase or section. Use an empty fence for uncommitted work; replace it with the phase's commit SHA or range when complete. Do not put the summary immediately after Today and Proposed.
+
 ## Example phase
 
 Adapt this example to the work:
@@ -87,6 +89,10 @@ function requestHandler(record: RecordInput) {
   return existingService(record);
 }
 ```
+
+```changes
+
+```
 ````
 
 ## When a phase is complete
@@ -94,22 +100,24 @@ function requestHandler(record: RecordInput) {
 Before starting the next phase:
 
 1. Commit the phase's code, then commit the spec update separately, since the spec names the code commit's SHA.
-2. Add a `changes` fence with that SHA right after Today and Proposed. It renders the phase's summary card: the commit title, files changed with lines added and removed, and a Review button.
+2. Add or update the `changes` fence with that SHA at the end of the phase, after its walkthrough and before the next phase or section. It renders the phase's summary card: the commit title, files changed with lines added and removed, and a Review button.
 3. Point every reference the phase changed at the commit, in stack rows, Mermaid `%% ref` directives, and prose.
 4. Update the diagrams, call stack diffs, and pseudocode to match what was built, and mark the heading ✅.
 5. Restart `serve`; it checks commit references at startup.
 
-After Today and Proposed, the example phase becomes:
+The completed example keeps its walkthrough and finishes with the summary:
 
 ````md
-```changes
-a1b2c3d
-```
-
 ```callstack
  requestHandler [[a1b2c3d:src/request.ts#L8-L20]]
 +├── validateInput # reject empty names [[a1b2c3d:src/validate.ts#L1-L9]]
  └── existingService [[src/service.ts#existingService]]
+```
+
+After the remaining diagrams and pseudocode, close the phase with its changes:
+
+```changes
+a1b2c3d
 ```
 ````
 

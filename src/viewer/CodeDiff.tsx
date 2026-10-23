@@ -3,6 +3,7 @@ import { useTheme } from "maui";
 import { useStyles } from "purse-styles";
 import { toUnifiedDiff } from "../normalizeDiff.js";
 import { pierreDiffOptions, pierreShell } from "./pierre.ts";
+import { renderDiffStat } from "./ChangesCard.tsx";
 
 export function CodeDiff(props: { source: string; path?: string }) {
   const { resolvedTheme } = useTheme();
@@ -16,6 +17,7 @@ export function CodeDiff(props: { source: string; path?: string }) {
       <PatchDiff
         patch={patch}
         disableWorkerPool
+        renderHeaderMetadata={renderDiffStat}
         options={pierreDiffOptions({
           themeType: resolvedTheme,
           disableFileHeader,

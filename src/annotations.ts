@@ -19,6 +19,7 @@ type FileReference = {
 type ChangesReference = {
   kind: "changes";
   rev: Rev;
+  path?: string;
 };
 
 export type SourceReference = FileReference | ChangesReference;

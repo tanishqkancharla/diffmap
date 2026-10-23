@@ -88,7 +88,7 @@ export function RangePicker(props: { rev: Rev; onChange: (rev: Rev) => void }) {
   const label =
     list !== undefined && shown !== undefined
       ? windowLabel(list, shown)
-      : shortRev(props.rev);
+      : shortRev(props.rev).replace("..", "…");
 
   // Open on the picked rows, even when they sit far down the list.
   const pickedNewest = picked?.newest;
