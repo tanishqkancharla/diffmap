@@ -32,13 +32,15 @@ Use the hosted URL it prints: `https://diffmap.dev/g/<id>`. The gist is unlisted
 
 ## File structure
 
-Start with a title, problem overview, and solution overview. Explain the system flows alongside the relevant diagrams. Follow with goals, non-goals, implementation phases, and **References**.
+Explain top-down, in the spec as a whole and in each phase. Start with what changes for the end client: the person using the product (UI and UX) or the developer calling the code, CLI, or API (DX). Then work backward from that desired change to the code that delivers it: the entry point the client touches first, then each layer beneath it, ending with implementation details. A reader should know what the client will see before reading how any of it works.
+
+Start with a title, problem overview, and solution overview. The problem overview gives the motivation for the whole spec: who is affected, what the current behavior costs them, and why the change is worth making now. Open the solution overview with the client-facing changes, then explain the system flows that deliver them alongside the relevant diagrams. Follow with goals, non-goals, implementation phases, and **References**.
 
 Keep each phase small enough to commit on its own. Prefix in-progress phase headings with ⏳ and completed phase headings with ✅. Planned phases use plain headings.
 
-Start each phase with **Today** and **Proposed**. Use a few simple sentences for each: Today describes the behavior before the phase; Proposed explains the change and why it helps. Keep this comparison when the phase is completed.
+Start each phase with **Today** and **Proposed**. Use a few simple sentences for each, written from the end client's point of view. Today describes what the client sees and does before the phase, and the problem that causes them. Proposed describes what changes for the client, how that solves the problem, and why the phase comes at this point in the plan when the order matters. Name concrete differences, such as a new command, flag, screen, error message, return type, or step the client no longer takes. When a phase changes nothing a client can see, such as an internal refactor, say so in Proposed and name the client-facing change it prepares for. Keep this comparison when the phase is completed.
 
-After Today and Proposed, tell the phase's work as a story: walk through the change in the order a reader needs it, and interleave pseudocode, Mermaid diagrams, and call stack diffs between short paragraphs. Show the change rather than describe it. Every phase needs at least one call stack diff, pseudocode for each piece of new logic, a diagram whenever control flow, data flow, or state changes, and a type for each new data shape. When a paragraph runs past three sentences, replace the explanation with a visual. Each paragraph sets up the next visual, and each visual shows the step the paragraph just described. Do not stack visuals without prose between them, and do not end a phase with a task list or checkboxes. Call stack diffs use `-` for the original code, `+` for the change, and `└──` / `├──` for the call tree. Use `#` comments to explain a purpose, return value, or side effect.
+After Today and Proposed, tell the phase's work as a top-down story. First show the client-facing change itself, such as a usage snippet, CLI session, API call, or UI state. Then work backward through the code: the entry point that delivers the change, then each layer it calls, ending with the new logic and data shapes. Interleave pseudocode, Mermaid diagrams, and call stack diffs between short paragraphs. Show the change rather than describe it. Every phase needs at least one call stack diff, pseudocode for each piece of new logic, a diagram whenever control flow, data flow, or state changes, and a type for each new data shape. When a paragraph runs past three sentences, replace the explanation with a visual. Each paragraph sets up the next visual, and each visual shows the step the paragraph just described. Do not stack visuals without prose between them, and do not end a phase with a task list or checkboxes. Call stack diffs use `-` for the original code, `+` for the change, and `└──` / `├──` for the call tree. Use `#` comments to explain a purpose, return value, or side effect.
 
 Name each call stack row after a real function or method. When a row summarizes work instead, write it as a verb phrase that says what the code does, not a noun for the thing involved. Write `+├── run executor schema migrations`, not `+├── Executor schema migrations`, and `+└── load the encrypted credential provider`, not `+└── encrypted credential provider`. Write `#` comments as actions too.
 
@@ -55,13 +57,21 @@ Adapt this example to the work:
 
 **Today**
 
-The handler passes records straight to the service. Empty names reach storage.
+The handler passes records straight to the service. A client that sends an empty name gets a success response, and the bad record surfaces later as a storage error the client never sees. They cannot trace the broken record back to their request, so they keep sending bad input.
 
 **Proposed**
 
-Validate each record before calling the service. Return an error for an empty name so storage receives valid records.
+A client that sends an empty name gets an error naming the `name` field, so they can fix the request right away. Bulk import in Phase 2 needs every saved record to be valid, so this check comes first.
 
-The handler gains one step between receiving a record and saving it:
+From the client's side, the same empty-name request now fails immediately:
+
+```ts
+const response = await client.saveRecord({ name: "" });
+// before: { ok: true }
+// after:  { ok: false, error: "name must not be empty" }
+```
+
+Behind that response, the handler gains one step between receiving a record and saving it:
 
 ```callstack
  requestHandler [[src/request.ts#requestHandler]]
