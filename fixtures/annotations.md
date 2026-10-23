@@ -2,40 +2,32 @@
 
 Click a linked stack line to inspect its source changes. Use Tab and Enter to navigate with the keyboard.
 
-## Validate before saving
+## Show the open path in the source header
+
+Commit c66b4a9 replaced the panel's "Source file" label with the open path and a one-line pin. It touched several files:
+
+```changes
+c66b4a9
+```
+
+`SourceDiffPanel` now asks three helpers in a new file what to show above the code:
 
 ```callstack
- handleRequest
--├── saveUnchecked  # accepted invalid input [[request:old:12]]
-+├── validateInput  # reject empty names [[request:new:12-13]] [[validation:new:1-3]]
- └── saveRecord  # store validated input [[request:new:14]]
+ SourceDiffPanel  # render the Diff panel [[c66b4a9:src/viewer/SourceDiffPanel.tsx#L51-L55]]
+-├── "Source file" label  # same title for every file
++├── sourcePanelPath  # pick the open file path [[c66b4a9:src/viewer/SourceDiffPanel.tsx#L126-L131]] [[c66b4a9:src/viewer/sourceHeader.ts#L23-L40]]
++├── sourcePanelOrigin  # tell a file from a diff [[c66b4a9:src/viewer/SourceDiffPanel.tsx#L132-L137]] [[c66b4a9:src/viewer/sourceHeader.ts#L42-L64]]
++├── sourcePanelPin  # link the path to GitHub or a gist [[c66b4a9:src/viewer/SourceDiffPanel.tsx#L138-L146]] [[c66b4a9:src/viewer/sourceHeader.ts#L70-L103]]
+ └── pierreDiffOptions  # hide Pierre's header when the path shows [[c66b4a9:src/viewer/SourceDiffPanel.tsx#L147-L150]]
 ```
 
-Validation now runs before persistence. The unchanged `saveRecord` call links to context in the same patch. Select either linked change above the source viewer to follow validation into another file.
+The first row links unchanged context in the same commit. The helper rows link two files; select either change above the source viewer to move between them. The removed label has no link because deleted lines cannot be referenced.
 
-```source-diff:request:src/request.ts
-diff --git a/src/request.ts b/src/request.ts
---- a/src/request.ts
-+++ b/src/request.ts
-@@ -10,5 +10,6 @@
- export function handleRequest(input: Input) {
-   const record = input.record;
--  saveUnchecked(record);
-+  const error = validateInput(record);
-+  if (error instanceof Error) return error;
-   return saveRecord(record);
- }
-```
+The header renders the path where the label used to be:
 
-```source-diff:validation:src/validation.ts
-diff --git a/src/validation.ts b/src/validation.ts
-new file mode 100644
---- /dev/null
-+++ b/src/validation.ts
-@@ -0,0 +1,3 @@
-+export function validateInput(record: Record) {
-+  if (record.name.length === 0) return new InvalidNameError();
-+}
+```callstack
+ SourceDiffPanel
++└── title row  # show the open path [[c66b4a9:src/viewer/SourceDiffPanel.tsx#L217-L222]]
 ```
 
 ## Plain stacks still work

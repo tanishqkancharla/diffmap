@@ -1,20 +1,27 @@
-type DiffReference = {
-  kind: "diff";
-  id: string;
-  side: "old" | "new";
-  start: number;
-  end: number;
-};
+import { isCommitRev, shortRev, type Rev } from "./changes.js";
 
+/**
+ * A file, symbol, or line range. With a commit `rev`, the panel opens that
+ * commit's changes and line numbers refer to the file after the commit.
+ * Without one, it opens uncommitted changes, or the current file when the
+ * file has none.
+ */
 type FileReference = {
   kind: "file";
+  rev?: Rev;
   path: string;
   symbol?: string;
   start?: number;
   end?: number;
 };
 
-export type SourceReference = DiffReference | FileReference;
+/** Every file in a rev, such as a changes card's Review button. */
+type ChangesReference = {
+  kind: "changes";
+  rev: Rev;
+};
+
+export type SourceReference = FileReference | ChangesReference;
 
 export type SourceAnnotation = {
   text: string;
@@ -40,40 +47,40 @@ export function parseAnnotation(line: string): SourceAnnotation {
 }
 
 export function parseReference(value: string): SourceReference | undefined {
-  const diff = /^([\w-]+):(old|new):([1-9]\d*)(?:-([1-9]\d*))?$/.exec(value);
-  if (diff !== null)
-    return {
-      kind: "diff",
-      id: diff[1]!,
-      side: diff[2] === "old" ? "old" : "new",
-      start: Number(diff[3]),
-      end: Number(diff[4] === undefined ? diff[3] : diff[4]),
-    };
-  const file = /^([^#:[\]\n]+)(?:#(.+))?$/.exec(value);
+  const revMatch = /^([^:#[\]\n]+):(.+)$/.exec(value);
+  const rev =
+    revMatch !== null && isCommitRev(revMatch[1]!) ? revMatch[1] : undefined;
+  const target = rev === undefined ? value : revMatch![2]!;
+  const file = /^([^#:[\]\n]+)(?:#(.+))?$/.exec(target);
   if (file === null || file[1]!.trim().length === 0) return undefined;
   const path = file[1]!.trim();
   const fragment = file[2];
-  if (fragment === undefined) return { kind: "file", path };
+  const base =
+    rev === undefined
+      ? { kind: "file" as const, path }
+      : { kind: "file" as const, rev, path };
+  if (fragment === undefined) return base;
   const range = /^L([1-9]\d*)(?:-L?([1-9]\d*))?$/.exec(fragment);
   if (range !== null)
     return {
-      kind: "file",
-      path,
+      ...base,
       start: Number(range[1]),
       end: Number(range[2] === undefined ? range[1] : range[2]),
     };
   if (!/^[\w$]+(?:\.[\w$]+)*$/.test(fragment)) return undefined;
-  return { kind: "file", path, symbol: fragment };
+  return { ...base, symbol: fragment };
 }
 
-export function referenceLabel(reference: SourceReference) {
-  if (reference.kind === "diff")
-    return `${reference.id} · ${reference.side} ${reference.start}–${reference.end}`;
+/** Short label; pass `basename` for inline prose. */
+export function referenceLabel(reference: SourceReference, basename = false) {
+  if (reference.kind === "changes") return shortRev(reference.rev);
+  const path = basename ? reference.path.split("/").pop()! : reference.path;
+  const rev = reference.rev === undefined ? "" : `${shortRev(reference.rev)}:`;
   if (reference.symbol !== undefined)
-    return `${reference.path}#${reference.symbol}`;
+    return `${rev}${path}#${reference.symbol}`;
   if (reference.start !== undefined)
-    return `${reference.path}#L${reference.start}-L${reference.end}`;
-  return reference.path;
+    return `${rev}${path}#L${reference.start}-L${reference.end}`;
+  return `${rev}${path}`;
 }
 
 export type SourceNavigation = {

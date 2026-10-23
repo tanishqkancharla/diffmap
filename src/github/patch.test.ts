@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parsePatchFiles } from "@pierre/diffs";
-import { pullFilesToSourceDiffs, wrapGitHubPullPatch } from "./patch.ts";
+import { changedFileItem } from "../changes.ts";
+import { githubChangedFiles, wrapGitHubPatch } from "./patch.ts";
 
-test("wrapGitHubPullPatch builds a unified diff Pierre can parse", () => {
-  const wrapped = wrapGitHubPullPatch({
+test("wrapGitHubPatch builds a unified diff Pierre can parse", () => {
+  const wrapped = wrapGitHubPatch({
     filename: "src/cli.ts",
     status: "modified",
     patch: ["@@ -1,3 +1,4 @@", " line", "+added", " line", " line"].join("\n"),
@@ -15,16 +16,24 @@ test("wrapGitHubPullPatch builds a unified diff Pierre can parse", () => {
   assert.ok((patches[0]?.files[0]?.hunks.length ?? 0) > 0);
 });
 
-test("pullFilesToSourceDiffs skips files without a patch", () => {
-  const diffs = pullFilesToSourceDiffs([
-    { filename: "icon.png", status: "added" },
+test("githubChangedFiles keeps files without a patch as binary, with no diff item", () => {
+  const files = githubChangedFiles([
+    { filename: "icon.png", status: "added", additions: 0, deletions: 0 },
     {
       filename: "src/cli.ts",
       status: "modified",
+      additions: 1,
+      deletions: 0,
       patch: ["@@ -1,2 +1,3 @@", " a", "+b", " c"].join("\n"),
     },
   ]);
-  assert.equal(diffs.length, 1);
-  assert.equal(diffs[0]?.id, "pr:src/cli.ts");
-  assert.equal(diffs[0]?.fileDiff.name, "src/cli.ts");
+  assert.deepEqual(
+    files.map((file) => [file.path, file.binary, file.additions]),
+    [
+      ["icon.png", true, 0],
+      ["src/cli.ts", false, 1],
+    ],
+  );
+  assert.equal(changedFileItem(files[0]!), undefined);
+  assert.equal(changedFileItem(files[1]!)?.fileDiff.name, "src/cli.ts");
 });

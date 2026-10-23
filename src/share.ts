@@ -1,10 +1,13 @@
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { DiffmapFileError, DiffmapShareError } from "./errors.js";
 import { extractTitle } from "./extractDocument.js";
 import { extractGistId, gistViewerUrl } from "./gist/route.ts";
+import { GIST_CHANGES_FILE } from "./changes.js";
+import { readDocumentChanges } from "./git.js";
 import { parseViewerDocument } from "./parseViewer.js";
 
 const execFileAsync = promisify(execFile);
@@ -17,6 +20,7 @@ export type ShareResult = {
 
 export async function shareMarkdownFile(input: {
   filePath: string;
+  workspaceRoot: string;
   isPublic: boolean;
 }) {
   const filePath = path.resolve(input.filePath);
@@ -32,6 +36,9 @@ export async function shareMarkdownFile(input: {
 
   const parsed = parseViewerDocument(source, filePath);
   if (parsed instanceof Error) return parsed;
+  // The hosted viewer has no git, so the gist carries a snapshot of each commit.
+  const changes = await readDocumentChanges(input.workspaceRoot, parsed);
+  if (changes instanceof Error) return changes;
 
   const auth = await runGh(["auth", "status"]);
   if (auth instanceof DiffmapShareError) return auth;
@@ -39,8 +46,19 @@ export async function shareMarkdownFile(input: {
   const args = ["gist", "create"];
   if (input.isPublic) args.push("--public");
   args.push("--desc", extractTitle(source), filePath);
+  const snapshotDir =
+    changes.size === 0
+      ? undefined
+      : await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-share-"));
+  if (snapshotDir !== undefined) {
+    const snapshot = path.join(snapshotDir, GIST_CHANGES_FILE);
+    await fs.writeFile(snapshot, JSON.stringify(Object.fromEntries(changes)));
+    args.push(snapshot);
+  }
 
   const created = await runGh(args);
+  if (snapshotDir !== undefined)
+    await fs.rm(snapshotDir, { recursive: true, force: true });
   if (created instanceof DiffmapShareError) return created;
 
   const combined = `${created.stderr}\n${created.stdout}`;

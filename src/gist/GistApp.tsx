@@ -4,6 +4,11 @@ import { style, useStyles } from "purse-styles";
 import { init } from "md4x/standalone";
 import { parseViewerDocument } from "../parseViewer.ts";
 import type { ViewerDocument } from "../parseViewer.ts";
+import { WORKING } from "../changes.ts";
+import {
+  ChangesLoaderContext,
+  type ChangesLoader,
+} from "../viewer/changesSource.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
 import { loadGistMarkdown, type GistDocument } from "./fetchGist.ts";
 import { GistPinContext } from "./pin.ts";
@@ -41,6 +46,7 @@ type GistView =
       gist: GistDocument;
       file: string;
       document: ViewerDocument;
+      loadChanges: ChangesLoader;
     };
 
 export function GistApp() {
@@ -160,24 +166,26 @@ export function GistApp() {
         htmlUrl: view.gist.htmlUrl,
       }}
     >
-      <ViewerApp
-        key={`${view.gist.id}:${view.file}`}
-        document={view.document}
-        mode="gist"
-        headerActions={
-          <GistHeader
-            gistId={view.gist.id}
-            htmlUrl={view.gist.htmlUrl}
-            files={view.gist.files}
-            current={view.file}
-            onSelect={(file) => {
-              const next = gistPath(view.gist.id, file);
-              window.history.pushState({}, "", next);
-              setRoute(parseGistPath(next));
-            }}
-          />
-        }
-      />
+      <ChangesLoaderContext.Provider value={view.loadChanges}>
+        <ViewerApp
+          key={`${view.gist.id}:${view.file}`}
+          document={view.document}
+          mode="gist"
+          headerActions={
+            <GistHeader
+              gistId={view.gist.id}
+              htmlUrl={view.gist.htmlUrl}
+              files={view.gist.files}
+              current={view.file}
+              onSelect={(file) => {
+                const next = gistPath(view.gist.id, file);
+                window.history.pushState({}, "", next);
+                setRoute(parseGistPath(next));
+              }}
+            />
+          }
+        />
+      </ChangesLoaderContext.Provider>
     </GistPinContext.Provider>
   );
 }
@@ -218,11 +226,21 @@ async function loadView(
       message: parsed.message,
     };
   }
+  const snapshot = loaded.gist.changes;
   return {
     kind: "ready",
     gist: loaded.gist,
     file: loaded.gist.chosen.name,
     document: parsed,
+    loadChanges: (rev) =>
+      Promise.resolve(
+        snapshot[rev] ??
+          new Error(
+            rev === WORKING
+              ? "Uncommitted changes are only available in a local viewer."
+              : `This gist has no snapshot of ${rev}. Share the spec again with diffmap share.`,
+          ),
+      ),
   };
 }
 

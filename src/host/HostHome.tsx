@@ -5,6 +5,11 @@ import { parseViewerDocument } from "../parseViewer.ts";
 import type { ViewerDocument } from "../parseViewer.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
 import { GistLoading, GistStatus } from "../gist/GistStatus.tsx";
+import { fetchGitHubChanges } from "../github/fetchRepo.ts";
+import {
+  ChangesLoaderContext,
+  type ChangesLoader,
+} from "../viewer/changesSource.ts";
 import { HostFilesContext } from "./files.ts";
 import homeSource from "./home.md?raw";
 import cliSource from "../cli.ts?raw";
@@ -25,6 +30,10 @@ const hostFiles = {
   "src/parseViewer.ts": parseViewerSource,
   "src/github/route.ts": githubRouteSource,
 };
+
+/** The homepage walks through diffmap's own commits, read from GitHub. */
+const loadHostChanges: ChangesLoader = (rev) =>
+  fetchGitHubChanges({ owner: "tanishqkancharla", repo: "diffmap" }, rev);
 
 export function HostHome() {
   const [view, setView] = useState<
@@ -61,13 +70,17 @@ export function HostHome() {
 
   return (
     <HostFilesContext.Provider value={hostFiles}>
-      <ViewerApp
-        document={view.document}
-        mode="host"
-        headerActions={
-          <Link href="https://github.com/tanishqkancharla/diffmap">GitHub</Link>
-        }
-      />
+      <ChangesLoaderContext.Provider value={loadHostChanges}>
+        <ViewerApp
+          document={view.document}
+          mode="host"
+          headerActions={
+            <Link href="https://github.com/tanishqkancharla/diffmap">
+              GitHub
+            </Link>
+          }
+        />
+      </ChangesLoaderContext.Provider>
     </HostFilesContext.Provider>
   );
 }

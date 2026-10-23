@@ -13,6 +13,7 @@ import {
   text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
+import { ALL, WORKING, type Rev } from "../changes.js";
 import type { ViewerDocument } from "../parseViewer.js";
 import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
@@ -34,13 +35,31 @@ export function ViewerApp(props: {
   mode: ViewerMode;
   title?: string;
   headerActions?: ReactNode;
+  /** Changes the Diff button opens before any reference is selected, such as a pull request. */
+  defaultRev?: Rev;
 }) {
   const viewerDocument = props.document;
   const meta = useViewerMeta(props.mode === "local");
   const [selection, setSelection] = useState<SourceSelection>();
   const [showDiffPanel, setShowDiffPanel] = useState(false);
+  const local = props.mode === "local";
+  const documentRev =
+    props.defaultRev ??
+    viewerDocument.changeRevs[0] ??
+    viewerDocument.references.find((ref) => ref.rev !== undefined)?.rev ??
+    (local ? ALL : WORKING);
+  const [panelRev, setPanelRev] = useState(documentRev);
+  // A reference opens its own rev; a rev-less one opens uncommitted changes locally.
+  const select = (next: SourceSelection) => {
+    setSelection(next);
+    setPanelRev(next.reference.rev ?? (local ? WORKING : documentRev));
+  };
+  // A local viewer always has git changes to show.
   const hasSourceDiffs =
-    viewerDocument.sourceDiffs.length > 0 || viewerDocument.hasReferences;
+    local ||
+    viewerDocument.references.length > 0 ||
+    viewerDocument.changeRevs.length > 0 ||
+    props.defaultRev !== undefined;
   const diffPanelOpen = hasSourceDiffs && showDiffPanel;
   const body = useStyles(styles.body);
   const [shutDown, setShutDown] = useState(false);
@@ -120,7 +139,7 @@ export function ViewerApp(props: {
                     selectedAnnotation={selection?.annotation}
                     onSelectAnnotation={(line) => {
                       setShowDiffPanel(true);
-                      setSelection({
+                      select({
                         annotation: line,
                         reference: line.references[0]!,
                       });
@@ -137,9 +156,18 @@ export function ViewerApp(props: {
             </article>
             {diffPanelOpen && (
               <SourceDiffPanel
-                items={viewerDocument.sourceDiffs}
+                rev={panelRev}
+                onRevChange={
+                  local
+                    ? (rev) => {
+                        // A focused reference's lines belong to its own rev.
+                        setSelection(undefined);
+                        setPanelRev(rev);
+                      }
+                    : undefined
+                }
                 selection={selection}
-                onSelect={setSelection}
+                onSelect={select}
               />
             )}
           </div>

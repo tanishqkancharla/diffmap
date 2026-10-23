@@ -4,8 +4,8 @@
  * fetch `ref=main` / latest for spec markdown, [[path]] targets, excerpts, or
  * hunks. Private repos are out of scope (GitHub 404).
  */
-import type { CodeViewDiffItem } from "@pierre/diffs";
-import { pullFilesToSourceDiffs, type GitHubPullFile } from "./patch.ts";
+import { WORKING, type Changes, type Rev } from "../changes.ts";
+import { githubChangedFiles, type GitHubFile } from "./patch.ts";
 
 const GITHUB_API = "https://api.github.com";
 const GITHUB_JSON = {
@@ -21,7 +21,8 @@ export type PinnedSpec = {
   htmlUrl: string;
   pullNumber?: number;
   pullUrl?: string;
-  pullDiffs: CodeViewDiffItem[];
+  /** `base..head` of the pull request, for the Diff panel's default view. */
+  pullRev?: Rev;
 };
 
 export type GitHubSpecResult =
@@ -33,6 +34,20 @@ export type GitHubSpecResult =
 type PullApi = {
   html_url?: string;
   head?: { sha?: string };
+  base?: { sha?: string };
+};
+
+type CommitApi = {
+  sha?: string;
+  html_url?: string;
+  commit?: { message?: string };
+  files?: GitHubFile[];
+};
+
+type CompareApi = {
+  html_url?: string;
+  total_commits?: number;
+  files?: GitHubFile[];
 };
 
 type ContentsApi = {
@@ -56,6 +71,7 @@ export async function loadPinnedSpec(input: {
   let sha = input.sha;
   let pullNumber = input.pull;
   let pullUrl: string | undefined;
+  let pullRev: Rev | undefined;
   if (sha === undefined) {
     if (pullNumber === undefined) {
       return { status: "error", message: "Need a pull number or commit SHA." };
@@ -69,6 +85,10 @@ export async function loadPinnedSpec(input: {
     if (resolved.status !== "ok") return resolved;
     sha = resolved.sha;
     pullUrl = resolved.htmlUrl;
+    pullRev =
+      resolved.baseSha === undefined
+        ? undefined
+        : `${resolved.baseSha}..${sha}`;
   }
 
   const blob = await fetchPinnedBlob(
@@ -82,24 +102,6 @@ export async function loadPinnedSpec(input: {
     return { status: "error", message: blob.message };
   }
 
-  let pullDiffs: CodeViewDiffItem[] = [];
-  if (pullNumber !== undefined) {
-    const files = await fetchPullFiles(
-      input.owner,
-      input.repo,
-      pullNumber,
-      input.signal,
-    );
-    if (files instanceof Error) {
-      if (files.message === "forbidden") return { status: "forbidden" };
-      if (files.message !== "not-found") {
-        return { status: "error", message: files.message };
-      }
-    } else {
-      pullDiffs = pullFilesToSourceDiffs(files);
-    }
-  }
-
   return {
     status: "ok",
     spec: {
@@ -111,7 +113,7 @@ export async function loadPinnedSpec(input: {
       htmlUrl: `https://github.com/${input.owner}/${input.repo}/blob/${sha}/${input.path}`,
       pullNumber,
       pullUrl,
-      pullDiffs,
+      pullRev,
     },
   };
 }
@@ -161,7 +163,7 @@ async function resolvePullHead(
   pull: number,
   signal?: AbortSignal,
 ): Promise<
-  | { status: "ok"; sha: string; htmlUrl: string }
+  | { status: "ok"; sha: string; baseSha: string | undefined; htmlUrl: string }
   | { status: "not-found" }
   | { status: "forbidden" }
   | { status: "error"; message: string }
@@ -181,9 +183,11 @@ async function resolvePullHead(
       message: "GitHub did not return a pull head SHA.",
     };
   }
+  const baseSha = payload?.base?.sha;
   return {
     status: "ok",
     sha,
+    baseSha: typeof baseSha === "string" ? baseSha : undefined,
     htmlUrl:
       typeof payload?.html_url === "string"
         ? payload.html_url
@@ -191,31 +195,83 @@ async function resolvePullHead(
   };
 }
 
-async function fetchPullFiles(
-  owner: string,
-  repo: string,
-  pull: number,
-  signal?: AbortSignal,
-): Promise<GitHubPullFile[] | Error> {
-  const files: GitHubPullFile[] = [];
-  for (let page = 1; page <= 10; page++) {
-    const response = await githubFetch(
-      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${String(pull)}/files?per_page=100&page=${String(page)}`,
-      signal,
+const changesCache = new Map<string, Promise<Changes | Error>>();
+
+/** Commit or compare changes from the GitHub API. Patches only, no full contents. */
+export function fetchGitHubChanges(
+  repo: { owner: string; repo: string },
+  rev: Rev,
+): Promise<Changes | Error> {
+  if (rev === WORKING)
+    return Promise.resolve(
+      new Error("Uncommitted changes are only available in a local viewer."),
     );
-    if (response.status === "not-found") return new Error("not-found");
-    if (response.status === "forbidden") return new Error("forbidden");
+  const key = `${repo.owner}/${repo.repo}@${rev}`;
+  const pending = changesCache.get(key);
+  if (pending !== undefined) return pending;
+  const request = readGitHubChanges(repo, rev);
+  changesCache.set(key, request);
+  return request;
+}
+
+/** GitHub pages a commit's files up to 3000; a compare lists only its first 300. */
+const COMMIT_FILES_MAX = 3000;
+const COMPARE_FILES_MAX = 300;
+
+async function readGitHubChanges(
+  repo: { owner: string; repo: string },
+  rev: Rev,
+): Promise<Changes | Error> {
+  const base = `/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.repo)}`;
+  const [from, to] = rev.split("..");
+  const files: GitHubFile[] = [];
+  let first: (CommitApi & CompareApi) | undefined;
+  let next: string | undefined =
+    to === undefined
+      ? `${base}/commits/${from!}`
+      : `${base}/compare/${from!}...${to}`;
+  while (next !== undefined) {
+    const response = await githubFetch(next);
+    if (response.status === "not-found")
+      return new Error(
+        `GitHub has no commit ${rev} in ${repo.owner}/${repo.repo}.`,
+      );
+    if (response.status === "forbidden")
+      return new Error("GitHub rate-limited this request. Wait and refresh.");
     if (response.status === "error") return new Error(response.message);
     const payload = (await response.body.json().catch(() => undefined)) as
-      | GitHubPullFile[]
+      | (CommitApi & CompareApi)
       | undefined;
-    if (!Array.isArray(payload)) {
-      return new Error("GitHub returned invalid pull files.");
-    }
-    files.push(...payload);
-    if (payload.length < 100) break;
+    if (payload?.files === undefined)
+      return new Error("GitHub returned invalid changes.");
+    first ??= payload;
+    files.push(...payload.files);
+    // Compare pages list commits, not more files.
+    next = to === undefined ? nextPage(response.body) : undefined;
   }
-  return files;
+  const subject = first?.commit?.message?.split("\n", 1)[0] ?? "";
+  const truncated =
+    files.length >= (to === undefined ? COMMIT_FILES_MAX : COMPARE_FILES_MAX);
+  return {
+    rev,
+    title:
+      to === undefined
+        ? subject
+        : `${from!.slice(0, 7)}..${to.slice(0, 7)} · ${String(first?.total_commits ?? 0)} commits`,
+    ...(first?.html_url === undefined ? {} : { url: first.html_url }),
+    ...(truncated ? { truncated } : {}),
+    files: githubChangedFiles(files),
+  };
+}
+
+/** The API path of the `rel="next"` page in a GitHub `Link` header. */
+function nextPage(response: Response) {
+  const link = /<([^>]+)>;\s*rel="next"/.exec(
+    response.headers.get("link") ?? "",
+  );
+  if (link === null) return undefined;
+  const url = new URL(link[1]!);
+  return `${url.pathname}${url.search}`;
 }
 
 async function readContents(

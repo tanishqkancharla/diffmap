@@ -105,6 +105,7 @@ const cli = Cli.create("diffmap", {
     async run(c) {
       const shared = await shareMarkdownFile({
         filePath: resolveFromInvokeCwd(c.args.file),
+        workspaceRoot: resolveFromInvokeCwd("."),
         isPublic: c.options.public === true,
       });
       if (shared instanceof Error) {

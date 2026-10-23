@@ -1,4 +1,5 @@
 import { parseCallStack, type SourceAnnotation } from "./annotations.js";
+import { WORKING, type Rev } from "./changes.js";
 import {
   parseDiagramAnnotations,
   type DiagramAnnotation,
@@ -8,7 +9,7 @@ export type Fence =
   | { kind: "mermaid"; source: string; annotations: DiagramAnnotation[] }
   | { kind: "html"; source: string }
   | { kind: "callstack"; source: string; lines: SourceAnnotation[] }
-  | { kind: "source-diff"; id: string; path: string; source: string }
+  | { kind: "changes"; rev: Rev; source: string }
   | { kind: "file"; path: string; start: number; end: number; source: string }
   | { kind: "diff"; path: string | undefined; source: string }
   | { kind: "code"; lang: string; source: string };
@@ -46,12 +47,11 @@ export function parseFence(lang: string, source: string): Fence {
       lines: parseCallStack(trimmed),
     };
 
-  const sourceDiff = /^source-diff:([\w-]+):(.+)$/.exec(lang);
-  if (sourceDiff !== null) {
+  if (lang === "changes") {
+    const rev = trimmed.trim();
     return {
-      kind: "source-diff",
-      id: sourceDiff[1]!,
-      path: sourceDiff[2]!,
+      kind: "changes",
+      rev: rev.length === 0 ? WORKING : rev,
       source: trimmed,
     };
   }

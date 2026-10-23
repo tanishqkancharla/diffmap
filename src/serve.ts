@@ -7,6 +7,7 @@ import { DiffmapFileError, DiffmapServeError } from "./errors.js";
 import { extractTitle } from "./extractDocument.js";
 import { parseViewerDocument } from "./parseViewer.js";
 import { findDefinition, readSourceReference } from "./definitions.js";
+import { listDeltas, readChanges, readDocumentChanges } from "./git.js";
 import {
   registerRunningDiffmap,
   unregisterRunningDiffmap,
@@ -58,6 +59,8 @@ export async function startServer(input: StartServerInput) {
 
   const parsed = parseViewerDocument(source, filePath);
   if (parsed instanceof Error) return parsed;
+  const changes = await readDocumentChanges(workspaceRoot, parsed);
+  if (changes instanceof Error) return changes;
 
   const title = extractTitle(source);
 
@@ -106,7 +109,9 @@ export async function startServer(input: StartServerInput) {
               (pathname === "/" ||
                 pathname === "/__diffmap/file" ||
                 pathname === "/__diffmap/definition" ||
-                pathname === "/__diffmap/source")
+                pathname === "/__diffmap/source" ||
+                pathname === "/__diffmap/changes" ||
+                pathname === "/__diffmap/deltas")
             ) {
               inactivityTimer?.refresh();
             }
@@ -257,6 +262,34 @@ async function handleDiffmapRequest(input: {
         definition instanceof Error
           ? { error: definition.message }
           : { definition },
+      ),
+    );
+    return;
+  }
+  if (parsed.pathname === "/__diffmap/changes" && input.method === "GET") {
+    const changes = await readChanges(
+      input.workspaceRoot,
+      parsed.searchParams.get("rev") ?? "",
+    );
+    input.res.statusCode = changes instanceof Error ? 400 : 200;
+    input.res.setHeader("content-type", "application/json; charset=utf-8");
+    input.res.end(
+      JSON.stringify(
+        changes instanceof Error ? { error: changes.message } : { changes },
+      ),
+    );
+    return;
+  }
+  if (parsed.pathname === "/__diffmap/deltas" && input.method === "GET") {
+    const deltas = await listDeltas(
+      input.workspaceRoot,
+      parsed.searchParams.get("rev") ?? undefined,
+    );
+    input.res.statusCode = deltas instanceof Error ? 400 : 200;
+    input.res.setHeader("content-type", "application/json; charset=utf-8");
+    input.res.end(
+      JSON.stringify(
+        deltas instanceof Error ? { error: deltas.message } : { deltas },
       ),
     );
     return;

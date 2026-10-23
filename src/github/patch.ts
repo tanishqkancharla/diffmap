@@ -1,14 +1,17 @@
-import { parsePatchFiles, type CodeViewDiffItem } from "@pierre/diffs";
+import type { ChangedFile } from "../changes.ts";
 
-export type GitHubPullFile = {
+/** A file from GitHub's commit, compare, or pull-files APIs. */
+export type GitHubFile = {
   filename: string;
   previous_filename?: string;
   status: string;
+  additions?: number;
+  deletions?: number;
   patch?: string;
 };
 
-/** Wrap a GitHub pull-files `patch` (hunks only) as a unified diff Pierre can parse. */
-export function wrapGitHubPullPatch(file: GitHubPullFile) {
+/** Wrap a GitHub file `patch` (hunks only) as a unified diff Pierre can parse. */
+export function wrapGitHubPatch(file: GitHubFile) {
   if (file.patch === undefined || file.patch.length === 0) return undefined;
   const oldPath = file.previous_filename ?? file.filename;
   const newPath = file.filename;
@@ -22,19 +25,27 @@ export function wrapGitHubPullPatch(file: GitHubPullFile) {
   ].join("\n");
 }
 
-export function pullFilesToSourceDiffs(files: GitHubPullFile[]) {
-  const diffs: CodeViewDiffItem[] = [];
-  for (const file of files) {
-    const unified = wrapGitHubPullPatch(file);
-    if (unified === undefined) continue;
-    const patches = parsePatchFiles(unified, undefined, false);
-    const fileDiff = patches[0]?.files[0];
-    if (fileDiff === undefined || fileDiff.hunks.length === 0) continue;
-    diffs.push({
-      id: `pr:${file.filename}`,
-      type: "diff",
-      fileDiff,
-    });
-  }
-  return diffs;
+export function githubChangedFiles(files: GitHubFile[]): ChangedFile[] {
+  return files.map((file) => {
+    const patch = wrapGitHubPatch(file);
+    return {
+      path: file.filename,
+      ...(file.previous_filename === undefined
+        ? {}
+        : { prevPath: file.previous_filename }),
+      status:
+        file.status === "added"
+          ? "added"
+          : file.status === "removed"
+            ? "deleted"
+            : file.status === "renamed"
+              ? "renamed"
+              : "modified",
+      additions: file.additions ?? 0,
+      deletions: file.deletions ?? 0,
+      // GitHub omits the patch for binary and very large files.
+      binary: patch === undefined,
+      ...(patch === undefined ? {} : { patch }),
+    };
+  });
 }

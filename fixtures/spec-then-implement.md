@@ -8,7 +8,7 @@ Readers need one page that shows what already shipped and what is still proposed
 
 ## Solution overview
 
-Keep both phases in the same file. The spec renders as a local page; when Phase 1 lands, the same page updates to show it. The landed phase has a real `source-diff`. The planned phase is a call stack only.
+Keep both phases in the same file. The spec renders as a local page; when Phase 1 lands, the same page updates to show it. The landed phase links its commit. The planned phase is a call stack only.
 
 ```mermaid
 flowchart TD
@@ -20,64 +20,68 @@ flowchart TD
 ## Goals
 
 - TOC nests both phases.
-- Diff panel only has the landed patch.
+- Diff panel only has the landed commit.
 
 ## Non-goals
 
-- Generating the patch from git in the viewer.
+- Linking prose to deleted lines.
 
 ## Implementation
 
-### ✅ Phase 1: Validate before saving
+### ✅ Phase 1: Link from prose
 
 **Today**
 
-`handleRequest` saves every record, including invalid ones.
+References only work in call stacks and Mermaid. A `[[path]]` in a paragraph renders as plain text.
 
 **Proposed**
 
-Validate the record in the handler and skip the write when validation fails, so storage only receives valid input.
+Split references out of prose text and render each one as clickable inline code, so a paragraph can open the source panel too.
 
-The handler used to save unchecked. It now validates first, and only a valid record reaches `saveRecord`:
+```changes
+6e4b5d3
+```
+
+The parser now walks prose text and turns each valid reference into a reference node. Code spans and link text stay literal:
 
 ```callstack
- handleRequest
--├── saveUnchecked  # accepted invalid input [[request:old:12]]
-+├── validateInput  # reject empty names [[request:new:12-13]]
- └── saveRecord  # store validated input [[request:new:14]]
+ parseViewerDocument
+ └── fromNode  # convert each md4x node [[6e4b5d3:src/parseViewer.ts#L318-L326]]
+-    └── keep text as is
++    ├── proseText  # split references out of text [[6e4b5d3:src/parseViewer.ts#L328-L353]]
++    │   └── parseReference  # now exported [[6e4b5d3:src/annotations.ts#L42]]
++    └── keep code spans and links literal [[6e4b5d3:src/parseViewer.ts#L361-L364]]
 ```
 
-The change is an early return. When validation fails, the handler returns the error before the save call runs:
+Prose references join the stack and diagram annotations, so selection works the same way for all three:
 
-```source-diff:request:src/request.ts
-diff --git a/src/request.ts b/src/request.ts
---- a/src/request.ts
-+++ b/src/request.ts
-@@ -10,5 +10,6 @@
- export function handleRequest(input: Input) {
-   const record = input.record;
--  saveUnchecked(record);
-+  const error = validateInput(record);
-+  if (error instanceof Error) return error;
-   return saveRecord(record);
- }
+```callstack
+ parseViewerDocument
++└── collectReferences  # gather prose references [[6e4b5d3:src/parseViewer.ts#L120-L128]] [[6e4b5d3:src/parseViewer.ts#L218-L224]]
 ```
 
-### Phase 2: Tell the user why
+The page renders each reference node as a button around inline code:
+
+```callstack
+ renderNode [[6e4b5d3:src/viewer/ComarkView.tsx#L64-L68]]
++└── InlineReference  # inline code that opens the source panel [[6e4b5d3:src/viewer/ComarkView.tsx#L173-L189]]
+```
+
+### Phase 2: Show the commit in the label
 
 **Today**
 
-A rejected record returns a tagged error that the UI cannot show.
+A prose reference shows the file name and fragment. A commit reference looks the same as a current-file reference.
 
 **Proposed**
 
-Format the validation error into a message the UI can display. Phase 1's write path stays unchanged.
+Prefix the label with the short commit SHA so readers can tell landed changes from current files. Uncommitted references keep the plain label.
 
-The formatting belongs inside validation, where the error is created. `validateInput` calls a new `formatError` before returning, and `saveRecord` is untouched:
+The label is built where the reference node is created. `proseText` passes the commit to a new `referenceLabel` option, and the renderer is untouched:
 
 ```callstack
- handleRequest
- └── validateInput
-+    └── formatError  # turn the tagged error into copy the UI can show
- └── saveRecord
+ proseText
+ └── referenceLabel
++    └── prefix the short SHA  # a1b2c3d:file.ts#L12-L30
+ └── InlineReference
 ```

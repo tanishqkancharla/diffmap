@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CodeViewDiffItem, CodeViewLineSelection } from "@pierre/diffs";
 import type { SourceReference } from "../annotations.js";
 import type { SourceDefinition, DefinitionResponse } from "../definitions.js";
 import { DiffmapDefinitionError } from "../errors.js";
@@ -137,46 +136,4 @@ function readHostFileReference(
     start: range.start,
     end: range.end,
   };
-}
-
-export function matchingSourceDiff(
-  source: SourceDefinition,
-  items: CodeViewDiffItem[],
-): CodeViewLineSelection | undefined {
-  const lines = source.contents.split(/\r?\n/);
-  for (const item of items) {
-    const diff = item.fileDiff;
-    if (diff.name !== source.path) continue;
-    const ranges = diff.hunks.flatMap((hunk) => {
-      const start = Math.max(source.start, hunk.additionStart);
-      const end = Math.min(
-        source.end,
-        hunk.additionStart + hunk.additionCount - 1,
-      );
-      return start <= end ? [{ start, end, hunk }] : [];
-    });
-    if (ranges.length === 0) continue;
-    const matches = ranges.every(({ start, end, hunk }) => {
-      for (let line = start; line <= end; line++) {
-        const index = diff.isPartial
-          ? hunk.additionLineIndex + line - hunk.additionStart
-          : line - 1;
-        if (
-          diff.additionLines[index]?.replace(/\r?\n$/, "") !== lines[line - 1]
-        )
-          return false;
-      }
-      return true;
-    });
-    if (!matches) continue;
-    return {
-      id: item.id,
-      range: {
-        start: Math.min(...ranges.map((range) => range.start)),
-        end: Math.max(...ranges.map((range) => range.end)),
-        side: "additions",
-      },
-    };
-  }
-  return undefined;
 }

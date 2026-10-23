@@ -2,6 +2,7 @@ import { CodeBlock } from "maui";
 import type { Fence as FenceModel } from "../parseFence.js";
 import type { SourceNavigation } from "../annotations.js";
 import { CallStackDiff } from "./CallStackDiff.tsx";
+import { ChangesCard } from "./ChangesCard.tsx";
 import { CodeDiff } from "./CodeDiff.tsx";
 import { FileExcerpt } from "./FileExcerpt.tsx";
 import { HtmlBlock } from "./HtmlBlock.tsx";
@@ -25,7 +26,14 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
     if (!trustedHtml) return <HtmlPlaceholder />;
     return <HtmlBlock source={fence.source} />;
   }
-  if (fence.kind === "source-diff") return undefined;
+  if (fence.kind === "changes")
+    return (
+      <ChangesCard
+        rev={fence.rev}
+        selectedAnnotation={props.selectedAnnotation}
+        onSelectAnnotation={props.onSelectAnnotation}
+      />
+    );
   if (fence.kind === "callstack")
     return (
       <CallStackDiff

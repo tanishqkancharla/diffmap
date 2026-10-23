@@ -30,7 +30,7 @@ test("homepage markdown is a real viewer document", async () => {
   const kinds = new Set(fences.map((fence) => fence.kind));
   assert.equal(kinds.has("mermaid"), true);
   assert.equal(kinds.has("callstack"), true);
-  assert.equal(kinds.has("source-diff"), true);
+  assert.equal(kinds.has("changes"), true);
   assert.equal(kinds.has("file"), true);
   assert.equal(kinds.has("html"), true);
 
@@ -63,8 +63,9 @@ test("homepage markdown is a real viewer document", async () => {
   assert.equal(levels.has(1), true);
   assert.equal(levels.has(2), true);
   assert.equal(levels.has(3), true);
-  assert.ok(document.sourceDiffs.length >= 3);
-  assert.equal(document.hasReferences, true);
+  assert.ok(
+    document.references.filter((ref) => ref.rev !== undefined).length >= 3,
+  );
 
   const excerpt = fences.find(
     (fence) => fence.kind === "file" && fence.path === "src/cli.ts",

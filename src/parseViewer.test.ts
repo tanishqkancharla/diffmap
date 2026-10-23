@@ -80,7 +80,7 @@ test("parseViewerDocument turns prose [[path#symbol]] into a short reference", (
   const document = parseViewerDocument(source);
   assert.equal(document instanceof Error, false);
   if (document instanceof Error) return;
-  assert.equal(document.hasReferences, true);
+  assert.equal(document.references.length, 1);
   const paragraph = document.nodes[0];
   assert.equal(paragraph?.type, "element");
   if (paragraph?.type !== "element") return;
@@ -115,6 +115,48 @@ test("parseViewerDocument turns prose [[path#symbol]] into a short reference", (
   assert.equal(
     parseViewerDocument("See [[missing:new:1]].\n") instanceof Error,
     true,
+  );
+});
+
+test("parseViewerDocument reads commit references and changes fences", () => {
+  const document = parseViewerDocument(
+    [
+      "```changes",
+      "a1b2c3d..e4f5a6b",
+      "```",
+      "",
+      "```changes",
+      "```",
+      "",
+      "See [[a1b2c3d:src/store.ts#L12-L30]] and [[src/store.ts#L3]].",
+      "",
+    ].join("\n"),
+  );
+  assert.equal(document instanceof Error, false);
+  if (document instanceof Error) return;
+  assert.deepEqual(document.changeRevs, ["a1b2c3d..e4f5a6b", "working"]);
+  assert.deepEqual(document.references, [
+    { kind: "file", rev: "a1b2c3d", path: "src/store.ts", start: 12, end: 30 },
+    { kind: "file", path: "src/store.ts", start: 3, end: 3 },
+  ]);
+  // A commit with a symbol, or a changes fence that is not a SHA, is an error.
+  assert.equal(
+    parseViewerDocument("See [[a1b2c3d:src/store.ts#save]].\n") instanceof
+      Error,
+    true,
+  );
+  assert.equal(
+    parseViewerDocument("```changes\nmain\n```\n") instanceof Error,
+    true,
+  );
+  // The removed patch fence fails instead of rendering as code.
+  assert.match(
+    String(
+      parseViewerDocument(
+        "```source-diff:store:src/store.ts\ndiff --git a/x b/x\n```\n",
+      ),
+    ),
+    /source-diff:store:src\/store\.ts" fences were removed/,
   );
 });
 
@@ -182,6 +224,7 @@ test("startServer does not listen when mermaid is invalid", async () => {
 test("shareMarkdownFile does not call gh when mermaid is invalid", async () => {
   await withTempSpec(brokenMermaidSpec(), async (filePath) => {
     const shared = await shareMarkdownFile({
+      workspaceRoot: packageRoot,
       filePath,
       isPublic: false,
     });

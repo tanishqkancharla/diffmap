@@ -5,7 +5,15 @@ import { parseViewerDocument } from "../parseViewer.ts";
 import type { ViewerDocument } from "../parseViewer.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
 import { GistLoading, GistStatus } from "../gist/GistStatus.tsx";
-import { loadPinnedSpec, type PinnedSpec } from "./fetchRepo.ts";
+import {
+  ChangesLoaderContext,
+  type ChangesLoader,
+} from "../viewer/changesSource.ts";
+import {
+  fetchGitHubChanges,
+  loadPinnedSpec,
+  type PinnedSpec,
+} from "./fetchRepo.ts";
 import { GitHubPinContext } from "./pin.ts";
 import {
   githubBlobUrl,
@@ -27,7 +35,12 @@ type GitHubView =
   | { kind: "forbidden" }
   | { kind: "error"; message: string }
   | { kind: "parse-error"; htmlUrl: string; message: string }
-  | { kind: "ready"; spec: PinnedSpec; document: ViewerDocument };
+  | {
+      kind: "ready";
+      spec: PinnedSpec;
+      document: ViewerDocument;
+      loadChanges: ChangesLoader;
+    };
 
 export function GitHubApp() {
   const [route, setRoute] = useState(readGitHubRoute);
@@ -131,21 +144,24 @@ export function GitHubApp() {
   const spec = view.spec;
   return (
     <GitHubPinContext.Provider value={spec}>
-      <ViewerApp
-        key={`${spec.owner}/${spec.repo}@${spec.sha}:${spec.path}`}
-        document={view.document}
-        mode="github"
-        headerActions={
-          <GitHubHeader
-            owner={spec.owner}
-            repo={spec.repo}
-            sha={spec.sha}
-            path={spec.path}
-            pullNumber={spec.pullNumber}
-            pullUrl={spec.pullUrl}
-          />
-        }
-      />
+      <ChangesLoaderContext.Provider value={view.loadChanges}>
+        <ViewerApp
+          defaultRev={spec.pullRev}
+          key={`${spec.owner}/${spec.repo}@${spec.sha}:${spec.path}`}
+          document={view.document}
+          mode="github"
+          headerActions={
+            <GitHubHeader
+              owner={spec.owner}
+              repo={spec.repo}
+              sha={spec.sha}
+              path={spec.path}
+              pullNumber={spec.pullNumber}
+              pullUrl={spec.pullUrl}
+            />
+          }
+        />
+      </ChangesLoaderContext.Provider>
     </GitHubPinContext.Provider>
   );
 }
@@ -185,11 +201,12 @@ async function loadView(
       message: parsed.message,
     };
   }
-  const document =
-    parsed.sourceDiffs.length > 0
-      ? parsed
-      : { ...parsed, sourceDiffs: spec.pullDiffs };
-  return { kind: "ready", spec, document };
+  return {
+    kind: "ready",
+    spec,
+    document: parsed,
+    loadChanges: (rev) => fetchGitHubChanges(spec, rev),
+  };
 }
 
 function readGitHubRoute(): GitHubRoute {

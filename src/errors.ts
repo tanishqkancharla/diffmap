@@ -30,6 +30,11 @@ export class DiffmapAnnotationError extends errore.createTaggedError({
   message: "diffmap source annotation: $reason",
 }) {}
 
+export class DiffmapGitError extends errore.createTaggedError({
+  name: "DiffmapGitError",
+  message: "$reason",
+}) {}
+
 export class DiffmapDefinitionError extends errore.createTaggedError({
   name: "DiffmapDefinitionError",
   message: "$reason",

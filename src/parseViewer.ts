@@ -1,12 +1,13 @@
 import * as errore from "errore";
-import { parsePatchFiles, type CodeViewDiffItem } from "@pierre/diffs";
 import { parseAST } from "md4x/napi";
 import type { ComarkElement, ComarkNode } from "md4x/napi";
 import {
   parseReference,
   referenceLabel,
   type SourceAnnotation,
+  type SourceReference,
 } from "./annotations.js";
+import { isRev, type Rev } from "./changes.js";
 import { DiffmapAnnotationError, DiffmapParseError } from "./errors.js";
 import { parseMermaidDiagram } from "./mermaid.js";
 import { parseFence, type Fence } from "./parseFence.js";
@@ -14,8 +15,10 @@ import { parseFence, type Fence } from "./parseFence.js";
 export type ViewerDocument = {
   nodes: ViewerNode[];
   headings: ViewerHeading[];
-  sourceDiffs: CodeViewDiffItem[];
-  hasReferences: boolean;
+  /** Every reference in stacks, diagrams, and prose. */
+  references: SourceReference[];
+  /** Revs of `changes` fences, in document order. */
+  changeRevs: Rev[];
 };
 
 export type ViewerHeading = {
@@ -82,40 +85,20 @@ export function parseViewerDocument(source: string, path = "spec") {
   if (tree instanceof Error) return tree;
   const nodes = tree.nodes.flatMap((node) => fromNode(node));
   const fences = collectFences(nodes);
-  const sourceDiffs: CodeViewDiffItem[] = [];
+  const changeRevs: Rev[] = [];
   for (const fence of fences) {
-    if (fence.kind !== "source-diff") continue;
-    if (sourceDiffs.some((diff) => diff.id === fence.id)) {
+    if (fence.kind === "code" && fence.lang.startsWith("source-diff")) {
       return new DiffmapAnnotationError({
-        reason: `Duplicate source diff ID "${fence.id}"`,
+        reason: `"${fence.lang}" fences were removed. Commit the change, then use a changes fence with the commit SHA and link lines with [[<sha>:path#L12-L30]]`,
       });
     }
-    const patches = errore.try({
-      try: () => parsePatchFiles(fence.source, undefined, true),
-      catch: (cause) =>
-        new DiffmapAnnotationError({
-          reason: `Invalid patch "${fence.id}"`,
-          cause,
-        }),
-    });
-    if (patches instanceof Error) return patches;
-    const files = patches.flatMap((patch) => patch.files);
-    const fileDiff = files[0];
-    if (
-      files.length !== 1 ||
-      fileDiff === undefined ||
-      fileDiff.hunks.length === 0
-    ) {
+    if (fence.kind !== "changes") continue;
+    if (!isRev(fence.rev)) {
       return new DiffmapAnnotationError({
-        reason: `Source diff "${fence.id}" must contain one file with unified diff hunks`,
+        reason: `Invalid changes "${fence.rev}". Use a commit SHA, a SHA range (a1b2c3d..e4f5a6b), or leave it empty for uncommitted changes`,
       });
     }
-    if (fileDiff.name !== fence.path) {
-      return new DiffmapAnnotationError({
-        reason: `Source diff "${fence.id}" path does not match its patch (${fileDiff.name})`,
-      });
-    }
-    sourceDiffs.push({ id: fence.id, type: "diff", fileDiff });
+    changeRevs.push(fence.rev);
   }
   const annotations = [
     ...fences.flatMap((fence) => {
@@ -155,44 +138,24 @@ export function parseViewerDocument(source: string, path = "spec") {
   for (const line of annotations) {
     if (line.text.includes("[[")) {
       return new DiffmapAnnotationError({
-        reason: `Invalid reference in "${line.text}". Use [[id:old|new:start-end]] or [[path#symbol]]`,
+        reason: `Invalid reference in "${line.text}". Use [[path]], [[path#symbol]], [[path#L12-L30]], or [[<commit>:path#L12-L30]]; source-diff patch references were removed`,
       });
     }
     for (const ref of line.references) {
-      if (ref.kind === "file") {
-        if (
-          ref.start !== undefined &&
-          (!Number.isSafeInteger(ref.start) ||
-            !Number.isSafeInteger(ref.end) ||
-            ref.end! < ref.start)
-        ) {
-          return new DiffmapAnnotationError({
-            reason: `Invalid file range in "${ref.path}"`,
-          });
-        }
-        continue;
-      }
-      const diff = sourceDiffs.find((item) => item.id === ref.id);
-      if (diff === undefined) {
+      if (ref.kind !== "file") continue;
+      if (ref.rev !== undefined && ref.symbol !== undefined) {
         return new DiffmapAnnotationError({
-          reason: `Unknown source diff "${ref.id}"`,
+          reason: `Symbol references read current files. Use a line range with a commit: [[${ref.rev}:${ref.path}#L12-L30]]`,
         });
       }
-      const inHunk = diff.fileDiff.hunks.some((hunk) => {
-        const start =
-          ref.side === "old" ? hunk.deletionStart : hunk.additionStart;
-        const count =
-          ref.side === "old" ? hunk.deletionCount : hunk.additionCount;
-        return ref.start >= start && ref.end < start + count;
-      });
       if (
-        !Number.isSafeInteger(ref.start) ||
-        !Number.isSafeInteger(ref.end) ||
-        ref.end < ref.start ||
-        !inHunk
+        ref.start !== undefined &&
+        (!Number.isSafeInteger(ref.start) ||
+          !Number.isSafeInteger(ref.end) ||
+          ref.end! < ref.start)
       ) {
         return new DiffmapAnnotationError({
-          reason: `Range ${ref.side}:${ref.start}-${ref.end} is not in a hunk of "${ref.id}"`,
+          reason: `Invalid file range in "${ref.path}"`,
         });
       }
     }
@@ -200,10 +163,8 @@ export function parseViewerDocument(source: string, path = "spec") {
   return {
     nodes,
     headings: collectHeadings(nodes),
-    sourceDiffs,
-    hasReferences: annotations.some(
-      (annotation) => annotation.references.length > 0,
-    ),
+    references: annotations.flatMap((annotation) => annotation.references),
+    changeRevs,
   };
 }
 
@@ -331,19 +292,18 @@ function proseText(value: string): ViewerNode[] {
   let last = 0;
   for (const match of value.matchAll(/\[\[([^[\]\n]+)\]\]/g)) {
     const reference = parseReference(match[1]!);
-    if (reference === undefined) continue;
+    // The removed `[[id:old|new:N]]` patch syntax must fail, not render as text.
+    const removed =
+      reference === undefined && /^[\w-]+:(old|new):\d/.test(match[1]!);
+    if (reference === undefined && !removed) continue;
     if (match.index > last)
       nodes.push({ type: "text", value: value.slice(last, match.index) });
-    const text =
-      reference.kind === "file"
-        ? referenceLabel({
-            ...reference,
-            path: reference.path.split("/").pop()!,
-          })
-        : match[1]!;
     nodes.push({
       type: "reference",
-      annotation: { text, references: [reference] },
+      annotation:
+        reference === undefined
+          ? { text: match[0], references: [] }
+          : { text: referenceLabel(reference, true), references: [reference] },
     });
     last = match.index + match[0].length;
   }
@@ -367,6 +327,11 @@ function fromElement(
   }
   if (tag === "mermaid") return fenceView("mermaid", comarkText(children));
   if (tag === "callstack") return fenceView("callstack", comarkText(children));
+  if (tag === "changes")
+    return fenceView(
+      "changes",
+      stringAttr(element, "rev") ?? comarkText(children),
+    );
   if (tag === "diff") {
     const path = stringAttr(element, "path");
     const lang = path === undefined ? "diff" : `diff:${path}`;

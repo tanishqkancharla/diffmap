@@ -1,12 +1,12 @@
 # Symbol and diagram references
 
-Run from the repository root. These references read the current diffmap source.
+Run from the repository root. The first references read the current diffmap source. The last diagram reads a commit.
 
 ```callstack
- parseViewerDocument [[packages/diffmap/src/parseViewer.ts#parseViewerDocument]]
- └── parseFence [[packages/diffmap/src/parseFence.ts#parseFence]]
-     ├── parseCallStack [[packages/diffmap/src/annotations.ts#parseCallStack]]
-     └── parseDiagramAnnotations [[packages/diffmap/src/diagramAnnotations.ts#parseDiagramAnnotations]]
+ parseViewerDocument [[src/parseViewer.ts#parseViewerDocument]]
+ └── parseFence [[src/parseFence.ts#parseFence]]
+     ├── parseCallStack [[src/annotations.ts#parseCallStack]]
+     └── parseDiagramAnnotations [[src/diagramAnnotations.ts#parseDiagramAnnotations]]
 ```
 
 ## The shared source panel
@@ -17,11 +17,11 @@ Click a node, connecting line, or line label. Tab and Enter or Space also work.
 flowchart LR
   Stack[Call stack] -->|Select row| Panel[Source panel]
   Diagram[Mermaid] -->|Select node or edge| Panel
-  %% ref node:Stack [[packages/diffmap/src/viewer/CallStackDiff.tsx#CallStackDiff]]
-  %% ref node:Diagram [[packages/diffmap/src/viewer/MermaidBlock.tsx#MermaidBlock]]
-  %% ref node:Panel [[packages/diffmap/src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
-  %% ref edge:0 [[packages/diffmap/src/annotations.ts#SourceAnnotation]]
-  %% ref edge:1 [[packages/diffmap/src/viewer/diagramLinks.ts#linkDiagram]] [[packages/diffmap/src/diagramAnnotations.ts]]
+  %% ref node:Stack [[src/viewer/CallStackDiff.tsx#CallStackDiff]]
+  %% ref node:Diagram [[src/viewer/MermaidBlock.tsx#MermaidBlock]]
+  %% ref node:Panel [[src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
+  %% ref edge:0 [[src/annotations.ts#SourceAnnotation]]
+  %% ref edge:1 [[src/viewer/diagramLinks.ts#linkDiagram]] [[src/diagramAnnotations.ts]]
 ```
 
 ```mermaid
@@ -30,33 +30,25 @@ sequenceDiagram
   participant Server
   Panel->>Server: Resolve file and symbol
   Server-->>Panel: Source and declaration range
-  %% ref node:Panel [[packages/diffmap/src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
-  %% ref node:Server [[packages/diffmap/src/definitions.ts]]
-  %% ref edge:0 [[packages/diffmap/src/viewer/sourceNavigation.ts#requestSource]]
-  %% ref edge:1 [[packages/diffmap/src/definitions.ts#readSourceReference]]
+  %% ref node:Panel [[src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
+  %% ref node:Server [[src/definitions.ts]]
+  %% ref edge:0 [[src/viewer/sourceNavigation.ts#requestSource]]
+  %% ref edge:1 [[src/definitions.ts#readSourceReference]]
 ```
 
-## Embedded old and new changes
+## Commit references
 
-These sample patches are snapshots; their files do not need to exist locally.
+Commit dae6b98 replaced the Done button with a quiet Close server button. Each node and edge opens the Diff panel on that commit, scrolled to the linked lines.
 
 ```mermaid
 flowchart LR
-  Input[Input] -->|Old validation| Old[Accept whitespace]
-  Input -->|New validation| New[Reject whitespace]
-  %% ref node:Old [[validation:old:1-3]]
-  %% ref node:New [[validation:new:1-3]]
-  %% ref edge:0 [[validation:old:2]]
-  %% ref edge:1 [[validation:new:2]]
+  Header[ViewerApp header] -->|Local mode only| Close[CloseServerButton]
+  Close -->|POST /__diffmap/shutdown| Closed[Closed spec page]
+  %% ref node:Header [[dae6b98:src/viewer/ViewerApp.tsx#L211-L228]]
+  %% ref node:Close [[dae6b98:src/viewer/CloseServerButton.tsx#L8-L16]]
+  %% ref node:Closed [[dae6b98:src/viewer/ViewerApp.tsx#L176-L183]]
+  %% ref edge:0 [[dae6b98:src/viewer/ViewerApp.tsx#L219-L227]]
+  %% ref edge:1 [[dae6b98:src/viewer/ViewerApp.tsx#L316-L318]]
 ```
 
-```source-diff:validation:src/validation.ts
-diff --git a/src/validation.ts b/src/validation.ts
---- a/src/validation.ts
-+++ b/src/validation.ts
-@@ -1,3 +1,3 @@
- export function validateInput(input: string) {
--  return input.length > 0;
-+  return input.trim().length > 0;
- }
-```
+The deleted `DoneButton.tsx` has no node link. Deleted lines cannot be referenced.

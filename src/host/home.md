@@ -42,13 +42,13 @@ Pinned commit:
 
 `https://diffmap.dev/<owner>/<repo>/commit/<sha>/specs/<name>.md`
 
-The pin is one SHA. The markdown and every `[[path]]`, mermaid `%% ref`, excerpt, and hunk load from that commit, not `main`. A PR number only chooses the SHA (head at load, then pin). Refresh stays on the commit URL.
+The pin is one SHA. The markdown and every `[[path]]`, mermaid `%% ref`, and excerpt load from that commit, not `main`. Commit references load their diffs from the GitHub API. A PR number only chooses the SHA (head at load, then pin). Refresh stays on the commit URL.
 
 ## What the fences are
 
 ### System flow
 
-Click a node. `%% ref` is a mermaid comment; `[[path]]` and `[[path#symbol]]` are the same references as on a stack row.
+Click a node. `%% ref` is a mermaid comment; `[[path]]`, `[[path#symbol]]`, and `[[<sha>:path#L12-L30]]` are the same references as on a stack row.
 
 ```mermaid
 flowchart LR
@@ -59,7 +59,7 @@ flowchart LR
   %% ref node:Serve [[src/cli.ts]]
   %% ref node:Share [[src/share.ts#shareMarkdownFile]]
   %% ref node:Pin [[src/github/route.ts]]
-  %% ref edge:0 [[cli:new:50]]
+  %% ref edge:0 [[1257fe8:src/cli.ts#L49-L50]]
 ```
 
 ````md
@@ -72,68 +72,30 @@ flowchart LR
 
 ### Call stacks
 
-`-` is current, `+` is proposed. After a phase lands, retarget `[[path]]` to a hunk: `[[id:old:…]]` / `[[id:new:…]]`.
+`-` is current, `+` is proposed. After a phase lands, commit it and retarget `[[path]]` to the commit: `[[<sha>:path#L12-L30]]`. Line numbers are the file after the commit.
 
 ```callstack
  ViewerApp
--└── CloseServerButton  # every hosted page tried to stop a server [[close:old:217]]
-+└── CloseServerButton  # local mode only [[close:new:217-224]]
+-└── DoneButton  # a loud Done control
++└── CloseServerButton  # quiet, local mode only [[dae6b98:src/viewer/ViewerApp.tsx#L219-L227]] [[dae6b98:src/viewer/CloseServerButton.tsx#L8-L16]]
      └── DiffButton
 ```
 
 ```callstack
  shareMarkdownFile [[src/share.ts#shareMarkdownFile]]
--└── print gist URL [[share:old:62]]
-+└── gistViewerUrl  # https://diffmap.dev/g/<id> [[share:new:62]]
+-└── print the gist URL
++└── gistViewerUrl  # https://diffmap.dev/g/<id> [[d14ae1a:src/share.ts#L55-L59]]
 ```
 
-### Source patches
+### Changes
 
-Define each id once. Copy the real `git diff` (`diff --git`, `---`, `+++`, `@@`). Ranges have to sit inside an included hunk.
+A `changes` fence names a commit. It renders a card with every file that commit changed. **Review** opens the Diff panel on all of them, with a sticky header per file; a row jumps to its file. An empty body means uncommitted changes.
 
-```source-diff:cli:src/cli.ts
-diff --git a/src/cli.ts b/src/cli.ts
---- a/src/cli.ts
-+++ b/src/cli.ts
-@@ -49,4 +49,4 @@
- const cli = Cli.create("diffmap", {
--  description: "Serve a walkthrough",
-+  description: "Serve a spec locally, or share it as a gist",
-   version: "0.1.3",
-   args: serveArgs,
+```changes
+dae6b98
 ```
 
-```source-diff:share:src/share.ts
-diff --git a/src/share.ts b/src/share.ts
---- a/src/share.ts
-+++ b/src/share.ts
-@@ -59,6 +59,6 @@
-   return {
-     gistId,
-     gistUrl,
--    viewerUrl: gistUrl,
-+    viewerUrl: gistViewerUrl(gistId, undefined, process.env.DIFFMAP_ORIGIN),
-   };
- }
-```
-
-```source-diff:close:src/viewer/ViewerApp.tsx
-diff --git a/src/viewer/ViewerApp.tsx b/src/viewer/ViewerApp.tsx
---- a/src/viewer/ViewerApp.tsx
-+++ b/src/viewer/ViewerApp.tsx
-@@ -216,3 +216,10 @@
-             {props.headerActions}
--            <CloseServerButton onClick={() => setShutDown(true)} />
-+            {props.mode === "local" && (
-+              <CloseServerButton
-+                onClick={() => {
-+                  setShutDown(true);
-+                  void closeViewer();
-+                }}
-+              />
-+            )}
-           </div>
-```
+Commit references must name a file the commit changed, and the range must fit the file after the commit. `serve` and `share` check this at startup.
 
 ### File excerpts
 
@@ -167,7 +129,7 @@ Local `serve` trusts `html` in the file you pointed at. This host does not. Gist
 
 ## How a spec stays alive
 
-Write `specs/<name>.md`. Serve it while you plan. When the plan changes, edit this file. When a phase lands, paste the patch and retarget the links so the Diff panel opens the change, not just the file.
+Write `specs/<name>.md`. Serve it while you plan. When the plan changes, edit this file. When a phase lands, commit it, add a `changes` fence, and retarget the links to the commit so the Diff panel opens the change, not just the file.
 
 ### Phase 1: Spec and serve
 
@@ -186,7 +148,7 @@ Write `specs/<name>.md`. Serve it while you plan. When the plan changes, edit th
 ```callstack
  specs/name.md
 -└── localhost only
-+├── diffmap share [[share:new:62]]
++├── diffmap share [[d14ae1a:src/share.ts#L55-L59]]
 +└── GitHub PR URL [[src/github/route.ts]]
 ```
 

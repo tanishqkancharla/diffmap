@@ -1,3 +1,4 @@
+import { GIST_CHANGES_FILE, type Changes, type Rev } from "../changes.ts";
 import { githubGistUrl, markdownFileNames, pickMarkdownFile } from "./route.ts";
 
 export type GistMarkdownFile = {
@@ -10,6 +11,8 @@ export type GistDocument = {
   htmlUrl: string;
   files: GistMarkdownFile[];
   chosen: GistMarkdownFile;
+  /** Snapshot `diffmap share` saved for each commit the spec references. */
+  changes: Record<Rev, Changes>;
 };
 
 export type GistLoadResult =
@@ -95,6 +98,25 @@ export async function loadGistMarkdown(
     return { status: "missing-file", htmlUrl, files };
   }
 
+  const snapshotFile = apiFiles[GIST_CHANGES_FILE];
+  const snapshot =
+    snapshotFile === undefined
+      ? "{}"
+      : await readGistFile(snapshotFile, signal);
+  if (snapshot instanceof Error) {
+    return { status: "error", message: snapshot.message };
+  }
+  let changes: Record<Rev, Changes>;
+  try {
+    // SAFETY: diffmap share writes this file from readDocumentChanges.
+    changes = JSON.parse(snapshot) as Record<Rev, Changes>;
+  } catch {
+    return {
+      status: "error",
+      message: `${GIST_CHANGES_FILE} is not valid JSON.`,
+    };
+  }
+
   return {
     status: "ok",
     gist: {
@@ -102,6 +124,7 @@ export async function loadGistMarkdown(
       htmlUrl,
       files,
       chosen,
+      changes,
     },
   };
 }

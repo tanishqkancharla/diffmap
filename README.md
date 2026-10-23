@@ -78,6 +78,7 @@ import {
 | `callstack` or `diff` containing `└──` / `├──` | Interactive stack rows, no file header                                                            |
 | `diff` or `diff:path` with a file path         | Pierre patch with Pierre’s file header                                                            |
 | `diff` with no path                            | Pierre patch, no file header                                                                      |
+| `changes` with a commit, range, or empty body  | Files changed card with a Review button; empty means uncommitted changes                          |
 | `start:end:path`                               | Pierre file excerpt with Pierre’s file header                                                     |
 | `html`                                         | Trusted HTML from this file. diffmap does not sanitize it. Only use it for local files you wrote. |
 | other langs                                    | Maui `CodeBlock`                                                                                  |
@@ -107,6 +108,9 @@ startServer
 ::file{path="src/cli.ts" start="1" end="20"}
 ::
 
+::changes{rev="a1b2c3d"}
+::
+
 ::html
 <aside>Note.</aside>
 ::
@@ -116,58 +120,43 @@ startServer
 
 ## Link call stacks to source changes
 
-Append `[[path/to/file.ts#symbolName]]` to a call stack line to link a symbol.
-Paths are relative to `--root`. Symbol lookup supports TypeScript and JavaScript
-declarations, including qualified names such as `[[src/store.ts#Store.save]]`.
-Ambiguous names show the qualified names you can use instead.
+Append a reference to a call stack line to link it. Paths are relative to `--root`.
+
+- `[[path/to/file.ts#symbolName]]` links a TypeScript or JavaScript declaration,
+  including qualified names such as `[[src/store.ts#Store.save]]`. Ambiguous
+  names show the qualified names you can use instead.
+- `[[path/to/file]]` links a whole file and `[[path/to/file#L12-L30]]` a line
+  range. These work with any language.
+- `[[<sha>:path/to/file#L12-L30]]` or `[[<sha>:path/to/file]]` links a change
+  in a commit. `<sha>` is a 7–40 character lowercase commit SHA, or a range
+  `<sha>..<sha>`.
 
 ```callstack
- handleRequest [[src/request.ts#handleRequest]]
-+└── validateInput # reject invalid input [[src/validation.ts#validateInput]]
+ shareMarkdownFile [[src/share.ts#shareMarkdownFile]]
++└── gistViewerUrl # print the diffmap.dev link [[d14ae1a:src/share.ts#L55-L59]]
 ```
 
-The panel highlights the declaration in the current workspace file. If an
-included source patch overlaps that declaration and its new-side text matches
-the workspace, the panel highlights the patch instead. Symbol references do not
-require a `source-diff` fence. Use `[[path/to/file]]` for a whole file or
-`[[path/to/file#L12-L30]]` for a file range; these work with other languages too.
+A reference without a commit opens the Diff panel on uncommitted changes
+(working tree against HEAD), focused on that file or range. If the file has no
+uncommitted changes, the panel shows the current file.
 
-To reference an exact change, including removed code, use the patch syntax below.
-Symbol names resolve against current files; use an `old` reference for a deleted
-symbol or a historical version.
+A commit reference opens the Diff panel on every file changed in that commit or
+range, with a sticky header per file, scrolled to the linked file and lines.
+Line numbers are the file's lines after the commit. The file must be changed in
+that commit and the range must fit the new file; `serve` and `share` run git and
+fail at startup otherwise. Deleted lines cannot be referenced, and a commit
+cannot be combined with `#symbol`.
 
-Append `[[id:side:start-end]]` to a call stack line. `side` is `old` or `new`;
-line numbers refer to that version of the source file, not the patch. A single
-line can use `[[id:new:12]]`. Multiple references on one stack line are allowed.
-The references are hidden in the rendered stack, and linked rows support mouse
-clicks and keyboard activation.
+Multiple references on one stack line are allowed. The references are hidden in
+the rendered stack, and linked rows support mouse clicks and keyboard activation.
 
-Define each ID once in a `source-diff:id:path` fence anywhere in the document.
-Copy the file's actual Git patch, including its `diff --git`, file headers, and
-`@@` hunk headers. Keep enough context to explain the change. Each reference
-range must fit within one included hunk. Use the new path for renamed files and
-the old path for deleted files.
+A `changes` fence shows a commit's files as a card. Each row shows the file name
+and +N −M. **Review** opens the Diff panel on all files; a row focuses that file.
+An empty body (or `working`) means uncommitted changes.
 
 ````md
-```callstack
- handleRequest
--└── saveUnchecked [[request:old:12]]
-+├── validateInput # reject invalid input [[request:new:12-13]]
- └── saveRecord
-```
-
-```source-diff:request:src/request.ts
-diff --git a/src/request.ts b/src/request.ts
---- a/src/request.ts
-+++ b/src/request.ts
-@@ -10,5 +10,6 @@
- export function handleRequest(input: Input) {
-   const record = input.record;
--  saveUnchecked(record);
-+  const error = validateInput(record);
-+  if (error instanceof Error) return error;
-   return saveRecord(record);
- }
+```changes
+a1b2c3d
 ```
 ````
 
@@ -175,36 +164,38 @@ References open in one shared panel beside the walkthrough. Selecting a stack
 line or diagram element highlights it and scrolls the panel to the linked code
 range. When a target has several references, buttons above the source viewer
 select among them. On narrow windows the source panel sits below the walkthrough.
-Documents without references or source patches keep the single-panel layout.
+Documents without references keep the single-panel layout.
 
-Unknown IDs, duplicate definitions, malformed references, mismatched paths, and
-ranges outside the included hunks produce a parse error. Source patches are
-embedded snapshots; the viewer does not regenerate them from the working tree.
+Malformed references produce a parse error.
+
+On a GitHub-hosted spec, commit diffs come from the GitHub API. It returns patch
+hunks only, so only lines near changes are reachable, and the Diff button opens
+the pull request's full diff. `diffmap share` saves every referenced commit to a
+`diffmap-changes.json` file in the gist. Uncommitted references only work in a
+local viewer.
 
 Cmd-click (or Ctrl-click) a TypeScript or JavaScript symbol in the source panel
 to open its definition. Use Back to retrace navigation and return to the reference.
 Resolution uses the workspace's TypeScript configuration and current files.
-Deleted files and lines that no longer match the workspace show a message;
-their call stack references still highlight the embedded old-side diff.
 
 Run `npx @tanishqkancharla/diffmap fixtures/annotations.md` for an example
-with old/new references, multiple files, and unchanged context.
+with commit references, multiple files, and unchanged context.
 
 ## Link Mermaid nodes and edges
 
 Inside a Mermaid fence, add `%% ref node:<id> [[reference]]` to link a node or
 participant, or `%% ref edge:<index> [[reference]]` to link an edge or sequence
 message. Edge indices start at zero in declaration order. The same file, symbol,
-and old/new patch references work here. Keep one directive per target; append
+and commit references work here. Keep one directive per target; append
 multiple references to that directive when needed.
 
 ````md
 ```mermaid
 flowchart LR
-  A[Request] -->|Validate| B[Validation]
-  %% ref node:A [[src/request.ts#handleRequest]]
-  %% ref node:B [[src/validation.ts#validateInput]]
-  %% ref edge:0 [[request:new:12-13]]
+  A[ViewerApp] -->|Local mode only| B[CloseServerButton]
+  %% ref node:A [[src/viewer/ViewerApp.tsx#ViewerApp]]
+  %% ref node:B [[dae6b98:src/viewer/CloseServerButton.tsx#L8-L16]]
+  %% ref edge:0 [[dae6b98:src/viewer/ViewerApp.tsx#L219-L227]]
 ```
 
 ```mermaid
@@ -225,7 +216,8 @@ targets display an error. See [the runnable example](fixtures/references.md).
 ## Link from prose
 
 Write any reference in a paragraph, list item, or table cell, such as
-`See [[src/store.ts#Store.save]] for the write path.` It renders as clickable
-inline code labeled with the file name and fragment (`store.ts#Store.save`) and
-opens the same source panel. References inside code spans and link text stay
+`See [[src/store.ts#Store.save]] for the write path.` or
+`Close server landed in [[dae6b98:src/viewer/CloseServerButton.tsx]].` It
+renders as clickable inline code labeled with the file name and fragment
+(`store.ts#Store.save`) and opens the same source panel. References inside code spans and link text stay
 literal, so `` `[[path]]` `` shows the syntax itself.
