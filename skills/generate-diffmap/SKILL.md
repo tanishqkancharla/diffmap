@@ -7,7 +7,9 @@ description: Create and update living specs and code walkthroughs with diffmap. 
 
 Keep one Markdown file that shows the current system, the plan, and the work completed. Update it as the plan changes and implementation progresses.
 
-Write specs at `specs/<short-kebab-case-name>.md`. Check the repo's paths and symbols before writing. For a walkthrough of an existing pull request, use its spec if available; otherwise write under `tmp/`. Ask for clarification when the answer would change the plan or phase boundaries.
+Write specs at `specs/<short-kebab-case-name>.md`. Check the repo's paths and symbols before writing. For a walkthrough of an existing pull request, use its spec if available; otherwise write under `tmp/`.
+
+Before writing a new spec, work out its scope with the user in the conversation. Read the relevant code, then ask design questions wherever the approach is ambiguous or unclear, such as which design to choose, where new behavior should live, what is in scope, or how phases should split. Give the options and your recommendation for each question. Go back and forth until the open questions are settled, then write the spec. Ask again when implementation reveals a new ambiguity.
 
 ## Serve and share
 
