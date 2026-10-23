@@ -15,6 +15,7 @@ import {
   text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
+import type { FileDiffMetadata } from "@pierre/diffs";
 import type { SourceNavigation, SourceReference } from "../annotations.js";
 import {
   isCommitRev,
@@ -191,8 +192,7 @@ export function ChangesSummary(props: {
         {count}
         {truncated === true && "+"} {count === 1 ? "file" : "files"} changed
       </span>
-      {additions > 0 && <span className="added">+{additions}</span>}
-      {deletions > 0 && <span className="removed">−{deletions}</span>}
+      <DiffStat additions={additions} deletions={deletions} binary={false} />
     </span>
   );
 }
@@ -205,18 +205,31 @@ function revLabel(rev: Rev, changes: Changes | Error | undefined) {
   return shortRev(rev).replace("..", "…");
 }
 
-function DiffStat(
+// Keeps the `stat` class so the "other files" toggle can fade its total.
+export function DiffStat(
   props: Pick<ChangedFile, "additions" | "deletions" | "binary">,
 ) {
-  if (props.binary) return <span className="stat">binary</span>;
+  const stat = `${useStyles(styles.stat)} stat`;
+  if (props.binary) return <span className={stat}>binary</span>;
   return (
-    <span className="stat">
+    <span className={stat}>
       {props.additions > 0 && <span className="added">+{props.additions}</span>}
       {props.deletions > 0 && (
         <span className="removed">−{props.deletions}</span>
       )}
     </span>
   );
+}
+
+export function renderDiffStat(fileDiff: FileDiffMetadata) {
+  const totals = fileDiff.hunks.reduce(
+    (sum, hunk) => ({
+      additions: sum.additions + hunk.additionLines,
+      deletions: sum.deletions + hunk.deletionLines,
+    }),
+    { additions: 0, deletions: 0 },
+  );
+  return <DiffStat {...totals} binary={false} />;
 }
 
 function FileIcon(props: { path: string }) {
@@ -270,7 +283,14 @@ const styles = {
     flexShrink: 0,
     whiteSpace: "nowrap",
     fontVariantNumeric: "tabular-nums",
-    "& .added, & .removed": { fontFamily: codeFontFamily },
+  }),
+  stat: style(text({ size: "sm", color: "lowContrast" }), {
+    display: "inline-flex",
+    gap: "8px",
+    flexShrink: 0,
+    whiteSpace: "nowrap",
+    fontFamily: codeFontFamily,
+    fontVariantNumeric: "tabular-nums",
     "& .added": { color: colors.green[11] },
     "& .removed": { color: colors.red[11] },
   }),
@@ -310,16 +330,6 @@ const styles = {
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
       },
-      "& .stat": {
-        display: "flex",
-        gap: "8px",
-        flexShrink: 0,
-        fontFamily: codeFontFamily,
-        fontVariantNumeric: "tabular-nums",
-        color: colors.gray[11],
-      },
-      "& .added": { color: colors.green[11] },
-      "& .removed": { color: colors.red[11] },
       "&:hover": { backgroundColor: colors.gray[3] },
       "&[aria-pressed='true'], &[aria-pressed='true']:hover": {
         backgroundColor: colors.blue[3],

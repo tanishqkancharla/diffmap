@@ -39,7 +39,7 @@ import type { SourceDefinition } from "../definitions.js";
 import { useGistPin } from "../gist/pin.ts";
 import { useGitHubPin } from "../github/pin.ts";
 import { useHostFiles } from "../host/files.ts";
-import { ChangesSummary } from "./ChangesCard.tsx";
+import { ChangesSummary, renderDiffStat } from "./ChangesCard.tsx";
 import { useChanges } from "./changesSource.ts";
 import { RangePicker } from "./RangePicker.tsx";
 import { requestSource, useSourceReference } from "./sourceNavigation.js";
@@ -599,6 +599,9 @@ export function SourceDiffPanel(props: {
               <ChevronDown size="sm" />
             </span>
           )}
+          renderHeaderMetadata={(item) =>
+            item.type === "diff" ? renderDiffStat(item.fileDiff) : undefined
+          }
         />
       </div>
       <div

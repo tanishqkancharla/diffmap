@@ -11,6 +11,7 @@ import {
   useLineComments,
 } from "./lineComments.tsx";
 import { diffLineText, pierreDiffOptions, pierreShell } from "./pierre.ts";
+import { renderDiffStat } from "./ChangesCard.tsx";
 
 export function CodeDiff(props: { source: string; path?: string }) {
   const { resolvedTheme } = useTheme();
@@ -27,6 +28,7 @@ export function CodeDiff(props: { source: string; path?: string }) {
       <PatchDiff
         patch={patch}
         disableWorkerPool
+        renderHeaderMetadata={renderDiffStat}
         lineAnnotations={comments.diffAnnotations(path)}
         renderAnnotation={(annotation) => (
           <LineComment id={annotation.metadata} />

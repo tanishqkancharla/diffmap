@@ -51,7 +51,9 @@ export function pierreDiffOptions(input: {
     themeType: input.themeType,
     overflow: "wrap" as const,
     diffStyle: "unified" as const,
-    unsafeCSS: pierreUnsafeCss,
+    unsafeCSS: `${pierreUnsafeCss}
+[data-diffs-header] [data-additions-count],
+[data-diffs-header] [data-deletions-count] { display: none; }`,
     disableFileHeader: input.disableFileHeader,
   };
 }
