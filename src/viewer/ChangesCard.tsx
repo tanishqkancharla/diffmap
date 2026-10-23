@@ -15,12 +15,11 @@ import {
   text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
-import type { SourceNavigation } from "../annotations.js";
+import type { SourceNavigation, SourceReference } from "../annotations.js";
 import {
   isCommitRev,
   orderForReview,
   shortRev,
-  WORKING,
   type ChangedFile,
   type Changes,
   type Rev,
@@ -141,10 +140,7 @@ function FileRow(
   const row = useStyles(styles.row);
   const muted = useStyles(styles.muted);
   const { file, rev } = props;
-  const reference =
-    rev === WORKING
-      ? { kind: "file" as const, path: file.path }
-      : { kind: "file" as const, rev, path: file.path };
+  const reference: SourceReference = { kind: "changes", rev, path: file.path };
   const selected = props.selectedAnnotation?.references[0];
   return (
     <button
@@ -155,8 +151,9 @@ function FileRow(
       aria-controls="source-diff-panel"
       aria-pressed={
         props.selectedAnnotation?.text === file.path &&
-        selected?.kind === "file" &&
-        selected.rev === reference.rev
+        selected?.kind === "changes" &&
+        selected.path === file.path &&
+        selected.rev === rev
       }
       onClick={() =>
         props.onSelectAnnotation({ text: file.path, references: [reference] })

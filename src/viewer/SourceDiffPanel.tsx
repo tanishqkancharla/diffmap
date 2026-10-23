@@ -210,8 +210,7 @@ export function SourceDiffPanel(props: {
       range: { start: focus.start, end: focus.end, side: "additions" },
     };
   }, [reference, file, resolvedFile]);
-  const focusedPath =
-    file?.path ?? (reference?.kind === "file" ? reference.path : undefined);
+  const focusedPath = file?.path ?? reference?.path;
   // Collapsed files reset when the rev or the selected reference changes, so a reference always shows its file.
   const [collapse, setCollapse] = useState<{
     rev: Rev;
@@ -294,14 +293,20 @@ export function SourceDiffPanel(props: {
   // Scroll again once the changes arrive, since Pierre cannot scroll to items it does not have yet.
   const ready = file !== undefined || loadedChanges !== undefined;
   useEffect(() => {
-    if (!ready || focusedPath === undefined || rangeId !== undefined) return;
+    if (
+      !ready ||
+      selection === undefined ||
+      focusedPath === undefined ||
+      rangeId !== undefined
+    )
+      return;
     viewer.current?.scrollTo({
       type: "item",
       id: focusedPath,
       align: "start",
       behavior: "instant",
     });
-  }, [ready, focusedPath, rangeId]);
+  }, [ready, focusedPath, rangeId, selection]);
 
   useEffect(() => {
     if (
@@ -614,8 +619,17 @@ export function SourceDiffPanel(props: {
 }
 
 /** Pierre paints its own white; the panel's background shows through instead. */
-const panelBackgroundCss = `:host { --diffs-light-bg: ${backgroundColor.app}; --diffs-dark-bg: ${backgroundColor.app}; }
-[data-diffs-header] { border-top: 1px solid ${borderColor.border}; cursor: pointer; }`;
+const panelBackgroundCss = `:host {
+  --diffs-light-bg: ${backgroundColor.app};
+  --diffs-dark-bg: ${backgroundColor.app};
+  --diffs-bg-separator-override: ${colors.gray[2]};
+}
+[data-diffs-header] {
+  background-color: ${colors.gray[4]};
+  color: ${colors.gray[12]};
+  border-top: 1px solid ${borderColor.border};
+  cursor: pointer;
+}`;
 
 const styles = {
   panel: style(flex({ direction: "column" }), border(["left"], "border"), {

@@ -248,7 +248,8 @@ Multiple references on one stack line are allowed. The references are hidden in
 the rendered stack, and linked rows support mouse clicks and keyboard activation.
 
 A `changes` fence shows a commit's files as a card. Each row shows the file name
-and +N −M. **Review** opens the Diff panel on all files; a row focuses that file.
+and +N −M. **Review** opens the Diff panel on all files; a row scrolls to that
+file without expanding its unchanged lines.
 An empty body (or `working`) means uncommitted changes.
 
 Lines after the rev list the files to review, in order. The card shows those

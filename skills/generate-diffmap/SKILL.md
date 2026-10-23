@@ -25,7 +25,7 @@ Leave the server running and give the user the file path and URL. Open the brows
 
 Write for someone who needs to understand the change quickly. Start from what changes for the person using it, such as a screen, command, API call, or error, then work back toward the implementation as far as the reader needs. A spec usually has a problem overview, a solution overview, goals and non-goals, phases, and **References**; let the content decide what each needs.
 
-**Phases.** Keep each small enough to commit alone. Headings are plain when planned, ⏳ in progress, and ✅ done. Open each with a short **Today** and **Proposed** from the client's view, then explain it however suits the change: a new flow might want a diagram and a call stack, a refactor a call stack diff, a dependency bump a sentence or two. Match the length to the change, and say each thing once, where it belongs. A spec explains the change; it is not a task tracker.
+**Phases.** Keep each small enough to commit alone. Headings are plain when planned, ⏳ in progress, and ✅ done. Open each with a short **Today** and **Proposed** from the client's view, then explain it however suits the change: a new flow might want a diagram and a call stack, a refactor a call stack diff, a dependency bump a sentence or two. Match the length to the change, and say each thing once, where it belongs. A spec explains the change; it is not a task tracker. End each phase with its `changes` fence, after the walkthrough and before the next phase or section, not right after Today and Proposed; leave it empty until the phase is committed.
 
 **Visuals.** Diagrams, call stacks, and code often explain a change better than paragraphs, so reach for one when prose gets long. Add one only when it shows the reader something they need, not to fill a slot.
 
@@ -122,6 +122,10 @@ function validateInput(record: RecordInput) {
   return undefined;
 }
 ```
+
+```changes
+
+```
 ````
 
 ## When a phase is complete
@@ -129,21 +133,15 @@ function validateInput(record: RecordInput) {
 Before starting the next phase:
 
 1. Commit the code. If the phase took several commits, use `<base>..<head>` wherever these steps say SHA.
-2. Add a `changes` fence with that SHA right after Today and Proposed. It renders the phase's summary card. Under the SHA, list the files a reviewer should read, one path per line, in the order to read them: usually the client-facing entry point first, then down the layers. Leave out files that need no thought, such as lockfiles, generated code, snapshots, fixtures, and mechanical renames; the card folds them under "N other files".
+2. Put that SHA in the phase's `changes` fence at the end of the phase. It renders the phase's summary card. Under the SHA, list the files a reviewer should read, one path per line, in the order to read them: usually the client-facing entry point first, then down the layers. Leave out files that need no thought, such as lockfiles, generated code, snapshots, fixtures, and mechanical renames; the card folds them under "N other files".
 3. Point every reference the phase changed at the commit: stack rows, `%% ref` directives, and prose.
 4. Update diagrams, call stacks, and pseudocode to match what was built, and mark the heading ✅.
 5. Commit the spec update separately; it names the code commit's SHA.
 6. Restart `serve`; it checks commit references at startup.
 
-The example phase then has:
+The example phase keeps its walkthrough, with references pointing at the commit, and ends with:
 
 ````md
-```changes
-a1b2c3d
-src/request.ts
-src/validate.ts
-```
-
 ```callstack
  response = requestHandler(record) [[a1b2c3d:src/request.ts#L8-L20]]
 -└── return existingService(record) [[src/service.ts#existingService]]
@@ -153,6 +151,12 @@ src/validate.ts
 +│   ├── storage.save(record)
 +│   └── return { ok: true }
 +└── return result
+```
+
+```changes
+a1b2c3d
+src/request.ts
+src/validate.ts
 ```
 ````
 
