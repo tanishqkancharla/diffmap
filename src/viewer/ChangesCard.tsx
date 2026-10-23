@@ -15,7 +15,6 @@ import type { SourceAnnotation, SourceNavigation } from "../annotations.js";
 import {
   isCommitRev,
   shortRev,
-  WORKING,
   type ChangedFile,
   type Changes,
   type Rev,
@@ -68,11 +67,7 @@ export function ChangesCard(props: { rev: Rev } & SourceNavigation) {
       {files.map((file) => {
         const annotation: SourceAnnotation = {
           text: file.path,
-          references: [
-            props.rev === WORKING
-              ? { kind: "file", path: file.path }
-              : { kind: "file", rev: props.rev, path: file.path },
-          ],
+          references: [{ kind: "changes", rev: props.rev, path: file.path }],
         };
         return (
           <button
@@ -83,7 +78,8 @@ export function ChangesCard(props: { rev: Rev } & SourceNavigation) {
             aria-controls="source-diff-panel"
             aria-pressed={
               props.selectedAnnotation?.text === file.path &&
-              props.selectedAnnotation.references[0]?.kind === "file" &&
+              props.selectedAnnotation.references[0]?.kind === "changes" &&
+              props.selectedAnnotation.references[0].path === file.path &&
               props.selectedAnnotation.references[0].rev ===
                 annotation.references[0]!.rev
             }
