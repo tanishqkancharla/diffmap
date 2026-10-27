@@ -33,12 +33,25 @@ Then tell the phase as a story: show the client-facing change (usage snippet, CL
 
 - at least one call stack diff;
 - pseudocode for each piece of new logic, in the repo's main language;
-- a Mermaid diagram whenever control flow, data flow, or state changes;
+- diagrams that orient the reader and show what changes, not only control flow;
 - a type for each new data shape.
 
 Never end a phase with a task list or checkboxes.
 
-**Call stacks.** `-` marks the original code, `+` the change, and `└──` / `├──` the tree. Name each row after a real function; when a row sums up work, write a verb phrase: `+├── run executor schema migrations`, not `+├── Executor schema migrations`. Write `#` comments as actions that give a purpose, return value, or side effect.
+**Diagrams.** Make diagrams a default way to explain specs and walkthroughs, not an optional illustration after the prose. Use `mermaid` fences. Open the solution overview with a diagram of the system and its boundaries. In each phase, put a focused diagram beside the explanation it supports, before the implementation detail. Use diagrams for ownership, dependencies, data shapes and relationships, user journeys, runtime order, control flow, data flow, and state changes.
+
+- Pick the view that answers the reader's question: a flowchart for paths or ownership, a sequence for interactions over time, a state diagram for lifecycles, or a relationship graph for data and dependencies.
+- When replacing behavior, show **Today** and **Proposed** with matching names and layout so the difference is visible. For added behavior, show the new path and where it joins the existing system.
+- Label nodes and arrows with concrete components, inputs, outputs, and conditions. Show important boundaries and failure paths; link existing source with `%% ref` directives.
+- Keep each diagram focused on one question. Split a large diagram into an overview and local views; do not repeat the same diagram to meet a quota. Call stacks explain function-level data flow, while diagrams explain how the parts fit together. Use both rather than treating one as a substitute for the other.
+
+**Call stacks.** Write every `callstack` fence as readable data-flow pseudocode, not a list of function names or vague steps. Read top to bottom as `result = function(inputs)`:
+
+- Use named variables, function arguments, and returned values. Feed each output into the later calls that use it, and show explicit `return value` rows, including early returns.
+- Keep `-` for the original code, `+` for the change, and an unmarked space for unchanged rows. Keep `└──` / `├──` and indentation to show calls inside a function; nest a callee's work beneath its call.
+- Calls with only side effects need no assigned result: `await storage.save(record)` is enough. Show conditions and retries where they affect the flow.
+- Link real functions with source references. In proposals, unlinked helper names are pseudocode, not promises of extra public APIs; state this beside the stack when introducing such helpers.
+- Keep `#` comments short enough to read in the viewer. Use them for purpose or a non-obvious effect, not to repeat the call.
 
 **Links.** Link existing source with [references](#source-references); write planned symbols as plain text.
 
@@ -47,6 +60,8 @@ Never end a phase with a task list or checkboxes.
 Follow Orwell's six rules from "Politics and the English Language" in all prose, comments, and diagram labels. Code names are not jargon.
 
 ## Example phase
+
+This self-contained example uses illustrative files and a commit SHA, not Diffmap source paths. The code below defines the functions named in its stacks.
 
 ````md
 ### ⏳ Phase 1: Validate request input
@@ -67,32 +82,65 @@ const response = await client.saveRecord({ name: "" });
 // after:  { ok: false, error: "name must not be empty" }
 ```
 
-The handler gains one step between receiving a record and saving it:
-
-```callstack
- requestHandler [[src/request.ts#requestHandler]]
-+├── validateInput # reject empty names
- └── existingService [[src/service.ts#existingService]]
-```
-
-A valid record reaches the service unchanged. An invalid one stops at validation, so nothing reaches storage:
+Today every record reaches storage. In the proposed flow, a valid record follows the same save path, but an invalid one returns an error before storage. The unlinked `validateInput` helper is pseudocode, not a proposed public API:
 
 ```mermaid
 flowchart LR
-    A[requestHandler] --> V[validateInput]
-    V -->|valid| B[existingService]
-    V -->|invalid| E[Return error]
+    subgraph Today
+        T[requestHandler] -->|record| S[existingService]
+        S -->|record| D[Storage]
+    end
+    subgraph Proposed
+        A[requestHandler] -->|record| V[validateInput]
+        V -->|valid record| B[existingService]
+        B -->|record| N[Storage]
+        V -->|invalid record| E[Return name error]
+    end
+    %% ref node:T [[src/request.ts#requestHandler]]
+    %% ref node:S [[src/service.ts#existingService]]
     %% ref node:A [[src/request.ts#requestHandler]]
     %% ref node:B [[src/service.ts#existingService]]
+```
+
+The call stack shows how the validation result controls the return path:
+
+```callstack
+ response = requestHandler(record) [[src/request.ts#requestHandler]]
+-└── return existingService(record) [[src/service.ts#existingService]]
++├── error = validateInput(record) # reject empty names
++├── if error: return error
++├── result = existingService(record) [[src/service.ts#existingService]]
++│   ├── storage.save(record)
++│   └── return { ok: true }
++└── return result
 ```
 
 In code, the check is an early return:
 
 ```ts
+type RecordInput = { name: string };
+declare const storage: { save(record: RecordInput): void };
+
+// src/request.ts (imports omitted)
 function requestHandler(record: RecordInput) {
   const error = validateInput(record);
   if (error) return error;
-  return existingService(record);
+  const result = existingService(record);
+  return result;
+}
+
+// src/validate.ts
+function validateInput(record: RecordInput) {
+  if (record.name.trim() === "") {
+    return { ok: false, error: "name must not be empty" };
+  }
+  return undefined;
+}
+
+// src/service.ts (stand-in for the existing save)
+function existingService(record: RecordInput) {
+  storage.save(record); // side effect; no result needed
+  return { ok: true };
 }
 ```
 ````
@@ -115,9 +163,14 @@ a1b2c3d
 ```
 
 ```callstack
- requestHandler [[a1b2c3d:src/request.ts#L8-L20]]
-+├── validateInput # reject empty names [[a1b2c3d:src/validate.ts#L1-L9]]
- └── existingService [[src/service.ts#existingService]]
+ response = requestHandler(record) [[a1b2c3d:src/request.ts#L8-L20]]
+-└── return existingService(record) [[src/service.ts#existingService]]
++├── error = validateInput(record) [[a1b2c3d:src/validate.ts#L1-L9]]
++├── if error: return error
++├── result = existingService(record) [[src/service.ts#existingService]]
++│   ├── storage.save(record)
++│   └── return { ok: true }
++└── return result
 ```
 ````
 
