@@ -234,6 +234,59 @@ test("shareMarkdownFile does not call gh when mermaid is invalid", async () => {
   });
 });
 
+test("shareMarkdownFile uploads the files excerpts and rev-less references read", async () => {
+  const spec = [
+    "# Shared",
+    "",
+    "See [[src/share.ts#shareMarkdownFile]].",
+    "",
+    "```1:3:src/changes.ts",
+    "```",
+    "",
+  ].join("\n");
+  await withTempSpec(spec, async (filePath) => {
+    const dir = path.dirname(filePath);
+    const uploaded = path.join(dir, "uploaded");
+    await fs.mkdir(uploaded);
+    const gh = path.join(dir, "gh");
+    await fs.writeFile(
+      gh,
+      [
+        "#!/bin/sh",
+        'if [ "$1" = auth ]; then exit 0; fi',
+        `for arg; do case "$arg" in *.json) cp "$arg" ${JSON.stringify(uploaded)};; esac; done`,
+        "echo https://gist.github.com/0123456789abcdef0123456789abcdef",
+      ].join("\n"),
+      { mode: 0o755 },
+    );
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${dir}${path.delimiter}${originalPath ?? ""}`;
+    try {
+      const shared = await shareMarkdownFile({
+        workspaceRoot: packageRoot,
+        filePath,
+        isPublic: false,
+      });
+      assert.equal(shared instanceof Error, false, String(shared));
+    } finally {
+      process.env.PATH = originalPath;
+    }
+    const files: unknown = JSON.parse(
+      await fs.readFile(path.join(uploaded, "diffmap-files.json"), "utf8"),
+    );
+    assert.deepEqual(files, {
+      "src/share.ts": await fs.readFile(
+        path.join(packageRoot, "src/share.ts"),
+        "utf8",
+      ),
+      "src/changes.ts": await fs.readFile(
+        path.join(packageRoot, "src/changes.ts"),
+        "utf8",
+      ),
+    });
+  });
+});
+
 function mermaidCliMessage(filePath: string) {
   return `diffmap could not parse mermaid in ${filePath} (diagram 1, line 3): Invalid mermaid header: "flwochart TD". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.`;
 }

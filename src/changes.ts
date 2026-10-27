@@ -159,6 +159,12 @@ export type Changes = {
 /** Gist file holding the changes a shared spec references, keyed by rev. */
 export const GIST_CHANGES_FILE = "diffmap-changes.json";
 
+/**
+ * Gist file holding the current contents of files a shared spec reads live,
+ * keyed by path: file excerpts and references without a commit.
+ */
+export const GIST_FILES_FILE = "diffmap-files.json";
+
 export type ChangesResponse = { changes?: Changes; error?: string };
 
 /** jsdiff's default lines of context around each change. */

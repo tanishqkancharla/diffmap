@@ -1,6 +1,10 @@
 import { createContext, useContext } from "react";
 
-/** Bundled files for the hosted homepage. `[[path]]` reads these, not GitHub. */
+/**
+ * Files a hosted viewer has without a server: the homepage's bundled sources,
+ * or the files `diffmap share` saved in a gist. `[[path]]` and file excerpts
+ * read these, not GitHub.
+ */
 export type HostFiles = Record<string, string>;
 
 export const HostFilesContext = createContext<HostFiles | undefined>(undefined);

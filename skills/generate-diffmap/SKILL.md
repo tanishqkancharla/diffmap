@@ -19,7 +19,7 @@ npx @tanishqkancharla/diffmap serve specs/<name>.md
 npx @tanishqkancharla/diffmap share specs/<name>.md  # only when asked; prints https://diffmap.dev/g/<id>
 ```
 
-Leave the server running and give the user the file path and URL. Open the browser only when asked. A shared gist is unlisted: anyone with the URL can read it. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`, pinned to a commit.
+Leave the server running and give the user the file path and URL. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): a gist is a snapshot with no git, so it shows commit diffs, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`, pinned to a commit.
 
 ## Shape
 
@@ -128,7 +128,7 @@ Paths are relative to the repo root.
 - `[[path/to/file.ts#symbolName]]` links a TypeScript or JavaScript declaration; qualify ambiguous ones, as in `[[src/store.ts#Store.save]]`.
 - `[[path]]` links a file; `[[path#L12-L30]]` a line range.
 - `[[<sha>:path#L12-L30]]` links lines in a commit, or `<base>..<head>` for a phase over several commits, where `<base>` is the commit before the first. Lines are numbered after the commit, so deleted lines cannot be linked. Find them with `git show <sha> -- <path>` and `git show <sha>:<path> | nl -ba`.
-- A reference without a commit opens that file's uncommitted changes, or the current file when it has none; this works only in a local viewer.
+- A reference without a commit opens that file's uncommitted changes, or the current file when it has none. A shared gist opens the file as it was when shared.
 - In prose, references render as clickable inline code; wrap one in backticks to show the syntax.
 - In Mermaid, `%% ref node:<id> [[reference]]` links a node or participant and `%% ref edge:<index> [[reference]]` an edge or message, counting from zero in declaration order. Use one directive per target, with several references when needed.
 

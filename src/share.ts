@@ -6,9 +6,14 @@ import { promisify } from "node:util";
 import { DiffmapFileError, DiffmapShareError } from "./errors.js";
 import { extractTitle } from "./extractDocument.js";
 import { extractGistId, gistViewerUrl } from "./gist/route.ts";
-import { GIST_CHANGES_FILE } from "./changes.js";
-import { readDocumentChanges } from "./git.js";
-import { parseViewerDocument } from "./parseViewer.js";
+import { GIST_CHANGES_FILE, GIST_FILES_FILE } from "./changes.js";
+import { readSourceReference } from "./definitions.js";
+import { readChanges, readDocumentChanges } from "./git.js";
+import {
+  collectFences,
+  parseViewerDocument,
+  type ViewerDocument,
+} from "./parseViewer.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -39,6 +44,16 @@ export async function shareMarkdownFile(input: {
   // The hosted viewer has no git, so the gist carries a snapshot of each commit.
   const changes = await readDocumentChanges(input.workspaceRoot, parsed);
   if (changes instanceof Error) return changes;
+  // An uncommitted changes card shows the tree as it is when you share.
+  for (const rev of parsed.changeRevs) {
+    if (changes.has(rev)) continue;
+    const loaded = await readChanges(input.workspaceRoot, rev);
+    if (loaded instanceof Error) return loaded;
+    changes.set(rev, loaded);
+  }
+  // It has no files either, so excerpts and references without a commit read these.
+  const files = readDocumentFiles(input.workspaceRoot, parsed);
+  if (files instanceof Error) return files;
 
   const auth = await runGh(["auth", "status"]);
   if (auth instanceof DiffmapShareError) return auth;
@@ -46,14 +61,20 @@ export async function shareMarkdownFile(input: {
   const args = ["gist", "create"];
   if (input.isPublic) args.push("--public");
   args.push("--desc", extractTitle(source), filePath);
+  const snapshots = [
+    { name: GIST_CHANGES_FILE, value: Object.fromEntries(changes) },
+    { name: GIST_FILES_FILE, value: files },
+  ].filter((snapshot) => Object.keys(snapshot.value).length > 0);
   const snapshotDir =
-    changes.size === 0
+    snapshots.length === 0
       ? undefined
       : await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-share-"));
   if (snapshotDir !== undefined) {
-    const snapshot = path.join(snapshotDir, GIST_CHANGES_FILE);
-    await fs.writeFile(snapshot, JSON.stringify(Object.fromEntries(changes)));
-    args.push(snapshot);
+    for (const snapshot of snapshots) {
+      const snapshotPath = path.join(snapshotDir, snapshot.name);
+      await fs.writeFile(snapshotPath, JSON.stringify(snapshot.value));
+      args.push(snapshotPath);
+    }
   }
 
   const created = await runGh(args);
@@ -79,6 +100,28 @@ export async function shareMarkdownFile(input: {
     gistUrl,
     viewerUrl: gistViewerUrl(gistId, undefined, process.env.DIFFMAP_ORIGIN),
   };
+}
+
+/** Current contents of every file an excerpt or a reference without a commit reads, by path. */
+function readDocumentFiles(root: string, document: ViewerDocument) {
+  const paths = new Set<string>();
+  for (const reference of document.references) {
+    if (reference.kind === "file" && reference.rev === undefined)
+      paths.add(reference.path);
+  }
+  for (const fence of collectFences(document.nodes)) {
+    if (fence.kind === "file") paths.add(fence.path);
+  }
+  const files: Record<string, string> = {};
+  for (const filePath of paths) {
+    const read = readSourceReference(
+      root,
+      new URLSearchParams({ path: filePath }),
+    );
+    if (read instanceof Error) return read;
+    files[filePath] = read.contents;
+  }
+  return files;
 }
 
 async function runGh(args: string[]) {

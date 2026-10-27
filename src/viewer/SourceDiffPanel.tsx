@@ -112,7 +112,8 @@ export function SourceDiffPanel(props: {
       ? navigation.status
       : source instanceof Error
         ? source.message
-        : changes instanceof Error
+        : // A shown file replaces the changes, so their error is moot, as in a gist without uncommitted changes.
+          changes instanceof Error && file === undefined
           ? changes.message
           : changes === undefined
             ? "Loading changes…"

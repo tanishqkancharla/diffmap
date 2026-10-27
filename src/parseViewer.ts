@@ -168,7 +168,7 @@ export function parseViewerDocument(source: string, path = "spec") {
   };
 }
 
-function collectFences(nodes: ViewerNode[]): Fence[] {
+export function collectFences(nodes: ViewerNode[]): Fence[] {
   return nodes.flatMap((node) => {
     if (node.type === "view") return [node.fence];
     if (node.type === "element") return collectFences(node.children);

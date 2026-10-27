@@ -170,9 +170,16 @@ Malformed references produce a parse error.
 
 On a GitHub-hosted spec, commit diffs come from the GitHub API. It returns patch
 hunks only, so only lines near changes are reachable, and the Diff button opens
-the pull request's full diff. `diffmap share` saves every referenced commit to a
-`diffmap-changes.json` file in the gist. Uncommitted references only work in a
-local viewer.
+the pull request's full diff.
+
+A shared gist is a snapshot taken when you run `diffmap share`. It saves every
+referenced commit and every `changes` card, including uncommitted ones, to
+`diffmap-changes.json`. It saves the current contents of every file that a file
+excerpt or a reference without a commit reads to `diffmap-files.json`. In the
+gist, those references open the saved file; symbols resolve to their first
+matching line, and Cmd-click definitions only work in a local viewer. Commit
+your work and point references at the commit before sharing, so the gist shows
+the diff instead of a bare file.
 
 Cmd-click (or Ctrl-click) a TypeScript or JavaScript symbol in the source panel
 to open its definition. Use Back to retrace navigation and return to the reference.
