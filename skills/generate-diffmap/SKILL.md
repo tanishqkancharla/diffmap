@@ -5,7 +5,7 @@ description: Create and update living specs and code walkthroughs with diffmap. 
 
 # Living spec
 
-A spec is one Markdown file at `specs/<short-kebab-case-name>.md` that shows the current system, the plan, and the work done. Update it as the plan changes and work lands. For a walkthrough of an existing pull request, use its spec if it has one; otherwise write under `tmp/`. Check the repo's paths and symbols before writing.
+A spec is one Markdown file at `specs/<short-kebab-case-name>.md` that shows the current system, the plan, and the work done. Update it as the plan changes and work lands. For a walkthrough of an existing pull request, use its spec if it has one; otherwise write under `.diffmap/`. Check the repo's paths and symbols before writing.
 
 **Settle scope first.** Before writing a new spec, read the relevant code, then ask the user about each unclear choice, such as which design, where new behavior lives, what is in scope, or how phases split. Give options and your pick for each. Write once they are settled; ask again when implementation turns up a new one.
 
@@ -19,7 +19,7 @@ npx @tanishqkancharla/diffmap serve specs/<name>.md
 npx @tanishqkancharla/diffmap share specs/<name>.md  # only when asked; prints https://diffmap.dev/g/<id>
 ```
 
-Leave the server running and give the user the file path and URL. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): a gist is a snapshot with no git, so it shows commit diffs, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`, pinned to a commit.
+Leave the server running and give the user the file path and URL. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the gist, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`, pinned to a commit.
 
 ## Shape
 
@@ -27,11 +27,11 @@ Leave the server running and give the user the file path and URL. Open the brows
 
 The spec has a title, a problem overview (who is affected, what the current behavior costs them, why now), a solution overview (client-facing changes first, then the flows that deliver them, with diagrams), goals, non-goals, phases, and **References**.
 
-**Phases.** Keep each small enough to commit alone. Headings are plain when planned, ⏳ in progress, ✅ done. Open each with **Today** and **Proposed**, a few sentences each from the client's view: what they see and do now and the problem it causes; what changes, how that solves it, and why the phase comes here when order matters. Name concrete differences, such as a command, flag, screen, error, return type, or step the client no longer takes. For an internal change, say so and name the client-facing change it prepares. Keep both after the phase is done.
+**Phases.** Keep each small enough to commit alone. Headings are plain when planned, ⏳ in progress, ✅ done; mark a heading ⏳ when you start its phase. Open each with **Today** and **Proposed**, a few sentences each from the client's view: what they see and do now and the problem it causes; what changes, how that solves it, and why the phase comes here when order matters. Name concrete differences, such as a command, flag, screen, error, return type, or step the client no longer takes. For an internal change, say so and name the client-facing change it prepares. Keep both after the phase is done.
 
 Then tell the phase as a story: show the client-facing change (usage snippet, CLI session, API call, UI state), then work back through each layer to the new logic and data shapes. Show the change rather than describe it: alternate short paragraphs with visuals, and when a paragraph needs more than three sentences, use a visual instead. Each paragraph sets up the visual after it. Every phase has:
 
-- at least one call stack diff;
+- at least one call stack diff, when the phase changes code;
 - pseudocode for each piece of new logic, in the repo's main language;
 - diagrams that orient the reader and show what changes, not only control flow;
 - a type for each new data shape.
@@ -149,11 +149,12 @@ function validateInput(record: RecordInput) {
 
 Before starting the next phase:
 
-1. Commit the code, then commit the spec update separately, since the spec names the code commit's SHA.
+1. Commit the code. If the phase took several commits, use `<base>..<head>` wherever these steps say SHA.
 2. Add a `changes` fence with that SHA right after Today and Proposed. It renders the phase's summary card. Under the SHA, list the files a reviewer should read, one path per line, in the order to read them: usually the client-facing entry point first, then down the layers. Leave out files that need no thought, such as lockfiles, generated code, snapshots, fixtures, and mechanical renames; the card folds them under "N other files".
 3. Point every reference the phase changed at the commit: stack rows, `%% ref` directives, and prose.
 4. Update diagrams, call stacks, and pseudocode to match what was built, and mark the heading ✅.
-5. Restart `serve`; it checks commit references at startup.
+5. Commit the spec update separately; it names the code commit's SHA.
+6. Restart `serve`; it checks commit references at startup.
 
 The example phase then has:
 
