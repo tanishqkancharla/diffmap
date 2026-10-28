@@ -283,7 +283,10 @@ const styles = {
       border: `1px solid ${borderColor.outline}`,
     },
   ),
-  controls: style(flex({ direction: "row", alignItems: "center", gap: 2 })),
+  controls: style(flex({ direction: "row", alignItems: "center", gap: 2 }), {
+    // Buttons keep their full label; only the step scrubber gives up width.
+    "& > button": { flexShrink: 0, overflow: "visible" },
+  }),
   scrubber: style(flex({ direction: "row", alignItems: "center", gap: 1 }), {
     flex: "1 1 auto",
     minWidth: 0,

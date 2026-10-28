@@ -1,32 +1,99 @@
 # diffmap
 
-diffmap turns a Markdown file into a page like this one. Your coding agent writes it to show you a change, before and after building it: diagrams you can play, call stacks of what changes, and links that open the code.
+**Your coding agent writes more code than you can review.**
 
-Install the skill, then ask your agent to write a diffmap for a change you are planning or for a branch it just built:
+`diffmap` shows a change as a page that you can review. The page explains the main ideas with call stacks and diagrams that you can click. When you want more detail, you can open the code from the page.
+
+You can try `diffmap` before you install it. In a repository that has changes, paste this prompt into your agent:
+
+```text
+Write a diffmap spec for the changes on this branch. Use the instructions at
+https://raw.githubusercontent.com/tanishqkancharla/diffmap/main/skills/generate-diffmap/SKILL.md
+Then serve the spec with npx @tanishqkancharla/diffmap and send me the link.
+```
+
+If you like the result, install the skill:
 
 ```sh
 npx skills add tanishqkancharla/diffmap --skill generate-diffmap
 ```
 
-The agent keeps the spec in `specs/<name>.md`, serves it on your machine, and can share it as a link like this page.
+After you install the skill, your agent can write a spec each time that you ask. The agent saves each spec in `specs/<name>.md` and serves it on your computer. The agent can also share the spec as a link, as with this page.
 
-Everything below is an example spec: diffmap's own features, one per phase. Each phase uses the feature it describes. Click a call stack row, a diagram node, or anything marked ↗ to open its code.
+The remaining part of this page is a spec about `diffmap`. Each section uses the feature that it describes.
 
-## Show a change, not a wall of text
+To open the code for an item, click a call stack row, a diagram node, or an item with ↗.
 
-A coding agent explains a change in a long message. You read it, then open each file it names to check that the code says the same thing.
+## See the main ideas
 
-A diffmap puts the explanation next to the code. Each phase says what changes for you, then shows the change as call stacks and diagrams whose parts open the code they name.
+Your agent selects the best diagram for each idea. Each part of the diagram has a link to its code.
 
-### ✅ Phase 1: Call stacks that open the code
+### Service diagrams
 
-**Today**
+A service diagram shows each service and its state. Each step shows one event and the state that the event changes. Thus, you do not have to remember the state.
 
-The agent describes the call path in a paragraph. You search for each function it names and guess how they connect.
+To see how `diffmap serve` opens a spec, press **Play**. To read about a name with a dotted line, put the pointer on the name:
 
-**Proposed**
+```services
+service Laptop
+  > This is your computer. diffmap serve reads files here and does not upload them.
+  service Agent "coding agent"
+    > The agent writes the spec and runs diffmap for you.
+  service CLI "diffmap serve" [[src/serve.ts#startServer]]
+    > This small server uses git to read your repository.
+    state url = none
+  service Repo "your repository"
+    > The repository contains the spec and the commits that the spec refers to.
+service Browser
+  service Page "the spec" [[src/viewer/ViewerApp.tsx#ViewerApp]]
+    state page = empty
+  service Panel "Diff panel" [[src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
+    > The Diff panel opens next to the spec. It shows the code for the link that you clicked.
+    state shows = none
 
-The agent draws the path as data flowing through calls: each row reads `result = call(inputs)`, `+` rows are new, `−` rows go away, and each row opens its code. This is how diffmap draws the tree below:
+step "The agent serves the spec"
+  Agent -> CLI: serve specs/search.md
+step "serve examines each commit in the spec"
+  CLI -> Repo: readDocumentChanges [[src/git.ts#readDocumentChanges]]
+    > If a SHA or a line range is wrong, the command stops here. Thus, the page has no broken links.
+step "serve prints a URL for you"
+  CLI -> Agent: localhost URL
+  CLI.url = localhost:4321
+step "You open the page"
+  Page -> CLI: GET /
+  CLI -> Page: spec
+  Page.page = rendered
+step "You click a call stack row"
+  Panel -> CLI: /__diffmap/source
+  CLI -> Repo: git show
+    > The server reads the file from the commit in the row, not from the working tree.
+step "The Diff panel shows the code"
+  CLI -> Panel: lines
+  Panel.shows = code
+```
+
+### Mermaid diagrams
+
+The page shows Mermaid diagrams. Each node and each arrow can have a link to its code. This diagram shows what occurs when you click a link:
+
+```mermaid
+flowchart LR
+  Click[Click a link] --> Find[useSourceReference]
+  Find -->|diffmap serve| Local[Read the repo with git]
+  Find -->|diffmap.dev| GitHub[fetchPinnedBlob]
+  Local --> Panel[SourceDiffPanel]
+  GitHub --> Panel
+  %% ref node:Find [[src/viewer/sourceNavigation.ts#useSourceReference]]
+  %% ref node:GitHub [[src/github/fetchRepo.ts#fetchPinnedBlob]]
+  %% ref node:Panel [[src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
+  %% ref edge:1 [[src/viewer/sourceNavigation.ts#requestSource]]
+```
+
+### Call stacks
+
+Each row has the form `result = call(inputs)`. Thus, you can follow the data from one call to the next call. A `+` row is new code, and a `−` row is old code that the change removes. Each row has a link to its code.
+
+This call stack shows how `diffmap` draws call stacks:
 
 ```callstack
  fence = parseFence(lang, source) [[src/parseFence.ts#parseFence]]
@@ -38,88 +105,11 @@ The agent draws the path as data flowing through calls: each row reads `result =
 +└── return CodeBlock(fence.source) # other languages stay pseudocode
 ```
 
-### ✅ Phase 2: Diagrams you can click
+## Open the code
 
-**Today**
+A function name in a sentence can also be a link, for example [[src/share.ts#shareMarkdownFile]].
 
-The agent draws a flow in ASCII boxes. The boxes do not link to anything, and they break when a label gets long.
-
-**Proposed**
-
-Mermaid diagrams render in the page, and each node or arrow can open its code. Here is what happens when you click a reference:
-
-```mermaid
-flowchart LR
-  Click[Click a reference] --> Find[useSourceReference]
-  Find -->|diffmap serve| Local[Read the repo with git]
-  Find -->|diffmap.dev| GitHub[fetchPinnedBlob]
-  Local --> Panel[SourceDiffPanel]
-  GitHub --> Panel
-  %% ref node:Find [[src/viewer/sourceNavigation.ts#useSourceReference]]
-  %% ref node:GitHub [[src/github/fetchRepo.ts#fetchPinnedBlob]]
-  %% ref node:Panel [[src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
-  %% ref edge:1 [[src/viewer/sourceNavigation.ts#requestSource]]
-```
-
-### ✅ Phase 3: Services you can play
-
-**Today**
-
-A sequence diagram shows the messages between services, but not what each message changes. You keep the state of every service in your head.
-
-**Proposed**
-
-A service diagram shows each service with its state, then steps through the events. Press **Play** to watch `diffmap serve` open a spec, or hover a dotted name to read what it is:
-
-```services
-service Laptop
-  > Your machine. serve reads files here and uploads nothing.
-  service Agent "coding agent"
-    > Writes the spec and runs diffmap for you.
-  service CLI "diffmap serve" [[src/serve.ts#startServer]]
-    > A small server that reads your repo with git.
-    state url = none
-  service Repo "your repo"
-    > Holds the spec and the commits it links to.
-service Browser
-  service Page "the spec" [[src/viewer/ViewerApp.tsx#ViewerApp]]
-    state page = empty
-  service Panel "Diff panel" [[src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
-    > Opens beside the spec and shows the code a reference names.
-    state shows = none
-
-step "The agent serves the spec"
-  Agent -> CLI: serve specs/search.md
-step "serve checks every commit the spec links to"
-  CLI -> Repo: readDocumentChanges [[src/git.ts#readDocumentChanges]]
-    > A wrong SHA or line range fails here, so you never meet a broken link.
-step "serve prints a URL for you"
-  CLI -> Agent: localhost URL
-  CLI.url = localhost:4321
-step "You open the page"
-  Page -> CLI: GET /
-  CLI -> Page: spec
-  Page.page = rendered
-step "You click a call stack row"
-  Panel -> CLI: /__diffmap/source
-  CLI -> Repo: git show
-    > Reads the file at the commit the row names, not the working tree.
-step "The Diff panel shows the code"
-  CLI -> Panel: lines
-  Panel.shows = code
-```
-
-### ✅ Phase 4: Open code from prose
-
-**Today**
-
-A paragraph names a function as plain code, like `shareMarkdownFile`. You search the repo to find it.
-
-**Proposed**
-
-A function named in a paragraph opens its code too: [[src/share.ts#shareMarkdownFile]].
-
-This phase is done, so it ends the way a finished phase does: with a card for the commit that built it, and references pinned to that commit. Pinned links show the code as the commit left it, even after the file moves on.
+When the work is complete, the spec shows a card for the commit. The links in the spec then refer to that commit. These links always show the code from that commit, also when the file changes later.
 
 ```changes
 6e4b5d3
@@ -136,22 +126,22 @@ This phase is done, so it ends the way a finished phase does: with a card for th
 +    └── return InlineReference(node.annotation) # a code button that opens the Diff panel [[6e4b5d3:src/viewer/ComarkView.tsx#L173-L189]]
 ```
 
-### ✅ Phase 5: Share a spec as a link
+## Share a spec with a link
 
-**Today**
-
-To read a spec, a teammate needs diffmap and a checkout of your repo.
-
-**Proposed**
-
-One command uploads the spec as a secret GitHub gist and prints a link anyone can open:
+A teammate can read your spec without a copy of your branch. One command uploads the spec as a secret GitHub gist and prints the link:
 
 ```sh
 npx @tanishqkancharla/diffmap share specs/search.md
 # prints https://diffmap.dev/g/<gistId>
 ```
 
-The page that opens has no git and no checkout, so the gist carries what the spec reads: a snapshot of each commit it links, and the current contents of each file it quotes. That is why this page can show code at all:
+::details{summary="How sharing works"}
+The shared page cannot use git or a copy of your repository. Thus, the gist also contains the data that the spec uses:
+
+- A snapshot of each commit that the spec refers to
+- The current contents of each file that the spec quotes.
+
+Because of this data, this page can show code:
 
 ```mermaid
 flowchart LR
@@ -172,7 +162,7 @@ flowchart LR
 2f96051
 ```
 
-`share` builds both snapshots before it calls `gh`, so diffmap never stores a GitHub token:
+`share` makes the two snapshots before it calls `gh`. Thus, `diffmap` does not keep a GitHub token:
 
 ```callstack
  result = shareMarkdownFile({ filePath, workspaceRoot }) [[2f96051:src/share.ts#L26-L103]]
@@ -186,7 +176,7 @@ flowchart LR
  └── return { gistId, viewerUrl: gistViewerUrl(gistId) }
 ```
 
-This excerpt is one of the quoted files, so a shared copy of this page shows it too:
+This excerpt is from one of the quoted files. Thus, a shared copy of this page also shows it:
 
 ```54:63:src/share.ts
   // It has no files either, so excerpts and references without a commit read these.
@@ -200,3 +190,5 @@ This excerpt is one of the quoted files, so a shared copy of this page shows it 
   if (input.isPublic) args.push("--public");
   args.push("--desc", extractTitle(source), filePath);
 ```
+
+::

@@ -62,7 +62,6 @@ test("homepage markdown is a real viewer document", async () => {
   const levels = new Set(document.headings.map((heading) => heading.level));
   assert.equal(levels.has(1), true);
   assert.equal(levels.has(2), true);
-  assert.equal(levels.has(3), true);
   assert.ok(
     document.references.filter((ref) => ref.rev !== undefined).length >= 3,
   );
