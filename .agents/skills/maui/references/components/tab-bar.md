@@ -32,3 +32,16 @@ const [selectedId, setSelectedId] = useState("changes")
 | `aria-label`        | Required accessible label for the tab toolbar                                                                                             |
 
 Left/Right arrows wrap through tabs (and respect RTL). Home/End select the first/last tab. Delete or Backspace calls `onClose` for a selected closable tab.
+
+## Styles
+
+**TabBar** — `tabBarStyles`. `list` and `tab` need TabBar's exact tab markup.
+
+- `root` — outer `<div>`.
+- `list` — `role="toolbar"` row; hides a `> span` separator beside a `> div` tab whose button is RAC `data-hovered` or `aria-pressed="true"`.
+- `tab` — each tab's `<div>` with `data-selected="true"`; reveals the `[data-close-control]` sibling on hover.
+- `button({ isSelected })` — the tab's RAC `Button`.
+- `label` — the tab's text `<span>`.
+- `close` — the `size="sm" variant="quiet"` close `Button`.
+- `separator` — the `<span>` between tabs.
+- `add` — the trailing add `Button`.

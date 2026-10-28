@@ -7,3 +7,10 @@ Initials from `name` (first letters of up to two words). `size` matches `TextSiz
 ```tsx
 <Avatar name="Maya Chen" size="lg" />
 ```
+
+## Styles
+
+**Avatar** — `avatarStyles`
+
+- `root({ name, size })` — the outer `<span>`; colors seeded from `name`, dimensions from `size` (default `sm`).
+- `initials` — inner `<span>` holding the letters (cap-height trim).

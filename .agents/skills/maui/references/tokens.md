@@ -188,7 +188,7 @@ shadowVars.control | .subtle | .medium | .strong // raw box-shadow strings
 tintedSubtle(color)                             // subtle ring+blur tinted from a fill
 ```
 
-`shadow.control` uses inset highlights and a compact outer edge. Every elevation
+`shadow.control` is a small drop over a 0.5px edge: gray A6 (`grayAlpha[6]`) in light mode, 80% black in dark mode so the control looks cut into the surface. Dark mode also adds a 0.5px top highlight. Every elevation
 already includes a 1px ring. **Do not also `border()` the same element.**
 
 `border(sides, color)`:
@@ -234,6 +234,8 @@ ease-in-out. Streaming markdown uses `motionStreamDurationMs`.
 | `xl`  | 24px (intrinsic SVG) |
 
 Stroke/fill is `currentColor`. Pass `size` on the icon component; optional `width` / `height` override the box.
+
+`controlSize.height` (28px) and `controlSize.smHeight` (24px) are the control heights used by `Button` and `TextField`. Both become 40px at large scale. Use them to size a slot that must line up with a control, such as an icon next to a `TextField size="sm"`.
 
 ## Avatar tokens
 

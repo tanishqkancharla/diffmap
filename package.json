@@ -46,7 +46,7 @@
     "beautiful-mermaid": "^1.1.3",
     "errore": "^0.14.1",
     "incur": "^0.4.20",
-    "maui": "npm:@tanishqkancharla/maui@0.0.47",
+    "maui": "npm:@tanishqkancharla/maui@0.0.62",
     "md4x": "^0.0.29",
     "motion": "^13.4.0",
     "purse-styles": "^0.2.3",

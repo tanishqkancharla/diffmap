@@ -20,3 +20,10 @@ Persistent selectable list (not a popup). Wrap in a raised, padded panel.
 Hover/focus uses `elementHover` with **no** background transition. Selected: accent text + trailing ✓.
 
 `textValue` is inferred from string children; pass it when children are not a string.
+
+## Styles
+
+**ListBox** — `listBoxStyles`
+
+- `root` — RAC `ListBox`.
+- `item` — RAC `ListBoxItem`; `data-hovered`, `data-focused`, `data-selected` (trailing ✓), `data-disabled`.

@@ -16,3 +16,9 @@ Wraps the trigger in an inline-block `<span>`. Child should contain something fo
 400ms; keyboard focus remains immediate. The solid surface uses an outline with
 no shadow. First appearance uses opacity plus 2px travel toward the trigger;
 final disappearance is an 80ms fade. Adjacent tooltips switch instantly.
+
+## Styles
+
+**Tooltip** — `tooltipStyles`
+
+- `root` — the positioned `role="tooltip"` popup `<div>`; no state (enter/exit motion is inline style).

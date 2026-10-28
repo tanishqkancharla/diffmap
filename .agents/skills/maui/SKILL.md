@@ -10,6 +10,8 @@ Read the reference for the work you are doing:
 - When installing or updating the Maui package, read [installing_maui.md](references/installing_maui.md).
 - When designing, implementing, or reviewing UI with Maui, read [design_conventions.md](references/design_conventions.md), then open every matching component, pattern, or app reference below.
 
+Use Maui components. When one can't do what you need, build from the matching `react-aria-components` element with that component's exported styles (`buttonStyles`, `listBoxStyles`, …).
+
 ## Foundation
 
 | Need                                          | Reference                         |
@@ -28,6 +30,7 @@ Read the reference for the work you are doing:
 | Prose                   | [prose.md](references/components/prose.md) (`Prose`, `H1`–`H4`, `P`, lists, `Label`, `Link`) |
 | Editor / MarkdownEditor | [editor.md](references/components/editor.md) (optional TipTap peers; separate imports)       |
 | Thinking                | [thinking.md](references/components/thinking.md)                                             |
+| Activity indicator      | [activity-indicator.md](references/components/activity-indicator.md)                         |
 | Crossfade               | [crossfade.md](references/components/crossfade.md)                                           |
 | Loading screen          | [loading-screen.md](references/components/loading-screen.md)                                 |
 | Text                    | [text.md](references/components/text.md)                                                     |

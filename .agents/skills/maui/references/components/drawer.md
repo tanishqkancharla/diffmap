@@ -45,3 +45,14 @@ Out of the public API: drag/snap props, cookies, breakpoint hooks, `DrawerTrigge
 Keep `Sidebar` / `SidebarSection` / `SidebarItem` as the static 240px nav pattern. Drawer is the mobile shell that content sits in. A nested `nav` (including Sidebar) fills the panel without a second card.
 
 The gallery chrome uses Drawer under a compact media query in gallery CSS only — not a public breakpoint token. Email and Calendar layouts are different; leave them alone.
+
+## Styles
+
+**Drawer** — `drawerStyles`
+
+- `overlay` — RAC `ModalOverlay`. Scrim color is animated inline by Drawer.
+- `reducedMotionScrim` — add to `overlay` under reduced motion (static scrim).
+- `modal` — RAC `Modal`. `[data-side="start" | "end"]` — RAC doesn't set it; pass `data-side`.
+- `panel` — sliding element inside the modal. Restyles a `nav` that is a direct child of `[role="dialog"]`.
+- `dialog` — RAC `Dialog`.
+- `title` — visually hidden RAC `Heading slot="title"`.

@@ -4,8 +4,27 @@ Prefer the Maui skill for composition knowledge: how to assemble tokens, compone
 
 Patterns, demo apps, and the gallery `Panel` preview frame are not package components. `Panel` is not on the `"maui"` barrel, in `src/components`, or in the JSX editor catalog. Rebuild reference recipes with barrel exports such as `Button`, `Flex`, and `text(...)`.
 
+## Components first, styles second
+
+Use Maui components. When one can't do what you need, build from the matching `react-aria-components` element and apply that component's exported styles, such as `listBoxStyles.item` or `buttonStyles.root({ variant: "quiet" })`. Each component reference lists its parts under **Styles**. Don't copy CSS from package source.
+
+```tsx
+import { GridList, GridListItem } from "react-aria-components"
+import { useStyles } from "purse-styles"
+import { listBoxStyles } from "maui"
+
+const list = useStyles(listBoxStyles.root)
+const item = useStyles(listBoxStyles.item)
+<GridList className={list}>
+  <GridListItem className={item}>Ada</GridListItem>
+</GridList>
+```
+
+State styles key off React Aria attributes (`data-hovered`, `data-selected`, `data-focus-visible`). On a plain element you get only the resting look.
+
 ## Composition
 
+- Use Maui's `Text` component instead of raw `<span>` elements for inline text. Set typography through its `size`, `fontWeight`, `color`, `monospace`, and `tabular` props; see [Text](components/text.md). Keep semantic elements such as headings, paragraphs, labels, and links for their respective roles.
 - Hover backgrounds have no transitions. Hover fills such as `backgroundColor.elementHover`, quiet-button washes, and list or row highlights snap instantly. Do not animate `background` or `background-color` on hover with `motion.standard(...)` or a CSS `transition`. Other motion, including tooltips and transforms, is allowed.
 - Simple apps default to a prose column: `style(proseContainerStyle, { width: "100%", marginInline: "auto" })`. `sizing.contentWidth` is that same style. Use it for single-column tools, settings, forms, and reading layouts. Multi-pane or full-bleed apps such as inboxes, calendars, and IDEs are exceptions.
 - Design an intentional empty composition for every list, inbox, search result, or collection. Include copy and, when useful, an action. Do not leave a blank panel.

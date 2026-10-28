@@ -4,6 +4,8 @@ Gallery: `/components/thinking`. Import from `"maui"`.
 
 3×3 Game of Life, text-sized. `size` is a CSS length (default `1em`). `variant`: `"primary"` (currentColor) | `"accent"` | `"muted"`.
 
+Use Thinking only while waiting on LLM inference, such as a model drafting a reply or an agent working. For ordinary loading (fetching, saving, syncing), use [Activity indicator](activity-indicator.md).
+
 ```tsx
 <Flex row alignItems="center" gap={4}>
   <Thinking size="0.75em" variant="muted" />

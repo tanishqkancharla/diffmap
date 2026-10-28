@@ -26,3 +26,10 @@ Exactly two children on `MenuTrigger`: **trigger**, then **menu**. Use Maui `But
 `isDisabled` on the trigger button blocks open. Escape closes and focus returns to the trigger (`aria-expanded` tracks open state). While open, the Maui `Button` keeps its active fill from RAC `data-pressed` / `aria-expanded`.
 
 `placement` defaults to `"bottom start"`. Popover uses `shadow.strong` via `CollectionPopover`.
+
+## Styles
+
+**Menu** — `menuStyles`
+
+- `root` — RAC `Menu`, inside `CollectionPopover`.
+- `item` — RAC `MenuItem`; `data-hovered`, `data-focused`, `data-selected`, `data-disabled`, `data-has-submenu`.
