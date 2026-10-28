@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { CodeView, type CodeViewHandle } from "@pierre/diffs/react";
 import type { CodeViewOptions, CodeViewLineSelection } from "@pierre/diffs";
 import {
+  ActivityIndicator,
   backgroundColor,
   border,
   borderColor,
@@ -9,7 +10,11 @@ import {
   Button,
   ChevronDown,
   flex,
+  motion,
+  radius,
+  shadow,
   spacing,
+  Text,
   text,
   useTheme,
 } from "maui";
@@ -19,7 +24,12 @@ import {
   type SourceAnnotation,
   type SourceReference,
 } from "../annotations.js";
-import { changedFileItem, orderForReview, type Rev } from "../changes.js";
+import {
+  changedFileItem,
+  orderForReview,
+  type Changes,
+  type Rev,
+} from "../changes.js";
 import type { SourceDefinition } from "../definitions.js";
 import { useGistPin } from "../gist/pin.ts";
 import { useGitHubPin } from "../github/pin.ts";
@@ -40,7 +50,18 @@ export type SourceSelection = {
 type DefinitionNavigation = {
   selection: SourceSelection | undefined;
   history: SourceDefinition[];
-  status: string | undefined;
+  /** A definition request in flight, or the error it ended with. */
+  request: "finding" | Error | undefined;
+};
+
+/** Everything the panel renders from; it keeps the last loaded page while the next one loads. */
+type PanelPage = {
+  rev: Rev;
+  review: string[];
+  selection: SourceSelection | undefined;
+  history: SourceDefinition[];
+  changes: Changes | Error | undefined;
+  source: SourceDefinition | Error | undefined;
 };
 
 export function SourceDiffPanel(props: {
@@ -59,35 +80,74 @@ export function SourceDiffPanel(props: {
   const [navigation, setNavigation] = useState<DefinitionNavigation>({
     selection: props.selection,
     history: [],
-    status: undefined,
+    request: undefined,
   });
   if (navigation.selection !== props.selection) {
     setNavigation({
       selection: props.selection,
       history: [],
-      status: undefined,
+      request: undefined,
     });
   }
-  const { history } = navigation;
   const request = useRef(0);
+  const hostFiles = useHostFiles();
+  const nextChanges = useChanges(props.rev);
+  const nextReference = props.selection?.reference;
+  // A rev-less reference resolves against current files; a commit reference names its lines directly.
+  const nextSource = useSourceReference(
+    nextReference?.kind === "file" && nextReference.rev === undefined
+      ? nextReference
+      : undefined,
+  );
+  const loading =
+    nextChanges === undefined
+      ? "Loading changes…"
+      : nextReference?.kind === "file" &&
+          nextReference.rev === undefined &&
+          nextSource === undefined &&
+          (mode === "local" || mode === "github" || hostFiles !== undefined)
+        ? "Opening source…"
+        : navigation.request === "finding"
+          ? "Finding definition…"
+          : undefined;
+  const next: PanelPage = {
+    rev: props.rev,
+    review: props.review,
+    selection: props.selection,
+    history: navigation.history,
+    changes: nextChanges,
+    source: nextSource,
+  };
+  // The new page replaces the old one only once it has loaded, so nothing half-loaded shows in between.
+  const [page, setPage] = useState(next);
+  if (
+    loading === undefined &&
+    (page.rev !== next.rev ||
+      page.review !== next.review ||
+      page.selection !== next.selection ||
+      page.history !== next.history ||
+      page.changes !== next.changes ||
+      page.source !== next.source)
+  ) {
+    setPage(next);
+  }
+  const { history, selection, changes, source, review } = page;
   const definition = history.at(-1);
   const panel = useStyles(styles.panel);
-  const header = useStyles(styles.header);
+  const header = useStyles(styles.header, styles.dimmed);
   const titleRow = useStyles(styles.titleRow);
   const titleClass = useStyles(styles.title);
   const pinClass = useStyles(styles.pin);
   const links = useStyles(styles.links);
   const code = useStyles(styles.code);
   const summary = useStyles(styles.summary);
-  const codeWrap = useStyles(styles.codeWrap);
+  const codeWrap = useStyles(styles.codeWrap, styles.dimmed);
   const collapseIcon = useStyles(styles.collapseIcon);
   const github = useGitHubPin();
   const gist = useGistPin();
-  const hostFiles = useHostFiles();
-  const selection = props.selection;
+  const loadingClass = useStyles(styles.loading);
+  const spinner = useStyles(styles.spinner);
   const reference = selection?.reference;
-  const changes = useChanges(props.rev);
-  const { review } = props;
   const items = useMemo(() => {
     if (changes === undefined || changes instanceof Error) return [];
     const { reviewed, other } = orderForReview(changes.files, review);
@@ -95,12 +155,6 @@ export function SourceDiffPanel(props: {
       (changed) => changedFileItem(changed) ?? [],
     );
   }, [changes, review]);
-  // A rev-less reference resolves against current files; a commit reference names its lines directly.
-  const source = useSourceReference(
-    reference?.kind === "file" && reference.rev === undefined
-      ? reference
-      : undefined,
-  );
   const resolvedFile = source instanceof Error ? undefined : source;
   const inChanges =
     resolvedFile !== undefined &&
@@ -111,25 +165,16 @@ export function SourceDiffPanel(props: {
       ? resolvedFile
       : undefined);
   const status =
-    navigation.status !== undefined
-      ? navigation.status
+    navigation.request instanceof Error
+      ? navigation.request.message
       : source instanceof Error
         ? source.message
         : // A shown file replaces the changes, so their error is moot, as in a gist without uncommitted changes.
           changes instanceof Error && file === undefined
           ? changes.message
-          : changes === undefined
-            ? "Loading changes…"
-            : reference?.kind === "file" &&
-                reference.rev === undefined &&
-                source === undefined &&
-                (mode === "local" ||
-                  mode === "github" ||
-                  hostFiles !== undefined)
-              ? "Opening source…"
-              : items.length === 0 && file === undefined
-                ? "No changes."
-                : undefined;
+          : changes !== undefined && items.length === 0 && file === undefined
+            ? "No changes."
+            : undefined;
   const selectedLines = useMemo<CodeViewLineSelection | null>(() => {
     if (file !== undefined)
       return { id: file.path, range: { start: file.start, end: file.end } };
@@ -156,9 +201,9 @@ export function SourceDiffPanel(props: {
     rev: Rev;
     selection: SourceSelection | undefined;
     paths: ReadonlySet<string>;
-  }>({ rev: props.rev, selection, paths: new Set() });
-  if (collapse.rev !== props.rev || collapse.selection !== selection) {
-    setCollapse({ rev: props.rev, selection, paths: new Set() });
+  }>({ rev: page.rev, selection, paths: new Set() });
+  if (collapse.rev !== page.rev || collapse.selection !== selection) {
+    setCollapse({ rev: page.rev, selection, paths: new Set() });
   }
   const rangeId = selectedLines?.id;
   const rangeStart = selectedLines?.range.start;
@@ -300,28 +345,33 @@ export function SourceDiffPanel(props: {
       text: lineText,
     });
     const currentRequest = ++request.current;
-    setNavigation({ selection, history, status: "Finding definition…" });
+    setNavigation({ selection, history, request: "finding" });
     // oxlint-disable-next-line typescript/no-floating-promises -- Token callbacks cannot await; the request owns its status update.
     void requestSource("definition", params).then((result) => {
       if (currentRequest !== request.current) return;
       setNavigation((current) => {
         if (current.selection !== selection) return current;
-        if (result instanceof Error)
-          return { ...current, status: result.message };
+        if (result instanceof Error) return { ...current, request: result };
         return {
           selection,
           history: [...history, result],
-          status: undefined,
+          request: undefined,
         };
       });
     });
   };
 
   return (
-    <aside id="source-diff-panel" aria-label="Source changes" className={panel}>
+    <aside
+      id="source-diff-panel"
+      aria-label="Source changes"
+      aria-busy={loading !== undefined}
+      className={panel}
+    >
       <div
         className={header}
         data-diffmap-kind="source-header"
+        data-loading={loading !== undefined}
         // Pierre's file headers draw their own top border, which divides them from this header.
         data-file-headers={!showTitle && items.length > 0}
       >
@@ -369,7 +419,7 @@ export function SourceDiffPanel(props: {
                   setNavigation({
                     selection,
                     history: history.slice(0, -1),
-                    status: undefined,
+                    request: undefined,
                   });
                 }}
               >
@@ -421,7 +471,13 @@ export function SourceDiffPanel(props: {
           )}
       </div>
       {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Pierre's file headers are the click targets; this only catches their clicks. */}
-      <div className={codeWrap} onClick={onHeaderClick}>
+      <div
+        className={codeWrap}
+        data-loading={loading !== undefined}
+        // The last page stays visible while the next one loads, but it is no longer the one to act on.
+        inert={loading !== undefined}
+        onClick={onHeaderClick}
+      >
         <CodeView
           ref={viewer}
           className={code}
@@ -462,6 +518,19 @@ export function SourceDiffPanel(props: {
           )}
         />
       </div>
+      <div
+        className={loadingClass}
+        role="status"
+        data-loading={loading !== undefined}
+      >
+        {loading !== undefined && (
+          // Inline in the label, the spinner sits on the text's baseline at its size, so it lines up in any font.
+          <Text size="sm" color="lowContrast">
+            <ActivityIndicator className={spinner} />
+            {loading}
+          </Text>
+        )}
+      </div>
     </aside>
   );
 }
@@ -472,6 +541,7 @@ const panelBackgroundCss = `:host { --diffs-light-bg: ${backgroundColor.app}; --
 
 const styles = {
   panel: style(flex({ direction: "column" }), border(["left"], "border"), {
+    position: "relative",
     gridArea: "diff",
     minWidth: 0,
     minHeight: 0,
@@ -531,6 +601,28 @@ const styles = {
     minWidth: 0,
     minHeight: 0,
   }),
+  // Loads that finish within the delay swap pages without dimming.
+  dimmed: style(motion.standard("opacity"), {
+    "&[data-loading='true']": { opacity: 0.4, transitionDelay: "150ms" },
+  }),
+  loading: style(
+    radius.md,
+    shadow.medium,
+    spacing.padding({ x: 6, y: 3 }),
+    motion.standard("opacity"),
+    {
+      position: "absolute",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      whiteSpace: "nowrap",
+      backgroundColor: backgroundColor.app,
+      pointerEvents: "none",
+      opacity: 0,
+      "&[data-loading='true']": { opacity: 1, transitionDelay: "150ms" },
+    },
+  ),
+  spinner: style({ marginRight: spacing.value(4) }),
   collapseIcon: style({
     display: "flex",
     color: colors.gray[11],
