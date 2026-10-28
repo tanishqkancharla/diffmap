@@ -84,6 +84,8 @@ export type ViewerElementAttrs = {
   task: boolean | undefined;
   alertType: string | undefined;
   align: string | undefined;
+  /** The label of an MDC `::details{summary="…"}` toggle. */
+  summary: string | undefined;
 };
 
 export function parseViewerDocument(source: string, path = "spec") {
@@ -374,14 +376,22 @@ function fromElement(
   if (tag === "template")
     return children.flatMap((child) => fromNode(child, literalChildren));
   if (tag === "pre") {
+    // md4x parses ```ts [src/request.ts] into `filename`; diffmap shows it as the title.
     return fenceView(
       stringAttr(element, "language"),
       comarkText(children),
       highlightsAttr(element),
+      stringAttr(element, "filename"),
     );
   }
   if (tag === "mermaid") return fenceView("mermaid", comarkText(children));
-  if (tag === "callstack") return fenceView("callstack", comarkText(children));
+  if (tag === "callstack")
+    return fenceView(
+      "callstack",
+      comarkText(children),
+      undefined,
+      stringAttr(element, "title"),
+    );
   if (tag === "changes") {
     const rev = stringAttr(element, "rev");
     const body = comarkText(children);
@@ -425,10 +435,16 @@ function fenceView(
   lang: string | undefined,
   source: string,
   highlights?: number[],
+  title?: string,
 ): ViewerView {
   return {
     type: "view",
-    fence: parseFence(lang === undefined ? "" : lang, source, highlights),
+    fence: parseFence(
+      lang === undefined ? "" : lang,
+      source,
+      highlights,
+      title,
+    ),
   };
 }
 
@@ -479,6 +495,7 @@ function elementAttrs(element: ComarkElement): ViewerElementAttrs {
     task: element[1].task === true ? true : undefined,
     alertType: stringAttr(element, "type"),
     align: stringAttr(element, "align"),
+    summary: stringAttr(element, "summary"),
   };
 }
 

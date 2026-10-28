@@ -19,6 +19,8 @@ export type Fence =
       /** 1-based rows from the info string, as in ```callstack {2}. */
       highlights: number[];
       notes: CodeNote[];
+      /** From the info string, as in ```callstack [Request flow]. */
+      title: string | undefined;
     }
   | {
       kind: "changes";
@@ -37,6 +39,8 @@ export type Fence =
       /** 1-based lines from the info string, as in ```ts {2,4-6}. */
       highlights: number[];
       notes: CodeNote[];
+      /** From the info string, as in ```ts [src/request.ts]. */
+      title: string | undefined;
     };
 
 const fileRefPattern = /^(\d+):(\d+):(.+)$/;
@@ -60,6 +64,7 @@ export function parseFence(
   lang: string,
   source: string,
   highlights: number[] = [],
+  title?: string,
 ): Fence {
   const trimmed = source.replace(/\n$/, "");
   if (lang === "mermaid")
@@ -75,7 +80,7 @@ export function parseFence(
       parsed: parseServiceDiagram(trimmed),
     };
   if (lang === "html") return { kind: "html", source: trimmed };
-  if (lang === "callstack") return callStackFence(trimmed, highlights);
+  if (lang === "callstack") return callStackFence(trimmed, highlights, title);
 
   // The first line is the rev (blank for uncommitted); each later line is a path to review.
   if (lang === "changes") {
@@ -101,7 +106,8 @@ export function parseFence(
 
   const diffPath = diffPathPattern.exec(lang);
   if (lang === "diff" || diffPath !== null) {
-    if (isCallStackSource(trimmed)) return callStackFence(trimmed, highlights);
+    if (isCallStackSource(trimmed))
+      return callStackFence(trimmed, highlights, title);
     return {
       kind: "diff",
       path: diffPath === null ? pathFromDiffSource(trimmed) : diffPath[1],
@@ -116,10 +122,15 @@ export function parseFence(
     source: code,
     highlights,
     notes,
+    title,
   };
 }
 
-function callStackFence(source: string, highlights: number[]): Fence {
+function callStackFence(
+  source: string,
+  highlights: number[],
+  title: string | undefined,
+): Fence {
   const { code, notes } = parseCodeNotes(source);
   return {
     kind: "callstack",
@@ -127,5 +138,6 @@ function callStackFence(source: string, highlights: number[]): Fence {
     lines: parseCallStack(code),
     highlights,
     notes,
+    title,
   };
 }

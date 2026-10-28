@@ -1,8 +1,8 @@
 # Code highlights and notes
 
-Highlight lines with `{…}` after the language. Hover an underlined symbol or a line with a dot to read its note.
+Highlight lines with `{…}` after the language and title the block with `[…]`. Hover an underlined symbol or a line with a dot to read its note.
 
-```ts {2-3}
+```ts [src/request.ts] {2-3}
 function requestHandler(record: RecordInput) {
   const error = validateInput(record);
   if (error) return error;
@@ -24,9 +24,9 @@ def save(record):
 # [!note record] The dict the client sent, unchanged.
 ```
 
-Call stacks take the same highlights and notes. Rows count from the first row:
+Call stacks take the same title, highlights, and notes. Rows count from the first row:
 
-```callstack {3-4}
+```callstack [Parsing a call stack fence] {3-4}
  fence = parseFence(lang, source) [[src/parseFence.ts#parseFence]]
 -└── return { kind: "callstack", lines: parseCallStack(source) }
 +├── { code, notes } = parseCodeNotes(source) # split off trailing notes [[src/codeNotes.ts#parseCodeNotes]]

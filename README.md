@@ -82,7 +82,7 @@ import {
 | `changes` with a commit, range, or empty body  | Files changed card with a Review button; empty means uncommitted changes                          |
 | `start:end:path`                               | Pierre file excerpt with Pierre’s file header                                                     |
 | `html`                                         | Trusted HTML from this file. diffmap does not sanitize it. Only use it for local files you wrote. |
-| other langs                                    | Highlighted code with optional [line highlights and notes](#highlight-lines-and-add-notes)        |
+| other langs                                    | Highlighted code with optional [titles, highlights, and notes](#highlight-lines-and-add-notes)    |
 
 Fences keep whitespace. Use them for mermaid, call stacks, and diffs.
 
@@ -109,6 +109,10 @@ function requestHandler(record: RecordInput) {
   numbers count only the code above. Backticks in a note render as code.
 - A symbol that does not appear, overlapping line notes, or a line number
   outside the fence is a parse error. A note line above other code stays code.
+
+Add `[Title]` after the language to show a title above the code, as in
+` ```ts [src/request.ts] {2-3} `. Call stacks take a title the same way,
+or `::callstack{title="Request flow"}` in MDC.
 
 Call stacks take the same highlights and notes, counting rows from the first.
 Write their notes with `#`. A symbol note matches the row text you see, not
@@ -146,8 +150,13 @@ startServer
 ::html
 <aside>Note.</aside>
 ::
+
+::details{summary="How it works"}
+Folded content: prose, lists, and any fence above.
+::
 ```
 
+`::details` folds its content under the `summary` label until the reader opens it.
 `.md` and `.mdx` are both markdown. Curly braces in prose are plain text.
 
 ## Link call stacks to source changes

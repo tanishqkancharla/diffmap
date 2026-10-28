@@ -51,6 +51,7 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
         lines={fence.lines}
         highlights={fence.highlights}
         notes={fence.notes}
+        title={fence.title}
         selectedAnnotation={props.selectedAnnotation}
         onSelectAnnotation={props.onSelectAnnotation}
       />
@@ -74,6 +75,7 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
       source={fence.source}
       highlights={fence.highlights}
       notes={fence.notes}
+      title={fence.title}
     />
   );
 }

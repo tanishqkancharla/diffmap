@@ -188,7 +188,7 @@ Paths are relative to the repo root.
 - In prose, references render as clickable inline code; wrap one in backticks to show the syntax.
 - In Mermaid, `%% ref node:<id> [[reference]]` links a node or participant and `%% ref edge:<index> [[reference]]` an edge or message, counting from zero in declaration order. Use one directive per target, with several references when needed.
 
-Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them, `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes) with the files to review listed under it, and `html` trusted HTML you wrote. Other languages are pseudocode and types, with optional `{…}` highlights and `[!note …]` lines.
+Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them, `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes) with the files to review listed under it, and `html` trusted HTML you wrote. Other languages are pseudocode and types, with optional `{…}` highlights and `[!note …]` lines. `[Title]` after the language, as in ` ```callstack [Request flow] `, titles a call stack or code fence.
 
 ## Look up the rest
 

@@ -16,19 +16,24 @@ import {
 } from "../annotations.js";
 import { lineSymbolMatches, type CodeNote } from "../codeNotes.js";
 import { NoteText, NoteTokens } from "./notes.tsx";
-import { pierreShell } from "./pierre.js";
+import { fenceTitle, pierreShell } from "./pierre.js";
 
 export function CallStackDiff(
   props: {
     lines: SourceAnnotation[];
     highlights: number[];
     notes: CodeNote[];
+    title: string | undefined;
   } & SourceNavigation,
 ) {
   const shell = useStyles(pierreShell, styles.shell);
+  const titleClassName = useStyles(fenceTitle);
   const rowClassName = useStyles(styles.row);
   return (
-    <div className={shell} data-diffmap-kind="callstack">
+    <figure className={shell} data-diffmap-kind="callstack">
+      {props.title !== undefined && (
+        <figcaption className={titleClassName}>{props.title}</figcaption>
+      )}
       {props.lines.map((line, index) => {
         const { sign, tree, description } = callStackRow(line.text);
         const comment = description.indexOf("#");
@@ -122,7 +127,7 @@ export function CallStackDiff(
           </Tooltip>
         );
       })}
-    </div>
+    </figure>
   );
 }
 
@@ -135,9 +140,15 @@ const styles = {
     text({ size: "sm", fontWeight: 500, color: "highContrast" }),
     spacing.padding({ y: 2 }),
     {
+      margin: 0,
       backgroundColor: backgroundColor.app,
       overflowX: "hidden",
       maxWidth: "100%",
+      // The shell's top padding goes below the title, between it and the rows.
+      "& > figcaption": {
+        marginTop: `calc(-1 * ${spacing.value(2)})`,
+        marginBottom: spacing.value(2),
+      },
     },
   ),
   row: style(

@@ -1,4 +1,4 @@
-import { colors, radius, shadow } from "maui";
+import { border, colors, radius, shadow, spacing, text } from "maui";
 import { style } from "purse-styles";
 import { codeFontFamily } from "../codeFont.js";
 import { diffsTheme } from "./diffsTheme.ts";
@@ -22,6 +22,14 @@ export const pierreShell = style(radius.md, shadow.subtle, {
   overflow: "hidden",
   minWidth: 0,
 });
+
+/** The `[Title]` row atop a code block or call stack, like Pierre's file header. */
+export const fenceTitle = style(
+  text({ size: "xs", fontWeight: 500, color: "lowContrast" }),
+  spacing.padding({ x: 6, y: 4 }),
+  border(["bottom"], "border"),
+  { margin: 0, overflowWrap: "anywhere" },
+);
 
 export function pierreDiffOptions(input: {
   themeType: "light" | "dark";

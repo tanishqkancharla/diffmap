@@ -196,7 +196,7 @@ test("parseViewerDocument reads commit references and changes fences", () => {
 test("parseViewerDocument reads code highlights and trailing notes", () => {
   const document = parseViewerDocument(
     [
-      "```py {2}",
+      "```py [src/save.py] {2}",
       "def save(record):",
       "    storage.save(record)",
       "",
@@ -225,6 +225,7 @@ test("parseViewerDocument reads code highlights and trailing notes", () => {
           text: "Writes `record` to disk.",
         },
       ],
+      title: "src/save.py",
     },
   });
   // Symbols match whole words, so `save` is not found inside `saveAll`.
@@ -243,7 +244,7 @@ test("parseViewerDocument reads code highlights and trailing notes", () => {
   // Call stacks number rows, and a symbol must appear in visible row text.
   const stack = parseViewerDocument(
     [
-      "```callstack {2}",
+      "```callstack {2} [Save flow]",
       " run() [[src/a.ts#run]]",
       "+└── save(record)",
       "# [!note save] Writes the record.",
@@ -258,6 +259,17 @@ test("parseViewerDocument reads code highlights and trailing notes", () => {
   if (fence?.kind !== "callstack") return;
   assert.equal(fence.lines.length, 2);
   assert.deepEqual(fence.highlights, [2]);
+  assert.equal(fence.title, "Save flow");
+  const mdc = parseViewerDocument(
+    '::callstack{title="Save flow"}\n run()\n└── save(record)\n::\n',
+  );
+  if (mdc instanceof Error) throw mdc;
+  assert.deepEqual(
+    mdc.nodes[0]?.type === "view" && mdc.nodes[0].fence.kind === "callstack"
+      ? mdc.nodes[0].fence.title
+      : undefined,
+    "Save flow",
+  );
   assert.deepEqual(fence.notes, [
     { target: { kind: "symbol", symbol: "save" }, text: "Writes the record." },
   ]);

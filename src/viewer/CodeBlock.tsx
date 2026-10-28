@@ -1,19 +1,39 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getSharedHighlighter } from "@pierre/diffs";
-import { codeBlockStyles, colors, Tooltip, useTheme } from "maui";
+import {
+  backgroundColor,
+  Button,
+  Check,
+  codeBlockStyles,
+  colors,
+  Copy,
+  Tooltip,
+  useTheme,
+} from "maui";
 import { style, useStyles } from "purse-styles";
 import { codeFontFamily } from "../codeFont.js";
 import { lineSymbolMatches, type CodeNote } from "../codeNotes.js";
 import { lineNoteDot, NoteText, NoteTokens, type Token } from "./notes.tsx";
+import { fenceTitle, pierreShell } from "./pierre.ts";
 
-/** A pseudocode fence with highlighted lines and hover notes. */
+/** A pseudocode fence with an optional title, highlighted lines, hover notes, and a copy button. */
 export function CodeBlock(props: {
   lang: string;
   source: string;
   highlights: number[];
   notes: CodeNote[];
+  title: string | undefined;
 }) {
   const className = useStyles(codeBlockStyles.root, styles.block);
+  const figureClassName = useStyles(pierreShell, styles.figure);
+  const titleClassName = useStyles(fenceTitle);
+  const copyClassName = useStyles(styles.copy);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
   const lines = useTokenLines(props.source, props.lang);
   const sourceLines = props.source.split("\n");
 
@@ -54,9 +74,33 @@ export function CodeBlock(props: {
   }
 
   return (
-    <pre className={className} data-diffmap-kind="code">
-      <code>{rows}</code>
-    </pre>
+    <figure
+      className={figureClassName}
+      data-wrap={proseLangs.has(props.lang) || undefined}
+    >
+      {props.title !== undefined && (
+        <figcaption className={titleClassName}>{props.title}</figcaption>
+      )}
+      <pre className={className} data-diffmap-kind="code">
+        <code>{rows}</code>
+      </pre>
+      <Button
+        className={copyClassName}
+        // Over code, the button needs its own surface so text does not show through.
+        variant={props.title === undefined ? "default" : "quiet"}
+        size="sm"
+        aria-label={copied ? "Copied" : "Copy code"}
+        onPress={() => {
+          // oxlint-disable-next-line typescript/no-floating-promises -- Press handlers cannot await; the icon only changes once the write succeeds.
+          void navigator.clipboard.writeText(props.source).then(
+            () => setCopied(true),
+            (cause) => console.warn("diffmap copy failed", cause),
+          );
+        }}
+      >
+        {copied ? <Check size="sm" /> : <Copy size="sm" />}
+      </Button>
+    </figure>
   );
 }
 
@@ -95,7 +139,22 @@ function useTokenLines(source: string, lang: string): Token[][] {
   return source.split("\n").map((line) => [{ content: line }]);
 }
 
+/** Prose-like fences wrap long lines instead of scrolling. */
+const proseLangs = new Set(["text", "txt", "plaintext", "md", "markdown"]);
+
 const styles = {
+  // The figure is the card, so the block inside drops its own edge.
+  figure: style({
+    position: "relative",
+    margin: 0,
+    backgroundColor: backgroundColor.app,
+    "& > pre": { boxShadow: "none", borderRadius: 0 },
+    // Room for the copy button, which sits in the title row.
+    "& > figcaption": { paddingRight: "40px" },
+    "&[data-wrap] > pre > code": { display: "block" },
+    "&[data-wrap] .line": { whiteSpace: "pre-wrap", overflowWrap: "anywhere" },
+  }),
+  copy: style({ position: "absolute", top: "6px", right: "6px" }),
   block: style({
     fontFamily: codeFontFamily,
     paddingInline: 0,
