@@ -265,6 +265,10 @@ const styles = {
     backgroundColor: backgroundColor.app,
     // Scrollport size for the sticky gutter rail (`100cqh`).
     containerType: "size",
+    "@media (max-width: 600px)": {
+      paddingInline: spacing.value(6),
+      paddingBlock: spacing.value(8),
+    },
   }),
   prose: style({
     display: "grid",
@@ -273,7 +277,10 @@ const styles = {
     maxWidth: "none",
     minWidth: 0,
     "&[data-has-toc='true']": {
-      gridTemplateColumns: `minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr) minmax(0, ${proseMaxWidth}) minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr)`,
+      gridTemplateColumns: `var(--diffmap-toc-columns, minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr) minmax(0, ${proseMaxWidth}) minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr))`,
+    },
+    "@media (max-width: 600px)": {
+      "--diffmap-toc-columns": "0 minmax(0, 1fr) 0",
     },
   }),
   content: style({

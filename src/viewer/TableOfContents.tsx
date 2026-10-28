@@ -390,6 +390,9 @@ const styles = {
     justifyContent: "center",
     alignItems: "flex-start",
     pointerEvents: "none",
+    "@media (max-width: 600px)": {
+      display: "none",
+    },
   }),
   cluster: style(spacing.padding({ top: 4, bottom: 4, left: 2, right: 6 }), {
     position: "relative",
