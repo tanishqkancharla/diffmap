@@ -9,7 +9,11 @@ import {
 } from "maui";
 import { defineVars, style, useStyles } from "purse-styles";
 import { codeFontFamily } from "../codeFont.js";
-import type { SourceAnnotation, SourceNavigation } from "../annotations.js";
+import {
+  callStackRow,
+  type SourceAnnotation,
+  type SourceNavigation,
+} from "../annotations.js";
 import { lineSymbolMatches, type CodeNote } from "../codeNotes.js";
 import { NoteText, NoteTokens } from "./notes.tsx";
 import { pierreShell } from "./pierre.js";
@@ -26,14 +30,7 @@ export function CallStackDiff(
   return (
     <div className={shell} data-diffmap-kind="callstack">
       {props.lines.map((line, index) => {
-        const sign = line.text.startsWith("+")
-          ? "+"
-          : line.text.startsWith("-")
-            ? "-"
-            : " ";
-        const label = line.text.replace(/^[+ -]/, "");
-        const tree = /^[ \t│┃├└─]*/u.exec(label)![0];
-        const description = label.slice(tree.length);
+        const { sign, tree, description } = callStackRow(line.text);
         const comment = description.indexOf("#");
         const linked = line.references.length > 0;
         const row = index + 1;

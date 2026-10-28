@@ -26,10 +26,26 @@ export type SourceReference = FileReference | ChangesReference;
 export type SourceAnnotation = {
   text: string;
   references: SourceReference[];
+  /** Source panel title while selected, such as a call stack row without its tree. */
+  title?: string;
 };
 
 export function parseCallStack(source: string): SourceAnnotation[] {
-  return source.split("\n").map(parseAnnotation);
+  return source.split("\n").map((line) => {
+    const annotation = parseAnnotation(line);
+    return {
+      ...annotation,
+      title: callStackRow(annotation.text).description.trim(),
+    };
+  });
+}
+
+/** A call stack row's change mark, tree prefix, and the call it describes. */
+export function callStackRow(text: string) {
+  const sign = text.startsWith("+") ? "+" : text.startsWith("-") ? "-" : " ";
+  const label = text.replace(/^[+ -]/, "");
+  const tree = /^[ \t│┃├└─]*/u.exec(label)![0];
+  return { sign, tree, description: label.slice(tree.length) };
 }
 
 export function parseAnnotation(line: string): SourceAnnotation {

@@ -337,7 +337,11 @@ export function SourceDiffPanel(props: {
           props.onRevChange === undefined &&
           loadedChanges !== undefined && (
             <div className={titleRow}>
-              {loadedChanges.url === undefined ? (
+              {selection?.annotation.title !== undefined ? (
+                <div className={titleClass} title={selection.annotation.title}>
+                  {selection.annotation.title}
+                </div>
+              ) : loadedChanges.url === undefined ? (
                 <div className={titleClass} title={loadedChanges.title}>
                   {loadedChanges.title}
                 </div>
