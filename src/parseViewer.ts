@@ -8,6 +8,7 @@ import {
   type SourceReference,
 } from "./annotations.js";
 import { isRev, type Rev } from "./changes.js";
+import { codeFenceProblem } from "./codeNotes.js";
 import {
   DiffmapAnnotationError,
   DiffmapParseError,
@@ -96,6 +97,12 @@ export function parseViewerDocument(source: string, path = "spec") {
       return new DiffmapAnnotationError({
         reason: `"${fence.lang}" fences were removed. Commit the change, then use a changes fence with the commit SHA and link lines with [[<sha>:path#L12-L30]]`,
       });
+    }
+    if (fence.kind === "code") {
+      const problem = codeFenceProblem(fence);
+      if (problem !== undefined)
+        return new DiffmapAnnotationError({ reason: problem });
+      continue;
     }
     if (fence.kind !== "changes") continue;
     if (!isRev(fence.rev)) {
@@ -348,7 +355,11 @@ function fromElement(
   if (tag === "template")
     return children.flatMap((child) => fromNode(child, literalChildren));
   if (tag === "pre") {
-    return fenceView(stringAttr(element, "language"), comarkText(children));
+    return fenceView(
+      stringAttr(element, "language"),
+      comarkText(children),
+      highlightsAttr(element),
+    );
   }
   if (tag === "mermaid") return fenceView("mermaid", comarkText(children));
   if (tag === "callstack") return fenceView("callstack", comarkText(children));
@@ -391,10 +402,14 @@ function unwrapTaskParagraph(children: ViewerNode[]): ViewerNode[] {
   return children;
 }
 
-function fenceView(lang: string | undefined, source: string): ViewerView {
+function fenceView(
+  lang: string | undefined,
+  source: string,
+  highlights?: number[],
+): ViewerView {
   return {
     type: "view",
-    fence: parseFence(lang === undefined ? "" : lang, source),
+    fence: parseFence(lang === undefined ? "" : lang, source, highlights),
   };
 }
 
@@ -453,6 +468,13 @@ function stringAttr(element: ComarkElement, key: string) {
   if (value === undefined) return undefined;
   // SAFETY: md4x string attributes are JSON strings.
   return value as string;
+}
+
+/** md4x parses ```ts {2,4-5} into `highlights: [2, 4, 5]`. */
+function highlightsAttr(element: ComarkElement) {
+  const value = element[1].highlights;
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((line): line is number => typeof line === "number");
 }
 
 function lineAttr(element: ComarkElement, key: string) {

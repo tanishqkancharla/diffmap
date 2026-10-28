@@ -53,6 +53,11 @@ Never end a phase with a task list or checkboxes.
 - Link real functions with source references. In proposals, unlinked helper names are pseudocode, not promises of extra public APIs; state this beside the stack when introducing such helpers.
 - Keep `#` comments short enough to read in the viewer. Use them for purpose or a non-obvious effect, not to repeat the call.
 
+**Pseudocode.** Keep each code fence short and about the behavior the paragraph before it explains: about 12 lines, one function or type per fence. Elide unchanged code with `// ...` and leave out imports, stubs, and types the reader has already seen. Highlight the lines that change with `{2-3}` after the language. Explain with notes at the bottom of the fence instead of long comments, one or two sentences each:
+
+- `// [!note symbol] text` explains a variable, call, or type wherever it appears in the fence.
+- `// [!note L3-L5] text` explains a line range. Line numbers count only the code above the notes.
+
 **Links.** Link existing source with [references](#source-references); write planned symbols as plain text.
 
 ## Prose
@@ -61,7 +66,7 @@ Follow Orwell's six rules from "Politics and the English Language" in all prose,
 
 ## Example phase
 
-This self-contained example uses illustrative files and a commit SHA, not Diffmap source paths. The code below defines the functions named in its stacks.
+This example uses illustrative files and a commit SHA, not Diffmap source paths.
 
 ````md
 ### ⏳ Phase 1: Validate request input
@@ -115,32 +120,25 @@ The call stack shows how the validation result controls the return path:
 +└── return result
 ```
 
-In code, the check is an early return:
+In code, the handler returns before the existing save:
 
-```ts
-type RecordInput = { name: string };
-declare const storage: { save(record: RecordInput): void };
-
-// src/request.ts (imports omitted)
+```ts {2-3}
 function requestHandler(record: RecordInput) {
   const error = validateInput(record);
   if (error) return error;
-  const result = existingService(record);
-  return result;
+  return existingService(record);
 }
+// [!note validateInput] Returns an error when `name` is blank, otherwise undefined.
+// [!note L3] Storage never sees an invalid record.
+```
 
-// src/validate.ts
+The new check:
+
+```ts
 function validateInput(record: RecordInput) {
-  if (record.name.trim() === "") {
+  if (record.name.trim() === "")
     return { ok: false, error: "name must not be empty" };
-  }
   return undefined;
-}
-
-// src/service.ts (stand-in for the existing save)
-function existingService(record: RecordInput) {
-  storage.save(record); // side effect; no result needed
-  return { ok: true };
 }
 ```
 ````
@@ -185,7 +183,7 @@ Paths are relative to the repo root.
 - In prose, references render as clickable inline code; wrap one in backticks to show the syntax.
 - In Mermaid, `%% ref node:<id> [[reference]]` links a node or participant and `%% ref edge:<index> [[reference]]` an edge or message, counting from zero in declaration order. Use one directive per target, with several references when needed.
 
-Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them, `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes), and `html` trusted HTML you wrote. Other languages are pseudocode and types.
+Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them, `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes), and `html` trusted HTML you wrote. Other languages are pseudocode and types, with optional `{…}` highlights and `[!note …]` lines.
 
 ## Look up the rest
 

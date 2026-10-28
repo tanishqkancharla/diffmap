@@ -1,5 +1,6 @@
 import { parseCallStack, type SourceAnnotation } from "./annotations.js";
 import { WORKING, type Rev } from "./changes.js";
+import { parseCodeNotes, type CodeNote } from "./codeNotes.js";
 import {
   parseDiagramAnnotations,
   type DiagramAnnotation,
@@ -14,7 +15,15 @@ export type Fence =
   | { kind: "changes"; rev: Rev; source: string }
   | { kind: "file"; path: string; start: number; end: number; source: string }
   | { kind: "diff"; path: string | undefined; source: string }
-  | { kind: "code"; lang: string; source: string };
+  | {
+      kind: "code";
+      lang: string;
+      /** Code with trailing note lines removed. */
+      source: string;
+      /** 1-based lines from the info string, as in ```ts {2,4-6}. */
+      highlights: number[];
+      notes: CodeNote[];
+    };
 
 const fileRefPattern = /^(\d+):(\d+):(.+)$/;
 const diffPathPattern = /^diff:(.+)$/;
@@ -33,7 +42,11 @@ export function pathFromDiffSource(source: string) {
   return undefined;
 }
 
-export function parseFence(lang: string, source: string): Fence {
+export function parseFence(
+  lang: string,
+  source: string,
+  highlights: number[] = [],
+): Fence {
   const trimmed = source.replace(/\n$/, "");
   if (lang === "mermaid")
     return {
@@ -91,9 +104,12 @@ export function parseFence(lang: string, source: string): Fence {
     };
   }
 
+  const { code, notes } = parseCodeNotes(trimmed);
   return {
     kind: "code",
     lang: lang.length === 0 ? "text" : lang,
-    source: trimmed,
+    source: code,
+    highlights,
+    notes,
   };
 }

@@ -82,9 +82,35 @@ import {
 | `changes` with a commit, range, or empty body  | Files changed card with a Review button; empty means uncommitted changes                          |
 | `start:end:path`                               | Pierre file excerpt with Pierre’s file header                                                     |
 | `html`                                         | Trusted HTML from this file. diffmap does not sanitize it. Only use it for local files you wrote. |
-| other langs                                    | Maui `CodeBlock`                                                                                  |
+| other langs                                    | Highlighted code with optional [line highlights and notes](#highlight-lines-and-add-notes)        |
 
 Fences keep whitespace. Use them for mermaid, call stacks, and diffs.
+
+### Highlight lines and add notes
+
+In a code fence, `{2,4-6}` after the language highlights those lines. Comment
+lines at the bottom of the fence add notes that show on hover or keyboard focus:
+
+````md
+```ts {2-3}
+function requestHandler(record: RecordInput) {
+  const error = validateInput(record);
+  if (error) return error;
+  return existingService(record);
+}
+// [!note validateInput] Returns an error when `name` is blank, otherwise undefined.
+// [!note L3] Early return, so storage never sees an invalid record.
+```
+````
+
+- `[!note L3]` or `[!note L3-L5]` notes a line range. Any other target is a
+  symbol, and the note covers every whole-word occurrence in the fence.
+- Start note lines with `//`, `#`, or `--`. The viewer removes them, so line
+  numbers count only the code above. Backticks in a note render as code.
+- A symbol that does not appear, overlapping line notes, or a line number
+  outside the fence is a parse error. A note line above other code stays code.
+
+Run `npx @tanishqkancharla/diffmap fixtures/code-notes.md` for an example.
 
 ## MDC
 

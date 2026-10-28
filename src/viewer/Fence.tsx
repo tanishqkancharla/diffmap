@@ -1,8 +1,8 @@
-import { CodeBlock } from "maui";
 import type { Fence as FenceModel } from "../parseFence.js";
 import type { SourceNavigation } from "../annotations.js";
 import { CallStackDiff } from "./CallStackDiff.tsx";
 import { ChangesCard } from "./ChangesCard.tsx";
+import { CodeBlock } from "./CodeBlock.tsx";
 import { CodeDiff } from "./CodeDiff.tsx";
 import { FileExcerpt } from "./FileExcerpt.tsx";
 import { HtmlBlock } from "./HtmlBlock.tsx";
@@ -65,5 +65,12 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
       />
     );
   }
-  return <CodeBlock lang={fence.lang}>{fence.source}</CodeBlock>;
+  return (
+    <CodeBlock
+      lang={fence.lang}
+      source={fence.source}
+      highlights={fence.highlights}
+      notes={fence.notes}
+    />
+  );
 }

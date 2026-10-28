@@ -29,6 +29,10 @@ function parseServicesSpec(body: string[]) {
   );
 }
 
+function codeFenceProblem(lines: string[]) {
+  return String(parseViewerDocument(["```ts", ...lines, "```", ""].join("\n")));
+}
+
 async function withTempSpec(
   source: string,
   run: (filePath: string) => Promise<void>,
@@ -165,6 +169,55 @@ test("parseViewerDocument reads commit references and changes fences", () => {
       ),
     ),
     /source-diff:store:src\/store\.ts" fences were removed/,
+  );
+});
+
+test("parseViewerDocument reads code highlights and trailing notes", () => {
+  const document = parseViewerDocument(
+    [
+      "```py {2}",
+      "def save(record):",
+      "    storage.save(record)",
+      "",
+      "# [!note L1-L2] Saves the record.",
+      "# [!note storage.save] Writes `record` to disk.",
+      "```",
+      "",
+    ].join("\n"),
+  );
+  assert.equal(document instanceof Error, false);
+  if (document instanceof Error) return;
+  assert.deepEqual(document.nodes[0], {
+    type: "view",
+    fence: {
+      kind: "code",
+      lang: "py",
+      source: "def save(record):\n    storage.save(record)",
+      highlights: [2],
+      notes: [
+        {
+          target: { kind: "lines", start: 1, end: 2 },
+          text: "Saves the record.",
+        },
+        {
+          target: { kind: "symbol", symbol: "storage.save" },
+          text: "Writes `record` to disk.",
+        },
+      ],
+    },
+  });
+  // Symbols match whole words, so `save` is not found inside `saveAll`.
+  assert.match(
+    codeFenceProblem(["store.saveAll(x);", "// [!note save] Saves."]),
+    /"save" does not appear/,
+  );
+  assert.match(
+    codeFenceProblem(["const x = 1;", "// [!note L1-L2] Too long."]),
+    /outside the 1-line code fence/,
+  );
+  assert.match(
+    String(parseViewerDocument("```ts {3}\nconst x = 1;\n```\n")),
+    /Highlighted line 3 is outside/,
   );
 });
 
