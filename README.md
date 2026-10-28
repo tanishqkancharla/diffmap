@@ -75,6 +75,7 @@ import {
 | Fence info string                              | Viewer                                                                                            |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `mermaid`                                      | Beautiful Mermaid                                                                                 |
+| `services`                                     | Animated service diagram you can play or step through                                             |
 | `callstack` or `diff` containing `└──` / `├──` | Interactive stack rows, no file header                                                            |
 | `diff` or `diff:path` with a file path         | Pierre patch with Pierre’s file header                                                            |
 | `diff` with no path                            | Pierre patch, no file header                                                                      |
@@ -187,6 +188,62 @@ Resolution uses the workspace's TypeScript configuration and current files.
 
 Run `npx @tanishqkancharla/diffmap fixtures/annotations.md` for an example
 with commit references, multiple files, and unchanged context.
+
+## Animated service diagrams
+
+A `services` fence shows services, their state, and the events they send each
+other, then replays those events step by step. Readers press **Play**, step with
+the arrow buttons or ← and →, or click the progress bar to jump to a step.
+
+````md
+```services
+service Browser "login page"
+  state cookie = none
+service API "HTTP server" [[src/api.ts]]
+  > Receives every request and routes it to a service.
+  service Auth
+    state attempts = 0
+      > Failures since the last success. Five locks the account.
+
+step "The browser submits the form"
+  Browser -> API: POST /login
+step "The API asks Auth to verify"
+  API -> Auth: verify(alice) [[src/api.ts#login]]
+    > Sends the username and the password from the form.
+  Auth.attempts = 1
+    > Counted before the check, so a crash still counts as a failure.
+step "The API sets the session cookie"
+  API -> Browser: 200 Set-Cookie
+  Browser.cookie = sid=s_81f
+```
+````
+
+- `service <Name> "label"` declares a service. Indent a `service` line under
+  another to nest it. Names are unique within the diagram.
+- `state <key> = <value>` declares a value and its initial state. Indent it under
+  its service.
+- `step "caption"` starts a step at column 0. The caption is required: a
+  sentence that says what happens, shown under the controls. Indented lines
+  under it are `From -> To: label` events and `Service.key = value` updates.
+  Every event in a step travels at once, and the updates land when the events
+  arrive.
+- A `>` line adds text to the line above it. Indent it further than that line;
+  consecutive `>` lines join.
+  - Under a service or state, it is a description: the name gets a dotted
+    underline and the text shows in a tooltip on hover or focus.
+  - Under a step, it explains the step and shows under the caption.
+  - Under an event or update, it is a note for that step. Notes appear in a
+    column beside the diagram once the step's events land, each joined by a
+    line to its event label or state row.
+- `%%` starts a comment line.
+- Append `[[reference]]` to a `service` line or an event to link it to source.
+
+Services must be declared before the first step, and updates may only change
+declared state. [ELK](https://eclipse.dev/elk/) lays the services out left to
+right, or top to bottom when that fits the column better, and routes one
+connection between each pair of services that talk. A request and its reply
+share that connection. Indentation is significant, so `services` has no MDC form.
+See [the runnable examples](fixtures/services.md).
 
 ## Link Mermaid nodes and edges
 

@@ -8,9 +8,14 @@ import {
   type SourceReference,
 } from "./annotations.js";
 import { isRev, type Rev } from "./changes.js";
-import { DiffmapAnnotationError, DiffmapParseError } from "./errors.js";
+import {
+  DiffmapAnnotationError,
+  DiffmapParseError,
+  DiffmapServicesError,
+} from "./errors.js";
 import { parseMermaidDiagram } from "./mermaid.js";
 import { parseFence, type Fence } from "./parseFence.js";
+import { serviceAnnotations } from "./services.js";
 
 export type ViewerDocument = {
   nodes: ViewerNode[];
@@ -105,10 +110,27 @@ export function parseViewerDocument(source: string, path = "spec") {
       if (fence.kind === "callstack") return fence.lines;
       if (fence.kind === "mermaid")
         return fence.annotations.map((link) => link.annotation);
+      if (fence.kind === "services" && fence.parsed.ok)
+        return serviceAnnotations(fence.parsed.diagram);
       return [];
     }),
     ...collectReferences(nodes),
   ];
+  const servicesFences = fences.flatMap((fence) =>
+    fence.kind === "services" ? [fence] : [],
+  );
+  for (const [offset, fence] of servicesFences.entries()) {
+    if (fence.parsed.ok) continue;
+    const start = fenceLine(source, "services", offset + 1);
+    return new DiffmapServicesError({
+      path,
+      where:
+        start === undefined
+          ? `diagram ${offset + 1}, line ${fence.parsed.line}`
+          : `line ${start + fence.parsed.line}`,
+      reason: fence.parsed.reason,
+    });
+  }
   const mermaidFences = fences.flatMap((fence) =>
     fence.kind === "mermaid" ? [fence] : [],
   );
@@ -185,15 +207,18 @@ function collectReferences(nodes: ViewerNode[]): SourceAnnotation[] {
 }
 
 function mermaidWhere(source: string, index: number) {
-  const line = mermaidFenceLine(source, index);
+  const line = fenceLine(source, "mermaid", index);
   if (line === undefined) return `diagram ${index}`;
   return `diagram ${index}, line ${line}`;
 }
 
-function mermaidFenceLine(source: string, index: number) {
-  const match = [...source.matchAll(/^[ \t]*(`{3,}mermaid\b|::mermaid\b)/gm)][
-    index - 1
-  ];
+/** Line of the `index`th (1-based) fence or MDC block named `lang`. */
+function fenceLine(source: string, lang: string, index: number) {
+  const pattern = new RegExp(
+    String.raw`^[ \t]*(\`{3,}${lang}\b|::${lang}\b)`,
+    "gm",
+  );
+  const match = [...source.matchAll(pattern)][index - 1];
   if (match === undefined || match.index === undefined) return undefined;
   return source.slice(0, match.index).split("\n").length;
 }

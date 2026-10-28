@@ -26,6 +26,7 @@ export default defineConfig(({ command }) => {
         "purse-styles",
         "@pierre/diffs/react",
         "beautiful-mermaid",
+        "elkjs/lib/elk.bundled.js",
         "errore",
       ],
     },

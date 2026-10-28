@@ -8,6 +8,7 @@ import { FileExcerpt } from "./FileExcerpt.tsx";
 import { HtmlBlock } from "./HtmlBlock.tsx";
 import { HtmlPlaceholder } from "./HtmlPlaceholder.tsx";
 import { MermaidBlock } from "./MermaidBlock.tsx";
+import { ServiceDiagramBlock } from "./ServiceDiagramBlock.tsx";
 import { useViewerMode } from "./viewerMode.ts";
 
 export function Fence(props: { fence: FenceModel } & SourceNavigation) {
@@ -18,6 +19,15 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
       <MermaidBlock
         source={fence.source}
         annotations={fence.annotations}
+        selectedAnnotation={props.selectedAnnotation}
+        onSelectAnnotation={props.onSelectAnnotation}
+      />
+    );
+  if (fence.kind === "services")
+    return (
+      <ServiceDiagramBlock
+        source={fence.source}
+        parsed={fence.parsed}
         selectedAnnotation={props.selectedAnnotation}
         onSelectAnnotation={props.onSelectAnnotation}
       />

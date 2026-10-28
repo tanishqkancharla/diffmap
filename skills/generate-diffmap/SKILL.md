@@ -38,9 +38,9 @@ Then tell the phase as a story: show the client-facing change (usage snippet, CL
 
 Never end a phase with a task list or checkboxes.
 
-**Diagrams.** Make diagrams a default way to explain specs and walkthroughs, not an optional illustration after the prose. Use `mermaid` fences. Open the solution overview with a diagram of the system and its boundaries. In each phase, put a focused diagram beside the explanation it supports, before the implementation detail. Use diagrams for ownership, dependencies, data shapes and relationships, user journeys, runtime order, control flow, data flow, and state changes.
+**Diagrams.** Make diagrams a default way to explain specs and walkthroughs, not an optional illustration after the prose. Use `mermaid` fences, or `services` for stateful services that send each other events. Open the solution overview with a diagram of the system and its boundaries. In each phase, put a focused diagram beside the explanation it supports, before the implementation detail. Use diagrams for ownership, dependencies, data shapes and relationships, user journeys, runtime order, control flow, data flow, and state changes.
 
-- Pick the view that answers the reader's question: a flowchart for paths or ownership, a sequence for interactions over time, a state diagram for lifecycles, or a relationship graph for data and dependencies.
+- Pick the view that answers the reader's question: a flowchart for paths or ownership, a sequence for interactions over time, a state diagram for lifecycles, or a relationship graph for data and dependencies. When the flow is messages between stateful services, such as a request crossing a server and a database, use a `services` fence so the reader can step through each event and watch state change.
 - When replacing behavior, show **Today** and **Proposed** with matching names and layout so the difference is visible. For added behavior, show the new path and where it joins the existing system.
 - Label nodes and arrows with concrete components, inputs, outputs, and conditions. Show important boundaries and failure paths; link existing source with `%% ref` directives.
 - Keep each diagram focused on one question. Split a large diagram into an overview and local views; do not repeat the same diagram to meet a quota. Call stacks explain function-level data flow, while diagrams explain how the parts fit together. Use both rather than treating one as a substitute for the other.
@@ -185,9 +185,9 @@ Paths are relative to the repo root.
 - In prose, references render as clickable inline code; wrap one in backticks to show the syntax.
 - In Mermaid, `%% ref node:<id> [[reference]]` links a node or participant and `%% ref edge:<index> [[reference]]` an edge or message, counting from zero in declaration order. Use one directive per target, with several references when needed.
 
-Fences: `mermaid` draws a diagram, `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes), and `html` trusted HTML you wrote. Other languages are pseudocode and types.
+Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them, `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes), and `html` trusted HTML you wrote. Other languages are pseudocode and types.
 
 ## Look up the rest
 
 - Full reference and fence syntax → [diffmap README](https://github.com/tanishqkancharla/diffmap#link-call-stacks-to-source-changes)
-- Worked examples → [annotations](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/annotations.md) and [diagrams](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/references.md) fixtures
+- Worked examples → [annotations](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/annotations.md), [diagrams](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/references.md), and [services](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/services.md) fixtures

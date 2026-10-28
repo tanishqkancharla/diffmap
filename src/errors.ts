@@ -20,6 +20,11 @@ export class DiffmapMermaidError extends errore.createTaggedError({
   message: "diffmap could not parse mermaid in $path ($where): $reason",
 }) {}
 
+export class DiffmapServicesError extends errore.createTaggedError({
+  name: "DiffmapServicesError",
+  message: "diffmap could not parse services in $path ($where): $reason",
+}) {}
+
 export class DiffmapParseError extends errore.createTaggedError({
   name: "DiffmapParseError",
   message: "diffmap could not parse markdown",

@@ -4,9 +4,11 @@ import {
   parseDiagramAnnotations,
   type DiagramAnnotation,
 } from "./diagramAnnotations.js";
+import { parseServiceDiagram, type ServicesParse } from "./services.js";
 
 export type Fence =
   | { kind: "mermaid"; source: string; annotations: DiagramAnnotation[] }
+  | { kind: "services"; source: string; parsed: ServicesParse }
   | { kind: "html"; source: string }
   | { kind: "callstack"; source: string; lines: SourceAnnotation[] }
   | { kind: "changes"; rev: Rev; source: string }
@@ -38,6 +40,12 @@ export function parseFence(lang: string, source: string): Fence {
       kind: "mermaid",
       source: trimmed,
       annotations: parseDiagramAnnotations(trimmed),
+    };
+  if (lang === "services")
+    return {
+      kind: "services",
+      source: trimmed,
+      parsed: parseServiceDiagram(trimmed),
     };
   if (lang === "html") return { kind: "html", source: trimmed };
   if (lang === "callstack")

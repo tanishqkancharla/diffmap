@@ -12,10 +12,18 @@ import {
 } from "../viewer/changesSource.ts";
 import { HostFilesContext } from "./files.ts";
 import homeSource from "./home.md?raw";
-import cliSource from "../cli.ts?raw";
 import shareSource from "../share.ts?raw";
-import parseViewerSource from "../parseViewer.ts?raw";
-import githubRouteSource from "../github/route.ts?raw";
+import serveSource from "../serve.ts?raw";
+import gitSource from "../git.ts?raw";
+import fetchRepoSource from "../github/fetchRepo.ts?raw";
+import fenceSource from "../viewer/Fence.tsx?raw";
+import callStackSource from "../viewer/CallStackDiff.tsx?raw";
+import sourceNavigationSource from "../viewer/sourceNavigation.ts?raw";
+import sourceDiffPanelSource from "../viewer/SourceDiffPanel.tsx?raw";
+import viewerAppSource from "../viewer/ViewerApp.tsx?raw";
+import parseFenceSource from "../parseFence.ts?raw";
+import annotationsSource from "../annotations.ts?raw";
+import hostFilesSource from "./files.ts?raw";
 
 let parserReady: Promise<void> | undefined;
 
@@ -25,10 +33,18 @@ function readyHostParser() {
 }
 
 const hostFiles = {
-  "src/cli.ts": cliSource,
   "src/share.ts": shareSource,
-  "src/parseViewer.ts": parseViewerSource,
-  "src/github/route.ts": githubRouteSource,
+  "src/serve.ts": serveSource,
+  "src/git.ts": gitSource,
+  "src/github/fetchRepo.ts": fetchRepoSource,
+  "src/viewer/Fence.tsx": fenceSource,
+  "src/viewer/CallStackDiff.tsx": callStackSource,
+  "src/viewer/sourceNavigation.ts": sourceNavigationSource,
+  "src/viewer/SourceDiffPanel.tsx": sourceDiffPanelSource,
+  "src/viewer/ViewerApp.tsx": viewerAppSource,
+  "src/parseFence.ts": parseFenceSource,
+  "src/annotations.ts": annotationsSource,
+  "src/host/files.ts": hostFilesSource,
 };
 
 /** The homepage walks through diffmap's own commits, read from GitHub. */

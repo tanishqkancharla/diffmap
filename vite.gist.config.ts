@@ -22,6 +22,7 @@ export function gistAppConfig(): UserConfig {
         "purse-styles",
         "@pierre/diffs/react",
         "beautiful-mermaid",
+        "elkjs/lib/elk.bundled.js",
         "errore",
         "md4x/standalone",
       ],

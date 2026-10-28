@@ -6,8 +6,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
-import { DiffmapMermaidError } from "./errors.js";
+import { DiffmapMermaidError, DiffmapServicesError } from "./errors.js";
 import { parseViewerDocument } from "./parseViewer.js";
+import { serviceStateAt } from "./services.js";
 import { shareMarkdownFile } from "./share.js";
 import { startServer } from "./serve.js";
 
@@ -19,6 +20,13 @@ const sampleSpec = path.join(packageRoot, "fixtures", "sample-spec.md");
 
 function brokenMermaidSpec(body = "flwochart TD\n  A --> B") {
   return `# Broken mermaid\n\n\`\`\`mermaid\n${body}\n\`\`\`\n`;
+}
+
+function parseServicesSpec(body: string[]) {
+  return parseViewerDocument(
+    ["# Flow", "", "```services", ...body, "```", ""].join("\n"),
+    "spec.md",
+  );
 }
 
 async function withTempSpec(
@@ -158,6 +166,109 @@ test("parseViewerDocument reads commit references and changes fences", () => {
     ),
     /source-diff:store:src\/store\.ts" fences were removed/,
   );
+});
+
+test("parseViewerDocument reads services, steps, and their references", () => {
+  const document = parseViewerDocument(
+    [
+      "```services",
+      "service API [[src/api.ts]]",
+      "  > Routes requests.",
+      "  service Auth",
+      "    state attempts = 0",
+      "      > Failures since the last success.",
+      "      > Five locks the account.",
+      "service Store",
+      "  state rows = none",
+      "",
+      'step "Verify"',
+      "  API -> Auth: verify(alice) [[src/api.ts#login]]",
+      "    > Sends the password hash.",
+      "  Auth.attempts = 1",
+      "    > One failure so far.",
+      'step "Auth stores the row"',
+      "  Auth -> Store: insert",
+      "  Store.rows = 1 row",
+      "  Auth.attempts = 0",
+      "```",
+      "",
+    ].join("\n"),
+  );
+  assert.equal(document instanceof Error, false);
+  if (document instanceof Error) return;
+  const fence = document.nodes[0];
+  assert.equal(fence?.type === "view" && fence.fence.kind, "services");
+  if (fence?.type !== "view" || fence.fence.kind !== "services") return;
+  assert.equal(fence.fence.parsed.ok, true);
+  if (!fence.fence.parsed.ok) return;
+  const diagram = fence.fence.parsed.diagram;
+  // Dedenting after Auth's state closes both Auth and API.
+  assert.deepEqual(
+    diagram.services.map((service) => [
+      service.name,
+      service.children.map((child) => child.name),
+    ]),
+    [
+      ["API", ["Auth"]],
+      ["Store", []],
+    ],
+  );
+  // A description belongs to the line above it and joins continued lines.
+  assert.equal(diagram.services[0]!.description, "Routes requests.");
+  assert.equal(
+    diagram.services[0]!.children[0]!.state[0]!.description,
+    "Failures since the last success. Five locks the account.",
+  );
+  assert.equal(diagram.steps[0]!.events[0]!.note, "Sends the password hash.");
+  assert.equal(diagram.steps[0]!.updates[0]!.note, "One failure so far.");
+  assert.equal(diagram.steps[1]!.updates[0]!.note, undefined);
+  const at = (step: number) =>
+    Object.fromEntries(
+      [...serviceStateAt(diagram, step)].map(([name, state]) => [
+        name,
+        Object.fromEntries(state),
+      ]),
+    );
+  assert.deepEqual(at(0), {
+    API: {},
+    Auth: { attempts: "0" },
+    Store: { rows: "none" },
+  });
+  assert.deepEqual(at(1), {
+    API: {},
+    Auth: { attempts: "1" },
+    Store: { rows: "none" },
+  });
+  assert.deepEqual(at(2), {
+    API: {},
+    Auth: { attempts: "0" },
+    Store: { rows: "1 row" },
+  });
+  assert.deepEqual(document.references, [
+    { kind: "file", path: "src/api.ts" },
+    { kind: "file", path: "src/api.ts", symbol: "login" },
+  ]);
+});
+
+test("parseViewerDocument fails on services errors with the file line", () => {
+  const unknown = parseServicesSpec([
+    "service API",
+    "",
+    'step "Say hi"',
+    "  API -> Auth: hi",
+  ]);
+  assert.equal(unknown instanceof DiffmapServicesError, true);
+  assert.match(String(unknown), /spec\.md \(line 7\): Unknown service Auth/);
+  const undeclared = parseServicesSpec([
+    "service API",
+    'step "Count"',
+    "  API.count = 1",
+  ]);
+  assert.match(String(undeclared), /line 6\): API has no state count/);
+  const uncaptioned = parseServicesSpec(["service API", "step"]);
+  assert.match(String(uncaptioned), /line 5\): Give the step a caption/);
+  const orphan = parseServicesSpec(["service API", "> Not indented."]);
+  assert.match(String(orphan), /line 5\): Put a > line directly below/);
 });
 
 test("parseViewerDocument fails on broken mermaid with file and diagram", () => {
