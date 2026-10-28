@@ -38,6 +38,10 @@ export default defineConfig(({ command }) => {
     server: {
       port: 0,
       strictPort: false,
+      // Vite turns this on when it detects a coding agent, and its plugin
+      // changes the prebundle hash. Pin it so agent and terminal runs share
+      // one prebundle instead of rebuilding each other's.
+      forwardConsole: false,
     },
   };
 });
