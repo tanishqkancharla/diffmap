@@ -219,6 +219,35 @@ test("parseViewerDocument reads code highlights and trailing notes", () => {
     String(parseViewerDocument("```ts {3}\nconst x = 1;\n```\n")),
     /Highlighted line 3 is outside/,
   );
+  // Call stacks number rows, and a symbol must appear in visible row text.
+  const stack = parseViewerDocument(
+    [
+      "```callstack {2}",
+      " run() [[src/a.ts#run]]",
+      "+└── save(record)",
+      "# [!note save] Writes the record.",
+      "```",
+      "",
+    ].join("\n"),
+  );
+  if (stack instanceof Error) throw stack;
+  const fence =
+    stack.nodes[0]?.type === "view" ? stack.nodes[0].fence : undefined;
+  assert.equal(fence?.kind, "callstack");
+  if (fence?.kind !== "callstack") return;
+  assert.equal(fence.lines.length, 2);
+  assert.deepEqual(fence.highlights, [2]);
+  assert.deepEqual(fence.notes, [
+    { target: { kind: "symbol", symbol: "save" }, text: "Writes the record." },
+  ]);
+  assert.match(
+    String(
+      parseViewerDocument(
+        "```callstack\n run() [[src/a.ts#Store.save]]\n# [!note save] Hidden.\n```\n",
+      ),
+    ),
+    /"save" does not appear/,
+  );
 });
 
 test("parseViewerDocument reads services, steps, and their references", () => {

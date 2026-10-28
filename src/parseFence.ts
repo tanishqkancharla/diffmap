@@ -11,7 +11,15 @@ export type Fence =
   | { kind: "mermaid"; source: string; annotations: DiagramAnnotation[] }
   | { kind: "services"; source: string; parsed: ServicesParse }
   | { kind: "html"; source: string }
-  | { kind: "callstack"; source: string; lines: SourceAnnotation[] }
+  | {
+      kind: "callstack";
+      /** Rows with trailing note lines removed. */
+      source: string;
+      lines: SourceAnnotation[];
+      /** 1-based rows from the info string, as in ```callstack {2}. */
+      highlights: number[];
+      notes: CodeNote[];
+    }
   | { kind: "changes"; rev: Rev; source: string }
   | { kind: "file"; path: string; start: number; end: number; source: string }
   | { kind: "diff"; path: string | undefined; source: string }
@@ -61,12 +69,7 @@ export function parseFence(
       parsed: parseServiceDiagram(trimmed),
     };
   if (lang === "html") return { kind: "html", source: trimmed };
-  if (lang === "callstack")
-    return {
-      kind: "callstack",
-      source: trimmed,
-      lines: parseCallStack(trimmed),
-    };
+  if (lang === "callstack") return callStackFence(trimmed, highlights);
 
   if (lang === "changes") {
     const rev = trimmed.trim();
@@ -90,13 +93,7 @@ export function parseFence(
 
   const diffPath = diffPathPattern.exec(lang);
   if (lang === "diff" || diffPath !== null) {
-    if (isCallStackSource(trimmed)) {
-      return {
-        kind: "callstack",
-        source: trimmed,
-        lines: parseCallStack(trimmed),
-      };
-    }
+    if (isCallStackSource(trimmed)) return callStackFence(trimmed, highlights);
     return {
       kind: "diff",
       path: diffPath === null ? pathFromDiffSource(trimmed) : diffPath[1],
@@ -109,6 +106,17 @@ export function parseFence(
     kind: "code",
     lang: lang.length === 0 ? "text" : lang,
     source: code,
+    highlights,
+    notes,
+  };
+}
+
+function callStackFence(source: string, highlights: number[]): Fence {
+  const { code, notes } = parseCodeNotes(source);
+  return {
+    kind: "callstack",
+    source: code,
+    lines: parseCallStack(code),
     highlights,
     notes,
   };

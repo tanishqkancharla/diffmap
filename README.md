@@ -110,6 +110,11 @@ function requestHandler(record: RecordInput) {
 - A symbol that does not appear, overlapping line notes, or a line number
   outside the fence is a parse error. A note line above other code stays code.
 
+Call stacks take the same highlights and notes, counting rows from the first.
+Write their notes with `#`. A symbol note matches the row text you see, not
+hidden references. Inside a linked row, symbol notes show on hover only; the
+row itself keeps keyboard focus.
+
 Run `npx @tanishqkancharla/diffmap fixtures/code-notes.md` for an example.
 
 ## MDC

@@ -45,13 +45,13 @@ export function parseCodeNotes(source: string) {
   return { code: lines.slice(0, end).join("\n"), notes };
 }
 
-/** Why a code fence's highlights or notes are invalid, or undefined. */
-export function codeFenceProblem(fence: {
-  source: string;
+/** Why a fence's highlights or notes are invalid, or undefined. `lines` is the rendered text of each line or row. */
+export function notesProblem(fence: {
+  lines: string[];
   highlights: number[];
   notes: CodeNote[];
 }) {
-  const lines = fence.source.split("\n");
+  const lines = fence.lines;
   const highlight = fence.highlights.find((n) => n < 1 || n > lines.length);
   if (highlight !== undefined)
     return `Highlighted line ${highlight} is outside the ${lines.length}-line code fence`;

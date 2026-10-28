@@ -8,7 +8,7 @@ import {
   type SourceReference,
 } from "./annotations.js";
 import { isRev, type Rev } from "./changes.js";
-import { codeFenceProblem } from "./codeNotes.js";
+import { notesProblem } from "./codeNotes.js";
 import {
   DiffmapAnnotationError,
   DiffmapParseError,
@@ -98,8 +98,16 @@ export function parseViewerDocument(source: string, path = "spec") {
         reason: `"${fence.lang}" fences were removed. Commit the change, then use a changes fence with the commit SHA and link lines with [[<sha>:path#L12-L30]]`,
       });
     }
-    if (fence.kind === "code") {
-      const problem = codeFenceProblem(fence);
+    if (fence.kind === "code" || fence.kind === "callstack") {
+      const problem = notesProblem({
+        // Call stack symbols must appear in the row text readers see, not in a hidden [[reference]].
+        lines:
+          fence.kind === "code"
+            ? fence.source.split("\n")
+            : fence.lines.map((line) => line.text),
+        highlights: fence.highlights,
+        notes: fence.notes,
+      });
       if (problem !== undefined)
         return new DiffmapAnnotationError({ reason: problem });
       continue;

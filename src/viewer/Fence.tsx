@@ -48,6 +48,8 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
     return (
       <CallStackDiff
         lines={fence.lines}
+        highlights={fence.highlights}
+        notes={fence.notes}
         selectedAnnotation={props.selectedAnnotation}
         onSelectAnnotation={props.onSelectAnnotation}
       />

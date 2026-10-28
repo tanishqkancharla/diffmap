@@ -51,7 +51,9 @@ Never end a phase with a task list or checkboxes.
 - Keep `-` for the original code, `+` for the change, and an unmarked space for unchanged rows. Keep `└──` / `├──` and indentation to show calls inside a function; nest a callee's work beneath its call.
 - Calls with only side effects need no assigned result: `await storage.save(record)` is enough. Show conditions and retries where they affect the flow.
 - Link real functions with source references. In proposals, unlinked helper names are pseudocode, not promises of extra public APIs; state this beside the stack when introducing such helpers.
+- Keep each stack to about 12 rows. For a deeper flow, show one overview stack, then a separate stack for each callee that changes. Collapse unchanged subtrees into one row.
 - Keep `#` comments short enough to read in the viewer. Use them for purpose or a non-obvious effect, not to repeat the call.
+- Highlight the rows that matter with `{3-4}` after `callstack`. When a row needs more than a short comment, explain it with a note at the bottom of the fence, as in [Pseudocode](#shape): `# [!note validateInput] text` or `# [!note L3] text`.
 
 **Pseudocode.** Keep each code fence short and about the behavior the paragraph before it explains: about 12 lines, one function or type per fence. Elide unchanged code with `// ...` and leave out imports, stubs, and types the reader has already seen. Highlight the lines that change with `{2-3}` after the language. Explain with notes at the bottom of the fence instead of long comments, one or two sentences each:
 

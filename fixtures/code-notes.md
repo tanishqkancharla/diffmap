@@ -24,6 +24,19 @@ def save(record):
 # [!note record] The dict the client sent, unchanged.
 ```
 
+Call stacks take the same highlights and notes. Rows count from the first row:
+
+```callstack {3-4}
+ fence = parseFence(lang, source) [[src/parseFence.ts#parseFence]]
+-└── return { kind: "callstack", lines: parseCallStack(source) }
++├── { code, notes } = parseCodeNotes(source) # split off trailing notes [[src/codeNotes.ts#parseCodeNotes]]
++├── lines = parseCallStack(code)
++└── return { kind: "callstack", lines, highlights, notes }
+# [!note parseCodeNotes] Removes note lines from the bottom of the fence.
+# [!note L1] Click a linked row to open its source.
+# [!note L5] `highlights` comes from md4x, which parses `{3-4}` in the info string.
+```
+
 Fences without highlights or notes render as before:
 
 ```sh
