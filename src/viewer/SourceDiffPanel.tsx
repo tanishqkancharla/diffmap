@@ -19,7 +19,7 @@ import {
   type SourceAnnotation,
   type SourceReference,
 } from "../annotations.js";
-import { changedFileItem, type Rev } from "../changes.js";
+import { changedFileItem, orderForReview, type Rev } from "../changes.js";
 import type { SourceDefinition } from "../definitions.js";
 import { useGistPin } from "../gist/pin.ts";
 import { useGitHubPin } from "../github/pin.ts";
@@ -46,6 +46,8 @@ type DefinitionNavigation = {
 export function SourceDiffPanel(props: {
   /** The changes to show; references with their own rev open that rev instead. */
   rev: Rev;
+  /** Paths to show first, in order, as the rev's changes card lists them. */
+  review: string[];
   /** Local viewers pick other changes with the range picker. */
   onRevChange?: (rev: Rev) => void;
   selection: SourceSelection | undefined;
@@ -85,13 +87,14 @@ export function SourceDiffPanel(props: {
   const selection = props.selection;
   const reference = selection?.reference;
   const changes = useChanges(props.rev);
-  const items = useMemo(
-    () =>
-      changes === undefined || changes instanceof Error
-        ? []
-        : changes.files.flatMap((changed) => changedFileItem(changed) ?? []),
-    [changes],
-  );
+  const { review } = props;
+  const items = useMemo(() => {
+    if (changes === undefined || changes instanceof Error) return [];
+    const { reviewed, other } = orderForReview(changes.files, review);
+    return [...reviewed, ...other].flatMap(
+      (changed) => changedFileItem(changed) ?? [],
+    );
+  }, [changes, review]);
   // A rev-less reference resolves against current files; a commit reference names its lines directly.
   const source = useSourceReference(
     reference?.kind === "file" && reference.rev === undefined

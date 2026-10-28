@@ -20,7 +20,13 @@ export type Fence =
       highlights: number[];
       notes: CodeNote[];
     }
-  | { kind: "changes"; rev: Rev; source: string }
+  | {
+      kind: "changes";
+      rev: Rev;
+      /** Paths to review first, in order; other changed files fold away. */
+      review: string[];
+      source: string;
+    }
   | { kind: "file"; path: string; start: number; end: number; source: string }
   | { kind: "diff"; path: string | undefined; source: string }
   | {
@@ -71,11 +77,13 @@ export function parseFence(
   if (lang === "html") return { kind: "html", source: trimmed };
   if (lang === "callstack") return callStackFence(trimmed, highlights);
 
+  // The first line is the rev (blank for uncommitted); each later line is a path to review.
   if (lang === "changes") {
-    const rev = trimmed.trim();
+    const [rev = "", ...paths] = trimmed.split("\n").map((line) => line.trim());
     return {
       kind: "changes",
       rev: rev.length === 0 ? WORKING : rev,
+      review: paths.filter((line) => line.length > 0),
       source: trimmed,
     };
   }

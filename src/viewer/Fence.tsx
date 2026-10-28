@@ -40,6 +40,7 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
     return (
       <ChangesCard
         rev={fence.rev}
+        review={fence.review}
         selectedAnnotation={props.selectedAnnotation}
         onSelectAnnotation={props.onSelectAnnotation}
       />

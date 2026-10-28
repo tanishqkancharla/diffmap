@@ -186,9 +186,17 @@ A `changes` fence shows a commit's files as a card. Each row shows the file name
 and +N −M. **Review** opens the Diff panel on all files; a row focuses that file.
 An empty body (or `working`) means uncommitted changes.
 
+Lines after the rev list the files to review, in order. The card shows those
+first and folds the rest under a dimmed **N other files** row that expands and
+collapses. Review opens the Diff panel in the same order. `serve` and `share`
+fail if a listed file is not changed in that commit. With no list, the card
+shows every file.
+
 ````md
 ```changes
 a1b2c3d
+src/request.ts
+src/validate.ts
 ```
 ````
 

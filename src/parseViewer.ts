@@ -23,9 +23,12 @@ export type ViewerDocument = {
   headings: ViewerHeading[];
   /** Every reference in stacks, diagrams, and prose. */
   references: SourceReference[];
-  /** Revs of `changes` fences, in document order. */
-  changeRevs: Rev[];
+  /** `changes` fences, in document order. */
+  changeCards: ChangeCard[];
 };
+
+/** A `changes` fence's rev and the paths it lists to review first. */
+export type ChangeCard = { rev: Rev; review: string[] };
 
 export type ViewerHeading = {
   level: 1 | 2 | 3 | 4 | 5 | 6;
@@ -91,7 +94,7 @@ export function parseViewerDocument(source: string, path = "spec") {
   if (tree instanceof Error) return tree;
   const nodes = tree.nodes.flatMap((node) => fromNode(node));
   const fences = collectFences(nodes);
-  const changeRevs: Rev[] = [];
+  const changeCards: ChangeCard[] = [];
   for (const fence of fences) {
     if (fence.kind === "code" && fence.lang.startsWith("source-diff")) {
       return new DiffmapAnnotationError({
@@ -118,7 +121,15 @@ export function parseViewerDocument(source: string, path = "spec") {
         reason: `Invalid changes "${fence.rev}". Use a commit SHA, a SHA range (a1b2c3d..e4f5a6b), or leave it empty for uncommitted changes`,
       });
     }
-    changeRevs.push(fence.rev);
+    const duplicate = fence.review.find(
+      (reviewPath, index) => fence.review.indexOf(reviewPath) !== index,
+    );
+    if (duplicate !== undefined) {
+      return new DiffmapAnnotationError({
+        reason: `changes "${fence.rev}" lists ${duplicate} twice. List each file to review once`,
+      });
+    }
+    changeCards.push({ rev: fence.rev, review: fence.review });
   }
   const annotations = [
     ...fences.flatMap((fence) => {
@@ -201,7 +212,7 @@ export function parseViewerDocument(source: string, path = "spec") {
     nodes,
     headings: collectHeadings(nodes),
     references: annotations.flatMap((annotation) => annotation.references),
-    changeRevs,
+    changeCards,
   };
 }
 
@@ -371,11 +382,11 @@ function fromElement(
   }
   if (tag === "mermaid") return fenceView("mermaid", comarkText(children));
   if (tag === "callstack") return fenceView("callstack", comarkText(children));
-  if (tag === "changes")
-    return fenceView(
-      "changes",
-      stringAttr(element, "rev") ?? comarkText(children),
-    );
+  if (tag === "changes") {
+    const rev = stringAttr(element, "rev");
+    const body = comarkText(children);
+    return fenceView("changes", rev === undefined ? body : `${rev}\n${body}`);
+  }
   if (tag === "diff") {
     const path = stringAttr(element, "path");
     const lang = path === undefined ? "diff" : `diff:${path}`;

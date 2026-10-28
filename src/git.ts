@@ -462,10 +462,13 @@ function totals(entries: NumstatEntry[]) {
  */
 export async function readDocumentChanges(
   root: string,
-  document: Pick<ViewerDocument, "references" | "changeRevs">,
+  document: Pick<ViewerDocument, "references" | "changeCards">,
 ): Promise<Map<Rev, Changes> | DiffmapGitError> {
   // Uncommitted revs are read live; only commits are checked and snapshotted.
-  const revs = new Set<Rev>(document.changeRevs.filter(isCommitRev));
+  const commitCards = document.changeCards.filter((card) =>
+    isCommitRev(card.rev),
+  );
+  const revs = new Set<Rev>(commitCards.map((card) => card.rev));
   for (const reference of document.references) {
     if (reference.kind === "changes" || reference.rev !== undefined)
       revs.add(reference.rev!);
@@ -475,6 +478,16 @@ export async function readDocumentChanges(
     const changes = await readChanges(root, rev);
     if (changes instanceof Error) return changes;
     loaded.set(rev, changes);
+  }
+  for (const card of commitCards) {
+    const files = loaded.get(card.rev)!.files;
+    const missing = card.review.find(
+      (reviewPath) => !files.some((file) => file.path === reviewPath),
+    );
+    if (missing !== undefined)
+      return new DiffmapGitError({
+        reason: `changes ${card.rev} lists ${missing} to review, but it is not changed in ${card.rev}.`,
+      });
   }
   for (const reference of document.references) {
     if (reference.kind !== "file" || reference.rev === undefined) continue;

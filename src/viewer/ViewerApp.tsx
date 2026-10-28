@@ -45,7 +45,7 @@ export function ViewerApp(props: {
   const local = props.mode === "local";
   const documentRev =
     props.defaultRev ??
-    viewerDocument.changeRevs[0] ??
+    viewerDocument.changeCards[0]?.rev ??
     viewerDocument.references.find((ref) => ref.rev !== undefined)?.rev ??
     (local ? ALL : WORKING);
   const [panelRev, setPanelRev] = useState(documentRev);
@@ -58,9 +58,14 @@ export function ViewerApp(props: {
   const hasSourceDiffs =
     local ||
     viewerDocument.references.length > 0 ||
-    viewerDocument.changeRevs.length > 0 ||
+    viewerDocument.changeCards.length > 0 ||
     props.defaultRev !== undefined;
   const diffPanelOpen = hasSourceDiffs && showDiffPanel;
+  // The panel lists files in the order the rev's changes card asks them to be reviewed.
+  const panelReview =
+    viewerDocument.changeCards.find(
+      (card) => card.rev === panelRev && card.review.length > 0,
+    )?.review ?? NO_REVIEW;
   const body = useStyles(styles.body);
   const [shutDown, setShutDown] = useState(false);
   const parsedTitle =
@@ -157,6 +162,7 @@ export function ViewerApp(props: {
             {diffPanelOpen && (
               <SourceDiffPanel
                 rev={panelRev}
+                review={panelReview}
                 onRevChange={
                   local
                     ? (rev) => {
@@ -176,6 +182,8 @@ export function ViewerApp(props: {
     </ViewerModeContext.Provider>
   );
 }
+
+const NO_REVIEW: string[] = [];
 
 function useViewerMeta(enabled: boolean) {
   const [meta, setMeta] = useState<ViewerMeta>();

@@ -45,7 +45,7 @@ export async function shareMarkdownFile(input: {
   const changes = await readDocumentChanges(input.workspaceRoot, parsed);
   if (changes instanceof Error) return changes;
   // An uncommitted changes card shows the tree as it is when you share.
-  for (const rev of parsed.changeRevs) {
+  for (const { rev } of parsed.changeCards) {
     if (changes.has(rev)) continue;
     const loaded = await readChanges(input.workspaceRoot, rev);
     if (loaded instanceof Error) return loaded;

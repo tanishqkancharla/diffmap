@@ -150,7 +150,7 @@ function validateInput(record: RecordInput) {
 Before starting the next phase:
 
 1. Commit the code, then commit the spec update separately, since the spec names the code commit's SHA.
-2. Add a `changes` fence with that SHA right after Today and Proposed. It renders the phase's summary card.
+2. Add a `changes` fence with that SHA right after Today and Proposed. It renders the phase's summary card. Under the SHA, list the files a reviewer should read, one path per line, in the order to read them: usually the client-facing entry point first, then down the layers. Leave out files that need no thought, such as lockfiles, generated code, snapshots, fixtures, and mechanical renames; the card folds them under "N other files".
 3. Point every reference the phase changed at the commit: stack rows, `%% ref` directives, and prose.
 4. Update diagrams, call stacks, and pseudocode to match what was built, and mark the heading ✅.
 5. Restart `serve`; it checks commit references at startup.
@@ -160,6 +160,8 @@ The example phase then has:
 ````md
 ```changes
 a1b2c3d
+src/request.ts
+src/validate.ts
 ```
 
 ```callstack
@@ -185,7 +187,7 @@ Paths are relative to the repo root.
 - In prose, references render as clickable inline code; wrap one in backticks to show the syntax.
 - In Mermaid, `%% ref node:<id> [[reference]]` links a node or participant and `%% ref edge:<index> [[reference]]` an edge or message, counting from zero in declaration order. Use one directive per target, with several references when needed.
 
-Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them, `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes), and `html` trusted HTML you wrote. Other languages are pseudocode and types, with optional `{…}` highlights and `[!note …]` lines.
+Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them, `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes) with the files to review listed under it, and `html` trusted HTML you wrote. Other languages are pseudocode and types, with optional `{…}` highlights and `[!note …]` lines.
 
 ## Look up the rest
 

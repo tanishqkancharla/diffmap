@@ -140,13 +140,30 @@ test("parseViewerDocument reads commit references and changes fences", () => {
       "```changes",
       "```",
       "",
+      "```changes",
+      "a1b2c3d",
+      "src/store.ts",
+      "  src/request.ts  ",
+      "```",
+      "",
+      "```changes",
+      "",
+      "src/store.ts",
+      "```",
+      "",
       "See [[a1b2c3d:src/store.ts#L12-L30]] and [[src/store.ts#L3]].",
       "",
     ].join("\n"),
   );
   assert.equal(document instanceof Error, false);
   if (document instanceof Error) return;
-  assert.deepEqual(document.changeRevs, ["a1b2c3d..e4f5a6b", "working"]);
+  // Lines after the rev list files to review in order; a blank rev is uncommitted.
+  assert.deepEqual(document.changeCards, [
+    { rev: "a1b2c3d..e4f5a6b", review: [] },
+    { rev: "working", review: [] },
+    { rev: "a1b2c3d", review: ["src/store.ts", "src/request.ts"] },
+    { rev: "working", review: ["src/store.ts"] },
+  ]);
   assert.deepEqual(document.references, [
     { kind: "file", rev: "a1b2c3d", path: "src/store.ts", start: 12, end: 30 },
     { kind: "file", path: "src/store.ts", start: 3, end: 3 },
@@ -160,6 +177,10 @@ test("parseViewerDocument reads commit references and changes fences", () => {
   assert.equal(
     parseViewerDocument("```changes\nmain\n```\n") instanceof Error,
     true,
+  );
+  assert.match(
+    String(parseViewerDocument("```changes\na1b2c3d\na.ts\na.ts\n```\n")),
+    /lists a\.ts twice/,
   );
   // The removed patch fence fails instead of rendering as code.
   assert.match(

@@ -1,6 +1,9 @@
+import { useId, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   backgroundColor,
   borderColor,
+  ChevronRight,
   colors,
   Css,
   File,
@@ -8,12 +11,15 @@ import {
   FileText,
   focusRing,
   GitBranch,
+  motionDurationMs,
+  motionEasing,
   text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
-import type { SourceAnnotation, SourceNavigation } from "../annotations.js";
+import type { SourceNavigation } from "../annotations.js";
 import {
   isCommitRev,
+  orderForReview,
   shortRev,
   WORKING,
   type ChangedFile,
@@ -24,19 +30,32 @@ import { codeFontFamily } from "../codeFont.js";
 import { useChanges } from "./changesSource.ts";
 import { pierreShell } from "./pierre.js";
 
-/** A phase's file summary. Review opens every file; a row focuses one. */
-export function ChangesCard(props: { rev: Rev } & SourceNavigation) {
+/**
+ * A phase's file summary. Review opens every file; a row focuses one. Files
+ * the fence lists come first, in its order; the rest fold under a dimmed
+ * "N other files" section.
+ */
+export function ChangesCard(
+  props: { rev: Rev; review: string[] } & SourceNavigation,
+) {
   const changes = useChanges(props.rev);
+  const [showOther, setShowOther] = useState(false);
+  const otherId = useId();
+  const reducedMotion = useReducedMotion();
   const shell = useStyles(pierreShell, styles.shell);
   const header = useStyles(styles.header);
-  const row = useStyles(styles.row);
   const review = useStyles(styles.review);
   const muted = useStyles(styles.muted);
   const range = useStyles(styles.range);
-  const open = (annotation: SourceAnnotation) =>
-    props.onSelectAnnotation(annotation);
+  const toggle = useStyles(styles.row, styles.toggle);
   const files =
     changes === undefined || changes instanceof Error ? [] : changes.files;
+  const { reviewed, other } = orderForReview(files, props.review);
+  const rowProps = {
+    rev: props.rev,
+    selectedAnnotation: props.selectedAnnotation,
+    onSelectAnnotation: props.onSelectAnnotation,
+  };
   return (
     <div className={shell} data-diffmap-kind="changes">
       <div className={header}>
@@ -55,7 +74,7 @@ export function ChangesCard(props: { rev: Rev } & SourceNavigation) {
             className={review}
             aria-controls="source-diff-panel"
             onClick={() =>
-              open({
+              props.onSelectAnnotation({
                 text: "Review",
                 references: [{ kind: "changes", rev: props.rev }],
               })
@@ -65,42 +84,92 @@ export function ChangesCard(props: { rev: Rev } & SourceNavigation) {
           </button>
         )}
       </div>
-      {files.map((file) => {
-        const annotation: SourceAnnotation = {
-          text: file.path,
-          references: [
-            props.rev === WORKING
-              ? { kind: "file", path: file.path }
-              : { kind: "file", rev: props.rev, path: file.path },
-          ],
-        };
-        return (
+      {reviewed.map((file) => (
+        <FileRow key={file.path} file={file} {...rowProps} />
+      ))}
+      {other.length > 0 && (
+        <>
           <button
-            key={file.path}
             type="button"
-            className={row}
-            title={file.path}
-            aria-controls="source-diff-panel"
-            aria-pressed={
-              props.selectedAnnotation?.text === file.path &&
-              props.selectedAnnotation.references[0]?.kind === "file" &&
-              props.selectedAnnotation.references[0].rev ===
-                annotation.references[0]!.rev
-            }
-            onClick={() => open(annotation)}
+            className={toggle}
+            aria-expanded={showOther}
+            aria-controls={otherId}
+            onClick={() => setShowOther((shown) => !shown)}
           >
-            <FileIcon path={file.path} />
+            <ChevronRight size="sm" />
             <span className="name">
-              {file.path.split("/").pop()}
-              {file.status === "deleted" && (
-                <span className={muted}> deleted</span>
-              )}
+              {other.length} other {other.length === 1 ? "file" : "files"}
             </span>
-            <DiffStat file={file} />
+            <DiffStat
+              additions={other.reduce((sum, file) => sum + file.additions, 0)}
+              deletions={other.reduce((sum, file) => sum + file.deletions, 0)}
+              binary={false}
+            />
           </button>
-        );
-      })}
+          <AnimatePresence initial={false}>
+            {showOther && (
+              <motion.div
+                key="other"
+                id={otherId}
+                role="group"
+                aria-label="Other files"
+                style={{ overflow: "hidden" }}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={
+                  reducedMotion === true
+                    ? { duration: 0 }
+                    : { type: "spring", visualDuration: 0.22, bounce: 0 }
+                }
+              >
+                {other.map((file) => (
+                  <FileRow key={file.path} file={file} dimmed {...rowProps} />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      )}
     </div>
+  );
+}
+
+/** One changed file; selecting it opens that file in the Diff panel. */
+function FileRow(
+  props: { rev: Rev; file: ChangedFile; dimmed?: boolean } & SourceNavigation,
+) {
+  const row = useStyles(styles.row);
+  const muted = useStyles(styles.muted);
+  const { file, rev } = props;
+  const reference =
+    rev === WORKING
+      ? { kind: "file" as const, path: file.path }
+      : { kind: "file" as const, rev, path: file.path };
+  const selected = props.selectedAnnotation?.references[0];
+  return (
+    <button
+      type="button"
+      className={row}
+      title={file.path}
+      data-dimmed={props.dimmed === true}
+      aria-controls="source-diff-panel"
+      aria-pressed={
+        props.selectedAnnotation?.text === file.path &&
+        selected?.kind === "file" &&
+        selected.rev === reference.rev
+      }
+      onClick={() =>
+        props.onSelectAnnotation({ text: file.path, references: [reference] })
+      }
+    >
+      <FileIcon path={file.path} />
+      <span className="name">
+        {file.path.split("/").pop()}
+        {file.status === "deleted" && <span className={muted}> deleted</span>}
+      </span>
+      <DiffStat {...file} />
+    </button>
   );
 }
 
@@ -140,15 +209,15 @@ function revLabel(rev: Rev, changes: Changes | Error | undefined) {
   return shortRev(rev).replace("..", "…");
 }
 
-function DiffStat(props: { file: ChangedFile }) {
-  if (props.file.binary) return <span className="stat">binary</span>;
+function DiffStat(
+  props: Pick<ChangedFile, "additions" | "deletions" | "binary">,
+) {
+  if (props.binary) return <span className="stat">binary</span>;
   return (
     <span className="stat">
-      {props.file.additions > 0 && (
-        <span className="added">+{props.file.additions}</span>
-      )}
-      {props.file.deletions > 0 && (
-        <span className="removed">−{props.file.deletions}</span>
+      {props.additions > 0 && <span className="added">+{props.additions}</span>}
+      {props.deletions > 0 && (
+        <span className="removed">−{props.deletions}</span>
       )}
     </span>
   );
@@ -260,8 +329,29 @@ const styles = {
       "&[aria-pressed='true'], &[aria-pressed='true']:hover": {
         backgroundColor: colors.blue[3],
       },
+      // Files outside the review list recede until you point at or pick one.
+      "&[data-dimmed='true'] > *": {
+        opacity: 0.5,
+        transition: `opacity ${String(motionDurationMs)}ms ${motionEasing}`,
+      },
+      "&[data-dimmed='true']:is(:hover, :focus-visible, [aria-pressed='true']) > *":
+        { opacity: 1 },
     },
     focusRing(),
   ),
+  // A quiet footer row: the chevron sits in the icon column, so the count lines up with file names.
+  toggle: style({
+    color: colors.gray[11],
+    borderTop: `1px solid ${borderColor.border}`,
+    "& > svg": { transition: "transform 150ms ease-out" },
+    "&[aria-expanded='true'] > svg": { transform: "rotate(90deg)" },
+    // The total stat steps aside once the files show their own.
+    "& > .stat": {
+      opacity: 0.7,
+      transition: `opacity ${String(motionDurationMs)}ms ${motionEasing}`,
+    },
+    "&[aria-expanded='true'] > .stat": { opacity: 0 },
+    "&:hover": { color: colors.gray[12] },
+  }),
   muted: style({ color: colors.gray[11] }),
 };
