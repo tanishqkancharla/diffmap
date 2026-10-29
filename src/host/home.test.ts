@@ -37,6 +37,17 @@ test("homepage markdown is a real viewer document", async () => {
   const mermaid = fences.find((fence) => fence.kind === "mermaid");
   assert.notEqual(mermaid, undefined);
   if (mermaid?.kind !== "mermaid") return;
+  // The homepage shows diagram diffs, not only call stack diffs.
+  assert.notEqual(mermaid.sides, undefined);
+  assert.equal(
+    fences.some(
+      (fence) =>
+        fence.kind === "services" &&
+        fence.parsed.ok &&
+        fence.parsed.diagram.diff,
+    ),
+    true,
+  );
   assert.equal(
     mermaid.annotations.some((link) =>
       link.annotation.references.some((ref) => ref.kind === "file"),

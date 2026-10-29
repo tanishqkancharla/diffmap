@@ -190,7 +190,6 @@ const styles = {
     "& .line-note": {
       display: "block",
       position: "relative",
-      cursor: "help",
       outline: "none",
     },
     "& .line-note::before": lineNoteDot,

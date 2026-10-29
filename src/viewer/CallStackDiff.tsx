@@ -128,9 +128,8 @@ const rowSize = defineVars({
 });
 
 const styles = {
-  // Sized like Maui's code block, so stacks and code read as one family.
+  // Sized like Maui's code block, but in the proportional UI font.
   shell: style(text({ size: "xs", fontWeight: 400, color: "highContrast" }), {
-    fontFamily: codeFontFamily,
     margin: 0,
     paddingBlock: "8px",
     overflowX: "hidden",
@@ -172,7 +171,6 @@ const styles = {
         backgroundColor: colors.red[5],
         boxShadow: `inset 3px 0 ${colors.red[9]}`,
       },
-      "&[data-note]": { cursor: "help" },
       // The sign fills the row gutter, so the dot follows the label instead.
       "&[data-note='start'] .stack-label::after": {
         content: '""',

@@ -2,8 +2,8 @@ import { parseAnnotation, type SourceAnnotation } from "./annotations.js";
 
 /**
  * A `services` fence: services that hold state, nest sub-services, and send
- * each other events. Steps replay the events in order. Every event in a step
- * is in flight at once; the step's state updates land when they arrive.
+ * each other events. Steps replay the events in order. A step's events travel
+ * one after another; its state updates land when the last one arrives.
  */
 export type ServiceDiagram = {
   services: Service[];

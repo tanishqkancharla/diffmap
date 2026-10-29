@@ -54,7 +54,7 @@ Today, sessions live in an in-memory cache inside the API. The proposed flow dro
 +  state sessions = 0 rows
 
  start "Sessions move from memory to Postgres"
-   > Alice is signed out, and no session exists yet.
+   > Alice logs in, and the API stores her session. Today it lives in an in-memory cache and is lost on restart; after the change, Sessions writes it to Postgres.
 
  step "Alice submits the login form"
    Browser -> API: POST /login

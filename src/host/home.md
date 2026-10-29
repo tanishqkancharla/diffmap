@@ -30,70 +30,57 @@ Your agent selects the best diagram for each idea. Each part of the diagram has 
 
 A service diagram shows each service and its state. Each step shows one event and the state that the event changes. Thus, you do not have to remember the state.
 
-To see how `diffmap serve` opens a spec, press **Play**. To read about a name with a dotted line, put the pointer on the name:
+A service diagram can also show a change. Red parts exist only today, and green parts are new. As you step, each value shows today's state crossed out next to the new state.
 
-```services
-service Laptop
-  > This is your computer. diffmap serve reads files here and does not upload them.
-  service Agent "coding agent"
-    > The agent writes the spec and runs diffmap for you.
-  service CLI "diffmap serve" [[src/serve.ts#startServer]]
-    > This small server uses git to read your repository.
-    state url = none
-  service Repo "your repository"
-    > The repository contains the spec and the commits that the spec refers to.
-service Browser
-  service Page "the spec" [[src/viewer/ViewerApp.tsx#ViewerApp]]
-    state page = empty
-  service Panel "Diff panel" [[src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
-    > The Diff panel opens next to the spec. It shows the code for the link that you clicked.
-    state shows = none
+This change moves login sessions from memory to a database. Press **Play** to step through it:
 
-start "diffmap serve opens a spec in your browser"
-  > The agent has written the spec, but nothing serves it yet.
+```services diff
+ service Browser "login page"
+   state cookie = none
+ service API "HTTP server"
+-  service Cache "in-memory sessions"
+-    state sessions = 0
++  service Sessions
+ service Postgres
+-  state sessions = not used
++  state sessions = 0 rows
 
-step "The agent serves the spec"
-  > Your agent runs diffmap serve with the path of the spec.
-  Agent -> CLI: serve specs/search.md
-step "serve examines each commit in the spec"
-  > Before the server starts, it uses git to read each commit and line range that the spec refers to.
-  CLI -> Repo: readDocumentChanges [[src/git.ts#readDocumentChanges]]
-    > If a SHA or a line range is wrong, the command stops here. Thus, the page has no broken links.
-step "serve prints a URL for you"
-  > The server starts on your computer and gives the agent a local URL.
-  CLI -> Agent: localhost URL
-  CLI.url = localhost:4321
-step "You open the page"
-  > Your browser gets the spec from the server and shows it as a page.
-  Page -> CLI: GET /
-  CLI -> Page: spec
-  Page.page = rendered
-step "You click a call stack row"
-  > The Diff panel asks the server for the code that the row refers to.
-  Panel -> CLI: /__diffmap/source
-  CLI -> Repo: git show
-    > The server reads the file from the commit in the row, not from the working tree.
-step "The Diff panel shows the code"
-  > The server sends the lines, and the Diff panel shows them next to the spec.
-  CLI -> Panel: lines
-  Panel.shows = code
+ start "Sessions move from memory to Postgres"
+   > Alice logs in, and the API stores her session. Today it keeps the session in memory, so a server restart signs her out. After the change, Sessions writes it to Postgres, where it survives a restart.
+
+ step "Alice logs in"
+   Browser -> API: POST /login
+-step "The API keeps the session in memory"
+   API -> Cache: create(alice)
+   Cache.sessions = 1
+     > The server loses this when it restarts.
++step "Sessions writes the session to Postgres"
+   API -> Sessions: create(alice)
+   Sessions -> Postgres: INSERT s_81f
+   Postgres.sessions = 1 row
+     > The row survives a restart.
+ step "The API sets the session cookie"
+   API -> Browser: 200 Set-Cookie
+   Browser.cookie = sid=s_81f
 ```
 
 ### Mermaid diagrams
 
-The page shows Mermaid diagrams. Each node and each arrow can have a link to its code. This diagram shows what occurs when you click a link:
+The page shows Mermaid diagrams. Each node and each arrow can have a link to its code. A diagram can show a change in one picture: green parts are new, and red parts are removed.
 
-```mermaid
-flowchart LR
-  Click[Click a link] --> Find[useSourceReference]
-  Find -->|diffmap serve| Local[Read the repo with git]
-  Find -->|diffmap.dev| GitHub[fetchPinnedBlob]
-  Local --> Panel[SourceDiffPanel]
-  GitHub --> Panel
-  %% ref node:Find [[src/viewer/sourceNavigation.ts#useSourceReference]]
-  %% ref node:GitHub [[src/github/fetchRepo.ts#fetchPinnedBlob]]
-  %% ref node:Panel [[src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
-  %% ref edge:1 [[src/viewer/sourceNavigation.ts#requestSource]]
+This diagram shows what occurs when you click a link, and what changed when diffmap.dev began to read code from GitHub:
+
+```mermaid diff [diffmap.dev reads linked code from GitHub]
+ flowchart LR
+   Click[Click a link] --> Find[useSourceReference]
+   Find -->|diffmap serve| Local[Read the repo with git]
++  Find -->|diffmap.dev| GitHub[fetchPinnedBlob]
+   Local --> Panel[SourceDiffPanel]
++  GitHub --> Panel
+   %% ref node:Find [[src/viewer/sourceNavigation.ts#useSourceReference]]
+   %% ref node:GitHub [[src/github/fetchRepo.ts#fetchPinnedBlob]]
+   %% ref node:Panel [[src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
+   %% ref edge:1 [[src/viewer/sourceNavigation.ts#requestSource]]
 ```
 
 ### Call stacks

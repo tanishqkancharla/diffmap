@@ -92,14 +92,15 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
   const goTo = (target: number, animate: boolean) =>
     setPosition(positionFor(diagram, target, animate && !reduceMotion));
 
+  // Events travel one after another, so the step settles when the last lands.
   useEffect(() => {
     if (position.phase !== "travel") return;
     const timer = setTimeout(
       () => setPosition({ step: position.step, phase: "settled" }),
-      TRAVEL_MS,
+      TRAVEL_MS * (diagram.steps[position.step - 1]?.events.length ?? 1),
     );
     return () => clearTimeout(timer);
-  }, [position]);
+  }, [position, diagram]);
 
   useEffect(() => {
     if (!playing || position.phase !== "settled") return;

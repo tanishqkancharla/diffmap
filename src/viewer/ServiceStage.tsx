@@ -536,22 +536,27 @@ function EventMarks(
   const label = props.event.label === "" ? undefined : pillText(props.event);
   const lengths = cumulativeLengths(props.points);
   const total = lengths.at(-1)! || 1;
+  // A step's events leave in order, each when the one before it arrives.
+  const delay = props.phase === "travel" ? (props.index * TRAVEL_MS) / 1000 : 0;
   return (
     <>
       {props.phase === "travel" && (
         <motion.div
           className={packet}
           data-change={props.event.sign}
-          initial={{ x: props.points[0]!.x, y: props.points[0]!.y }}
+          initial={{ x: props.points[0]!.x, y: props.points[0]!.y, opacity: 0 }}
           animate={{
             x: props.points.map((point) => point.x),
             y: props.points.map((point) => point.y),
+            opacity: 1,
           }}
           // Even speed along every segment of the route.
           transition={{
+            delay,
             duration: TRAVEL_MS / 1000,
             ease: "easeInOut",
             times: lengths.map((length) => length / total),
+            opacity: { delay, duration: 0 },
           }}
         />
       )}
@@ -563,6 +568,7 @@ function EventMarks(
           data-event-label={props.index}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          transition={{ delay }}
         >
           {label !== undefined &&
             (annotation === undefined ? (
@@ -911,7 +917,6 @@ const described = {
     textDecorationStyle: "dotted" as const,
     textDecorationColor: colors.gray[8],
     textUnderlineOffset: "3px",
-    cursor: "help",
   },
 };
 
@@ -1002,7 +1007,7 @@ const styles = {
     focusRing(),
     {
       minWidth: 0,
-      "& > [data-described]": described["&[data-described='true']"],
+      "& > [data-described='true']": described["&[data-described='true']"],
     },
   ),
   headerButton: style({

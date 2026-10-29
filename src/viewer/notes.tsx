@@ -105,7 +105,6 @@ export function NoteText(props: { text: string }) {
 
 const symbolNoteClass = style(focusRing(), {
   borderRadius: "3px",
-  cursor: "help",
   textDecorationLine: "underline",
   textDecorationStyle: "dotted",
   textDecorationColor: colors.gray[9],

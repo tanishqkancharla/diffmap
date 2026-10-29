@@ -258,7 +258,7 @@ service API "HTTP server" [[src/api.ts]]
       > Failures since the last success. Five locks the account.
 
 start "Alice logs in"
-  > She is signed out.
+  > The API checks her password with Auth, then sets a session cookie.
 step "The browser submits the form"
   Browser -> API: POST /login
 step "The API asks Auth to verify"
@@ -279,13 +279,13 @@ step "The API sets the session cookie"
 - `start "caption"` at column 0, before the first step, captions the whole
   diagram, such as `start "Alice logs in"`. It shows above the diagram until
   the reader steps, and each step's caption replaces it. A `>` line under it
-  can say what the initial state shows. A `services` fence takes no `[Title]`;
-  the start caption is its title.
+  gives an overview of the whole process. A `services` fence takes no
+  `[Title]`; the start caption is its title.
 - `step "caption"` starts a step at column 0. The caption is required: a
   sentence that says what happens, shown under the controls. Indented lines
   under it are `From -> To: label` events and `Service.key = value` updates.
-  Every event in a step travels at once, and the updates land when the events
-  arrive.
+  A step's events travel one after another, in the order written, and the
+  updates land when the last one arrives.
 - A `>` line adds text to the line above it. Indent it further than that line;
   consecutive `>` lines join.
   - Under a service or state, it is a description: the name gets a dotted

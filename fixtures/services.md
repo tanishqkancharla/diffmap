@@ -2,7 +2,7 @@
 
 A `services` fence declares services, their state, and their sub-services, then replays the events they send each other one step at a time. Press **Play**, or step with the arrow buttons or ← and →. Click a segment in the progress bar to jump to a step.
 
-Every event in a step travels at once. The step's state updates land when the events arrive, and the changed values stay highlighted until the next step. A step can put notes beside its events and changed state to explain them. Service names and state keys with a dotted underline have a description; hover or focus them to read it.
+A step's events travel one after another, in the order written. The step's state updates land when the last one arrives, and the changed values stay highlighted until the next step. A step can put notes beside its events and changed state to explain them. Service names and state keys with a dotted underline have a description; hover or focus them to read it.
 
 ```text
 %% A service with an optional label and reference
@@ -16,8 +16,8 @@ service API "HTTP server" [[src/serve.ts]]
 
 %% A caption for the whole diagram, shown above it before the first step
 start "API checks every request with Auth"
-  %% Optional: what the reader sees in the initial state
-  > No requests have arrived yet.
+  %% Optional: an overview of the whole process, shown under the caption
+  > A request reaches API, which asks Auth to verify it before any handler runs.
 
 %% A step, with a caption that says what happens
 step "API asks Auth to verify"
@@ -61,7 +61,7 @@ service Postgres
     > Rows in the sessions table.
 
 start "Alice logs in"
-  > She is signed out, and Postgres already stores her password hash.
+  > Auth checks her password against the hash in Postgres, Sessions stores a new session, and the API returns it to the browser as a cookie.
 
 step "Alice submits the login form"
   Browser -> API: POST /login
@@ -114,7 +114,7 @@ service BobTab "Bob's browser"
   state likes = 41
 
 start "A like reaches every open tab"
-  > Alice and Bob both see 41 likes.
+  > Alice's tab shows her like right away. The API saves it, confirms to Alice, and the Hub pushes the new count to Bob's tab.
 
 step "Alice clicks Like, and her tab updates right away"
   AliceTab.liked = true
