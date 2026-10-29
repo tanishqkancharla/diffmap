@@ -20,10 +20,6 @@ npx skills add tanishqkancharla/diffmap --skill generate-diffmap
 
 After you install the skill, your agent can write a spec each time that you ask. The agent saves each spec in `specs/<name>.md` and serves it on your computer. The agent can also share the spec as a link, as with this page.
 
-The remaining part of this page is a spec about `diffmap`. Each section uses the feature that it describes.
-
-To open the code for an item, click a call stack row, a diagram node, or an item with ↗.
-
 ## See the main ideas
 
 Your agent selects the best diagram for each idea. Each part of the diagram has a link to its code.
@@ -52,22 +48,28 @@ service Browser
     state shows = none
 
 step "The agent serves the spec"
+  > Your agent runs diffmap serve with the path of the spec.
   Agent -> CLI: serve specs/search.md
 step "serve examines each commit in the spec"
+  > Before the server starts, it uses git to read each commit and line range that the spec refers to.
   CLI -> Repo: readDocumentChanges [[src/git.ts#readDocumentChanges]]
     > If a SHA or a line range is wrong, the command stops here. Thus, the page has no broken links.
 step "serve prints a URL for you"
+  > The server starts on your computer and gives the agent a local URL.
   CLI -> Agent: localhost URL
   CLI.url = localhost:4321
 step "You open the page"
+  > Your browser gets the spec from the server and shows it as a page.
   Page -> CLI: GET /
   CLI -> Page: spec
   Page.page = rendered
 step "You click a call stack row"
+  > The Diff panel asks the server for the code that the row refers to.
   Panel -> CLI: /__diffmap/source
   CLI -> Repo: git show
     > The server reads the file from the commit in the row, not from the working tree.
 step "The Diff panel shows the code"
+  > The server sends the lines, and the Diff panel shows them next to the spec.
   CLI -> Panel: lines
   Panel.shows = code
 ```
