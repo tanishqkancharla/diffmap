@@ -12,9 +12,17 @@ export function extractTitle(source: string) {
 export function extractFences(source: string) {
   const fences: Fence[] = [];
   for (const match of source.matchAll(fencePattern)) {
-    const lang = match[1] ?? "";
+    const lang = (match[1] ?? "").trim();
     const body = match[2] ?? "";
-    fences.push(parseFence(lang.trim(), body));
+    // A diagram's info string can add `diff`, and Mermaid a [Title].
+    const diagram = /^(mermaid|services)\b\s*(diff)?\s*(?:\[([^\]]*)\])?$/.exec(
+      lang,
+    );
+    fences.push(
+      diagram === null
+        ? parseFence(lang, body)
+        : parseFence(diagram[1]!, body, [], diagram[3], diagram[2]),
+    );
   }
   return fences;
 }

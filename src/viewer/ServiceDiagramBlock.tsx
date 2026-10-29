@@ -9,8 +9,6 @@ import {
   RotateAntiClockwise,
   Text,
   Tooltip,
-  backgroundColor,
-  borderColor,
   colors,
   flex,
   focusRing,
@@ -20,6 +18,7 @@ import {
 } from "maui";
 import { style, useStyles } from "purse-styles";
 import type { SourceNavigation } from "../annotations.js";
+import { fenceTitle, pierreShell } from "./pierre.js";
 import { ServiceStage, TRAVEL_MS } from "./ServiceStage.tsx";
 import {
   serviceStateAt,
@@ -29,10 +28,16 @@ import {
 
 const DWELL_MS = 1200;
 
+/** Names a diff step's side before its caption. */
+const signLabel = { "+": "Added: ", "-": "Removed: ", " ": "" } as const;
+
 type Phase = "travel" | "settled";
 
 export function ServiceDiagramBlock(
-  props: { source: string; parsed: ServicesParse } & SourceNavigation,
+  props: {
+    source: string;
+    parsed: ServicesParse;
+  } & SourceNavigation,
 ) {
   const error = useStyles(styles.error);
   if (!props.parsed.ok)
@@ -62,13 +67,16 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
   const [playing, setPlaying] = useState(false);
   const states = useMemo(
     () =>
-      Array.from({ length: last + 1 }, (_, step) =>
-        serviceStateAt(diagram, step),
-      ),
+      Array.from({ length: last + 1 }, (_, step) => ({
+        today: serviceStateAt(diagram, step, "today"),
+        proposed: serviceStateAt(diagram, step, "proposed"),
+      })),
     [diagram, last],
   );
   const step = position.step;
   const current = step === 0 ? undefined : diagram.steps[step - 1]!;
+  // Before step 1, the author's start caption, if any, explains the state.
+  const captioned = current ?? diagram.start;
   const settled = position.phase === "settled";
   // In flight, the events have not landed, so show the previous state.
   const shownState = states[settled ? step : step - 1]!;
@@ -130,33 +138,51 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
     }
   };
 
-  const frame = useStyles(styles.frame);
+  const frame = useStyles(pierreShell, styles.frame);
+  const body = useStyles(styles.body);
   const controls = useStyles(styles.controls);
   const scrubber = useStyles(styles.scrubber);
   const segment = useStyles(styles.segment);
-  const detail = useStyles(styles.detail);
+  const detail = useStyles(fenceTitle, styles.detail);
   const counter = useStyles(styles.counter);
 
   return (
-    <div
+    <figure
       className={frame}
       data-diffmap-kind="services"
       // Capture: Maui's Button stops arrow keys from bubbling.
       onKeyDownCapture={onKeyDown}
     >
-      <ServiceStage
-        {...props}
-        state={shownState}
-        previousState={states[Math.max(step - 1, 0)]!}
-        changed={changed}
-        active={active}
-        events={current?.events ?? []}
-        updates={current?.updates ?? []}
-        phase={position.phase}
-        stepKey={step}
-      />
-      {last > 0 && (
-        <>
+      {/* The caption leads: before step 1 it is the start caption, which
+          captions the whole diagram. */}
+      {(captioned !== undefined || last > 0) && (
+        <figcaption className={detail} aria-live="polite">
+          {captioned !== undefined && (
+            <Text size="sm" fontWeight={500}>
+              {current !== undefined && current.sign !== " " && (
+                <Text
+                  size="sm"
+                  fontWeight={600}
+                  style={{
+                    color:
+                      current.sign === "+" ? colors.green[11] : colors.red[11],
+                  }}
+                >
+                  {signLabel[current.sign]}
+                </Text>
+              )}
+              {captioned.caption}
+            </Text>
+          )}
+          {captioned?.description !== undefined && (
+            <Text size="xs" color="lowContrast">
+              {captioned.description}
+            </Text>
+          )}
+        </figcaption>
+      )}
+      <div className={body}>
+        {last > 0 && (
           <div className={controls}>
             <Tooltip content="Restart" placement="top">
               <Button
@@ -221,6 +247,7 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
                   <button
                     type="button"
                     className={segment}
+                    data-change={entry.sign}
                     data-state={
                       index + 1 === step
                         ? "current"
@@ -228,7 +255,7 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
                           ? "done"
                           : "todo"
                     }
-                    aria-label={`Step ${index + 1}: ${entry.caption}`}
+                    aria-label={`Step ${index + 1}: ${signLabel[entry.sign]}${entry.caption}`}
                     aria-current={index + 1 === step ? "step" : undefined}
                     onClick={() => {
                       setPlaying(false);
@@ -242,24 +269,20 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
               {step} / {last}
             </Text>
           </div>
-          <div className={detail} aria-live="polite">
-            <Text size="sm" fontWeight={500}>
-              {current?.caption ?? "Start"}
-            </Text>
-            {current === undefined && (
-              <Text size="xs" color="lowContrast">
-                Initial state. Press Play, or step with ← and →.
-              </Text>
-            )}
-            {current?.description !== undefined && (
-              <Text size="xs" color="lowContrast">
-                {current.description}
-              </Text>
-            )}
-          </div>
-        </>
-      )}
-    </div>
+        )}
+        <ServiceStage
+          {...props}
+          state={shownState}
+          previousState={states[Math.max(step - 1, 0)]!}
+          changed={changed}
+          active={active}
+          events={current?.events ?? []}
+          updates={current?.updates ?? []}
+          phase={position.phase}
+          stepKey={step}
+        />
+      </div>
+    </figure>
   );
 }
 
@@ -274,16 +297,11 @@ function positionFor(
 
 const styles = {
   error: style(text({ size: "sm", color: "lowContrast" })),
-  frame: style(
+  // A card like a code block: the caption row, then the controls and stage.
+  frame: style({ width: "100%", margin: 0 }),
+  body: style(
     flex({ direction: "column", gap: 4 }),
-    radius.lg,
     spacing.padding({ all: 6 }),
-    {
-      width: "100%",
-      minWidth: 0,
-      border: `1px solid ${borderColor.outline}`,
-      backgroundColor: backgroundColor.element,
-    },
   ),
   controls: style(flex({ direction: "row", alignItems: "center", gap: 2 }), {
     // Buttons keep their full label; only the step scrubber gives up width.
@@ -317,12 +335,24 @@ const styles = {
       "&:hover::after": { backgroundColor: colors.gray[7] },
       "&[data-state='done']::after": { backgroundColor: colors.accent[7] },
       "&[data-state='current']::after": { backgroundColor: colors.accent[9] },
+      "&[data-change='+']::after": { backgroundColor: colors.green[6] },
+      "&[data-change='+'][data-state='done']::after": {
+        backgroundColor: colors.green[8],
+      },
+      "&[data-change='+'][data-state='current']::after": {
+        backgroundColor: colors.green[10],
+      },
+      "&[data-change='-']::after": { backgroundColor: colors.red[6] },
+      "&[data-change='-'][data-state='done']::after": {
+        backgroundColor: colors.red[8],
+      },
+      "&[data-change='-'][data-state='current']::after": {
+        backgroundColor: colors.red[10],
+      },
     },
     focusRing(),
   ),
   counter: style({ flexShrink: 0, minWidth: "5ch", textAlign: "end" }),
-  detail: style(flex({ direction: "column", gap: 2 }), {
-    minHeight: 44,
-    paddingInline: spacing.value(2),
-  }),
+  // Holds two lines so the controls below don't move between steps.
+  detail: style(flex({ direction: "column", gap: 2 }), { minHeight: 44 }),
 };

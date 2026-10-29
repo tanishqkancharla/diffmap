@@ -6,6 +6,8 @@ import {
   flattenServices,
   type Service,
   type ServiceDiagram,
+  type ServiceEvent,
+  type Sign,
 } from "../services.js";
 
 export type Point = { x: number; y: number };
@@ -27,7 +29,17 @@ export type ServiceLink = {
   backward: boolean;
   /** The longest label on the link. */
   label: string | undefined;
+  /** In a diff, `+` or `-` when every event on the link has that sign. */
+  sign: Sign;
 };
+
+/** An event's label as its pill shows it, or "" when it has none. */
+export function pillText(event: ServiceEvent) {
+  if (event.label === "") return "";
+  const sign = { "+": "+ ", "-": "− ", " ": "" }[event.sign];
+  const link = event.annotation === undefined ? "" : " ↗";
+  return `${sign}${event.label}${link}`;
+}
 
 export type ServiceLayout = {
   width: number;
@@ -58,14 +70,13 @@ export function serviceLinks(diagram: ServiceDiagram): ServiceLink[] {
         forward: false,
         backward: false,
         label: undefined,
+        sign: event.sign,
       };
       if (forward) link.forward = true;
       else link.backward = true;
-      // Measure the pill as drawn: a linked event shows ↗.
-      const shown =
-        event.label !== "" && event.annotation !== undefined
-          ? `${event.label} ↗`
-          : event.label;
+      if (link.sign !== event.sign) link.sign = " ";
+      // Measure the pill as drawn.
+      const shown = pillText(event);
       if (shown.length > (link.label?.length ?? 0)) link.label = shown;
       links.set(id, link);
     }

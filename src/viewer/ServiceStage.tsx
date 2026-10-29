@@ -22,14 +22,17 @@ import { style, useStyles } from "purse-styles";
 import type { SourceNavigation } from "../annotations.js";
 import {
   flattenServices,
+  serviceStateAt,
   type Service,
   type ServiceDiagram,
   type ServiceEvent,
   type ServiceUpdate,
+  type Sign,
 } from "../services.js";
 import {
   layoutServices,
   linkId,
+  pillText,
   serviceLinks,
   type Point,
   type Rect,
@@ -53,10 +56,15 @@ type StepNote = {
 
 type State = Map<string, Map<string, string>>;
 
+/** State replayed on each side of a diff; the sides match outside a diff. */
+export type SidedState = { today: State; proposed: State };
+
+type Values = { today: Map<string, string>; proposed: Map<string, string> };
+
 export type StageProps = {
   diagram: ServiceDiagram;
-  state: State;
-  previousState: State;
+  state: SidedState;
+  previousState: SidedState;
   changed: Set<string>;
   active: Set<string>;
   events: ServiceEvent[];
@@ -306,7 +314,10 @@ export function ServiceStage(props: StageProps) {
             <ServiceCard
               {...props}
               service={service}
-              values={widest.get(service.name)!}
+              values={{
+                today: widest.get(service.name)!,
+                proposed: widest.get(service.name)!,
+              }}
               previous={undefined}
               changed={new Set()}
             />
@@ -339,6 +350,7 @@ export function ServiceStage(props: StageProps) {
                 key={service.name}
                 className={box}
                 data-depth={depth.get(service.name)}
+                data-change={service.sign}
                 data-active={props.active.has(service.name)}
                 aria-label={service.name}
                 style={{
@@ -351,8 +363,8 @@ export function ServiceStage(props: StageProps) {
                 <ServiceCard
                   {...props}
                   service={service}
-                  values={props.state.get(service.name)!}
-                  previous={props.previousState.get(service.name)!}
+                  values={valuesOf(props.state, service.name)}
+                  previous={valuesOf(props.previousState, service.name)}
                 />
               </section>
             );
@@ -364,10 +376,10 @@ export function ServiceStage(props: StageProps) {
             aria-hidden="true"
           >
             <defs>
-              {(["idle", "active"] as const).map((kind) => (
+              {tones.map((tone) => (
                 <marker
-                  key={kind}
-                  id={`${markerId}-${kind}`}
+                  key={tone.id}
+                  id={`${markerId}-${tone.id}`}
                   viewBox="0 0 10 10"
                   refX="9"
                   refY="5"
@@ -375,26 +387,26 @@ export function ServiceStage(props: StageProps) {
                   markerHeight="7"
                   orient="auto-start-reverse"
                 >
-                  <path
-                    d="M0,1 L9,5 L0,9 z"
-                    style={{
-                      fill:
-                        kind === "active" ? colors.accent[9] : colors.gray[8],
-                    }}
-                  />
+                  <path d="M0,1 L9,5 L0,9 z" style={{ fill: tone.head }} />
                 </marker>
               ))}
             </defs>
             {links.map((link) => {
               const route = trimmedRoute(layout, link, parents);
               const sending = (from: string, to: string) =>
-                props.events.some(
+                props.events.filter(
                   (event) => event.from === from && event.to === to,
                 );
               const forward = sending(link.a, link.b);
               const backward = sending(link.b, link.a);
-              const marker = (active: boolean) =>
-                `url(#${markerId}-${active ? "active" : "idle"})`;
+              const active = forward.length > 0 || backward.length > 0;
+              // While its events travel, a link takes their sign.
+              const tone = toneFor(
+                active,
+                active ? commonSign([...forward, ...backward]) : link.sign,
+              );
+              const marker = (sent: ServiceEvent[]) =>
+                `url(#${markerId}-${(sent.length > 0 ? tone : toneFor(false, link.sign)).id})`;
               return (
                 <path
                   key={link.id}
@@ -403,10 +415,9 @@ export function ServiceStage(props: StageProps) {
                   markerEnd={link.forward ? marker(forward) : undefined}
                   markerStart={link.backward ? marker(backward) : undefined}
                   style={{
-                    stroke:
-                      forward || backward ? colors.accent[9] : colors.gray[7],
-                    strokeWidth: forward || backward ? 2 : 1,
-                    strokeDasharray: forward || backward ? undefined : "4 4",
+                    stroke: tone.line,
+                    strokeWidth: active ? 2 : 1,
+                    strokeDasharray: active ? undefined : "4 4",
                   }}
                 />
               );
@@ -522,7 +533,7 @@ function EventMarks(
   const labelAnchor = useStyles(styles.labelAnchor);
   const pill = useStyles(styles.pill);
   const annotation = props.event.annotation;
-  const label = props.event.label === "" ? undefined : props.event.label;
+  const label = props.event.label === "" ? undefined : pillText(props.event);
   const lengths = cumulativeLengths(props.points);
   const total = lengths.at(-1)! || 1;
   return (
@@ -530,6 +541,7 @@ function EventMarks(
       {props.phase === "travel" && (
         <motion.div
           className={packet}
+          data-change={props.event.sign}
           initial={{ x: props.points[0]!.x, y: props.points[0]!.y }}
           animate={{
             x: props.points.map((point) => point.x),
@@ -554,17 +566,20 @@ function EventMarks(
         >
           {label !== undefined &&
             (annotation === undefined ? (
-              <div className={pill}>{label}</div>
+              <div className={pill} data-change={props.event.sign}>
+                {label}
+              </div>
             ) : (
               <button
                 type="button"
                 className={pill}
+                data-change={props.event.sign}
                 aria-pressed={props.selectedAnnotation === annotation}
                 aria-controls="source-diff-panel"
                 aria-label={`Open source: ${annotation.text}`}
                 onClick={() => props.onSelectAnnotation(annotation)}
               >
-                {label} ↗
+                {label}
               </button>
             ))}
         </motion.div>
@@ -577,8 +592,8 @@ function EventMarks(
 function ServiceCard(
   props: {
     service: Service;
-    values: Map<string, string>;
-    previous: Map<string, string> | undefined;
+    values: Values;
+    previous: Values | undefined;
     changed: Set<string>;
   } & SourceNavigation,
 ) {
@@ -595,7 +610,10 @@ function ServiceCard(
       <Text
         size="sm"
         fontWeight={600}
-        style={{ whiteSpace: "nowrap" }}
+        style={{
+          whiteSpace: "nowrap",
+          textDecorationLine: service.sign === "-" ? "line-through" : undefined,
+        }}
         data-described={described}
       >
         {service.name}
@@ -639,13 +657,18 @@ function ServiceCard(
             ["--key-width" as string]: `${Math.max(...service.state.map(({ key }) => key.length))}ch`,
           }}
         >
-          {service.state.map(({ key, description }) => {
+          {service.state.map(({ key, description, sign }) => {
             const changed = props.changed.has(`${service.name}.${key}`);
+            // A row added or removed in a diff shows only its own side.
+            const side = sign === "-" ? "today" : "proposed";
+            const today = props.values.today.get(key);
+            const proposed = props.values.proposed.get(key);
             return (
               <div
                 key={key}
                 className={stateRow}
                 data-changed={changed}
+                data-change={sign}
                 data-state-row={`${service.name}.${key}`}
               >
                 <Described description={description}>
@@ -657,18 +680,39 @@ function ServiceCard(
                   </dt>
                 </Described>
                 <dd>
-                  {changed && (
-                    <Text size="xs" monospace color="lowContrast">
-                      <s>{props.previous?.get(key)}</s>{" "}
-                    </Text>
+                  {sign === " " && today !== proposed ? (
+                    <>
+                      <Text
+                        size="xs"
+                        monospace
+                        style={{ color: colors.red[11] }}
+                      >
+                        <s>{today}</s>{" "}
+                      </Text>
+                      <Text
+                        size="xs"
+                        monospace
+                        style={{ color: colors.green[11] }}
+                      >
+                        {proposed}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      {changed && (
+                        <Text size="xs" monospace color="lowContrast">
+                          <s>{props.previous?.[side].get(key)}</s>{" "}
+                        </Text>
+                      )}
+                      <Text
+                        size="xs"
+                        monospace
+                        color={changed ? "accent" : undefined}
+                      >
+                        {props.values[side].get(key)}
+                      </Text>
+                    </>
                   )}
-                  <Text
-                    size="xs"
-                    monospace
-                    color={changed ? "accent" : undefined}
-                  >
-                    {props.values.get(key)}
-                  </Text>
                 </dd>
               </div>
             );
@@ -694,28 +738,89 @@ export function Described(props: {
 
 /**
  * Each state value at its widest, including the struck-through old value a
- * changed row shows beside the new one.
+ * changed row shows beside the new one, and a diff's Today value beside its
+ * Proposed one.
  */
 function widestState(diagram: ServiceDiagram) {
-  const current = new Map(
-    flattenServices(diagram.services).map(({ service }) => [
-      service.name,
-      new Map(service.state.map((entry) => [entry.key, entry.value])),
-    ]),
-  );
+  const flat = flattenServices(diagram.services);
   const widest = new Map(
-    [...current].map(([name, values]) => [name, new Map(values)]),
+    flat.map(({ service }) => [service.name, new Map<string, string>()]),
   );
-  for (const step of diagram.steps)
-    for (const update of step.updates) {
-      const values = current.get(update.service)!;
-      const shown = `${values.get(update.key)} ${update.value}`;
-      const best = widest.get(update.service)!;
-      if (shown.length > best.get(update.key)!.length)
-        best.set(update.key, shown);
-      values.set(update.key, update.value);
-    }
+  const at = (step: number) => ({
+    today: serviceStateAt(diagram, step, "today"),
+    proposed: serviceStateAt(diagram, step, "proposed"),
+  });
+  let before = at(0);
+  for (let step = 0; step <= diagram.steps.length; step++) {
+    const now = step === 0 ? before : at(step);
+    // A row updated in this step shows its old value struck through.
+    const updated = new Set(
+      diagram.steps[step - 1]?.updates.map(
+        (update) => `${update.service}.${update.key}`,
+      ),
+    );
+    for (const { service } of flat)
+      for (const { key } of service.state) {
+        const best = widest.get(service.name)!;
+        const value = (state: State) => state.get(service.name)!.get(key);
+        const today = value(now.today);
+        const proposed = value(now.proposed);
+        const shown = [
+          today === undefined || proposed === undefined || today === proposed
+            ? (proposed ?? today ?? "")
+            : `${today} ${proposed}`,
+        ];
+        if (updated.has(`${service.name}.${key}`))
+          shown.push(
+            `${value(before.today) ?? ""} ${today ?? ""}`,
+            `${value(before.proposed) ?? ""} ${proposed ?? ""}`,
+          );
+        for (const candidate of shown)
+          if (candidate.length > (best.get(key)?.length ?? -1))
+            best.set(key, candidate);
+      }
+    before = now;
+  }
   return widest;
+}
+
+function valuesOf(state: SidedState, service: string): Values {
+  return {
+    today: state.today.get(service)!,
+    proposed: state.proposed.get(service)!,
+  };
+}
+
+/** The sign every event shares, or " " when they differ. */
+function commonSign(events: ServiceEvent[]): Sign {
+  return events.every((event) => event.sign === events[0]!.sign)
+    ? events[0]!.sign
+    : " ";
+}
+
+/** Link colors: idle or carrying events, and Today only, Proposed only, or both. */
+const tones = (["idle", "active"] as const).flatMap((state) =>
+  (["+", "-", " "] as const).map((sign) => {
+    const scale =
+      sign === "+" ? colors.green : sign === "-" ? colors.red : undefined;
+    const active = state === "active";
+    const line = active
+      ? (scale?.[9] ?? colors.accent[9])
+      : (scale?.[8] ?? colors.gray[7]);
+    return {
+      id: `${state}-${{ "+": "added", "-": "removed", " ": "same" }[sign]}`,
+      state,
+      sign,
+      line,
+      head: active || scale !== undefined ? line : colors.gray[8],
+    };
+  }),
+);
+
+function toneFor(active: boolean, sign: Sign) {
+  return tones.find(
+    (tone) => tone.sign === sign && (tone.state === "active") === active,
+  )!;
 }
 
 function isAncestor(
@@ -878,7 +983,18 @@ const styles = {
     "&[data-depth='1'], &[data-depth='3']": {
       backgroundColor: colors.gray[2],
     },
+    "&[data-change='+']": {
+      borderColor: colors.green[8],
+      backgroundColor: colors.green[2],
+    },
+    "&[data-change='-']": {
+      borderColor: colors.red[8],
+      borderStyle: "dashed",
+      backgroundColor: colors.red[2],
+    },
     "&[data-active='true']": { borderColor: colors.accent[8] },
+    "&[data-active='true'][data-change='+']": { borderColor: colors.green[10] },
+    "&[data-active='true'][data-change='-']": { borderColor: colors.red[10] },
   }),
   header: style(
     flex({ direction: "row", alignItems: "baseline", gap: 3, wrap: true }),
@@ -928,6 +1044,14 @@ const styles = {
     columnGap: spacing.value(4),
     paddingInline: spacing.value(2),
     marginInline: `-${spacing.value(2)}`,
+    "&[data-change='+']": {
+      backgroundColor: colors.greenAlpha[3],
+      boxShadow: `inset 2px 0 ${colors.green[9]}`,
+    },
+    "&[data-change='-']": {
+      backgroundColor: colors.redAlpha[3],
+      boxShadow: `inset 2px 0 ${colors.red[9]}`,
+    },
     "&[data-changed='true']": { backgroundColor: colors.accentAlpha[3] },
   }),
   packet: style(radius.circle, {
@@ -940,6 +1064,14 @@ const styles = {
     boxShadow: `0 0 0 3px ${colors.accentAlpha[5]}`,
     pointerEvents: "none",
     zIndex: 2,
+    "&[data-change='+']": {
+      backgroundColor: colors.green[9],
+      boxShadow: `0 0 0 3px ${colors.greenAlpha[5]}`,
+    },
+    "&[data-change='-']": {
+      backgroundColor: colors.red[9],
+      boxShadow: `0 0 0 3px ${colors.redAlpha[5]}`,
+    },
   }),
   labelAnchor: style({
     position: "absolute",
@@ -960,6 +1092,15 @@ const styles = {
       border: `1px solid ${colors.accent[7]}`,
       backgroundColor: backgroundColor.app,
       color: colors.accent[11],
+      "&[data-change='+']": {
+        borderColor: colors.green[7],
+        color: colors.green[11],
+      },
+      "&[data-change='-']": {
+        borderColor: colors.red[7],
+        borderStyle: "dashed",
+        color: colors.red[11],
+      },
       "&:is(button)": { cursor: "pointer" },
       "&:is(button):hover": { backgroundColor: colors.accent[3] },
       "&[aria-pressed='true']": { backgroundColor: colors.blue[3] },

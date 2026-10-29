@@ -1,4 +1,4 @@
-import { colors, focusRing, LARGE_SCALE, spacing, text, Tooltip } from "maui";
+import { colors, focusRing, LARGE_SCALE, text, Tooltip } from "maui";
 import { defineVars, style, useStyles } from "purse-styles";
 import { codeFontFamily } from "../codeFont.js";
 import {
@@ -124,27 +124,26 @@ export function CallStackDiff(
 }
 
 const rowSize = defineVars({
-  height: { default: "28px", [LARGE_SCALE]: "40px" },
+  height: { default: "22px", [LARGE_SCALE]: "32px" },
 });
 
 const styles = {
-  shell: style(
-    text({ size: "sm", fontWeight: 500, color: "highContrast" }),
-    spacing.padding({ y: 2 }),
-    {
-      margin: 0,
-      overflowX: "hidden",
-      maxWidth: "100%",
-      // The shell's top padding goes below the title, between it and the rows.
-      "& > figcaption": {
-        marginTop: `calc(-1 * ${spacing.value(2)})`,
-        marginBottom: spacing.value(2),
-      },
+  // Sized like Maui's code block, so stacks and code read as one family.
+  shell: style(text({ size: "xs", fontWeight: 400, color: "highContrast" }), {
+    fontFamily: codeFontFamily,
+    margin: 0,
+    paddingBlock: "8px",
+    overflowX: "hidden",
+    maxWidth: "100%",
+    // The shell's top padding goes below the title, between it and the rows.
+    "& > figcaption": {
+      marginTop: "-8px",
+      marginBottom: "8px",
     },
-  ),
+  }),
   row: style(
-    spacing.padding({ x: 3 }),
     {
+      paddingInline: "12px",
       display: "flex",
       alignItems: "center",
       gap: "12px",
@@ -203,7 +202,7 @@ const styles = {
         alignSelf: "center",
         flex: "1 1 auto",
         minWidth: 0,
-        paddingBlock: "3px",
+        paddingBlock: "1px",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",

@@ -164,12 +164,21 @@ export function parseViewerDocument(source: string, path = "spec") {
   );
   for (const [offset, fence] of mermaidFences.entries()) {
     const mermaidIndex = offset + 1;
-    const parsedMermaid = parseMermaidDiagram({
-      source: fence.source,
-      path,
-      where: mermaidWhere(source, mermaidIndex),
-    });
-    if (parsedMermaid instanceof Error) return parsedMermaid;
+    const where = mermaidWhere(source, mermaidIndex);
+    // A diff draws every line, and each side must also stand on its own.
+    for (const [side, diagram] of [
+      ["", fence.source],
+      [", Today side", fence.sides?.today],
+      [", Proposed side", fence.sides?.proposed],
+    ] as const) {
+      if (diagram === undefined) continue;
+      const parsedMermaid = parseMermaidDiagram({
+        source: diagram,
+        path,
+        where: `${where}${side}`,
+      });
+      if (parsedMermaid instanceof Error) return parsedMermaid;
+    }
     const targets = new Set<string>();
     for (const link of fence.annotations) {
       const target = `${link.target}:${link.id}`;
@@ -382,9 +391,16 @@ function fromElement(
       comarkText(children),
       highlightsAttr(element),
       stringAttr(element, "filename"),
+      stringAttr(element, "meta"),
     );
   }
-  if (tag === "mermaid") return fenceView("mermaid", comarkText(children));
+  if (tag === "mermaid")
+    return fenceView(
+      "mermaid",
+      comarkText(children),
+      undefined,
+      stringAttr(element, "title"),
+    );
   if (tag === "callstack")
     return fenceView(
       "callstack",
@@ -436,6 +452,7 @@ function fenceView(
   source: string,
   highlights?: number[],
   title?: string,
+  meta?: string,
 ): ViewerView {
   return {
     type: "view",
@@ -444,6 +461,7 @@ function fenceView(
       source,
       highlights,
       title,
+      meta,
     ),
   };
 }

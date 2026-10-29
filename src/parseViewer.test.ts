@@ -22,9 +22,9 @@ function brokenMermaidSpec(body = "flwochart TD\n  A --> B") {
   return `# Broken mermaid\n\n\`\`\`mermaid\n${body}\n\`\`\`\n`;
 }
 
-function parseServicesSpec(body: string[]) {
+function parseServicesSpec(body: string[], info = "services") {
   return parseViewerDocument(
-    ["# Flow", "", "```services", ...body, "```", ""].join("\n"),
+    ["# Flow", "", `\`\`\`${info}`, ...body, "```", ""].join("\n"),
     "spec.md",
   );
 }
@@ -296,6 +296,8 @@ test("parseViewerDocument reads services, steps, and their references", () => {
       "service Store",
       "  state rows = none",
       "",
+      'start "Alice has not logged in"',
+      "  > No rows yet.",
       'step "Verify"',
       "  API -> Auth: verify(alice) [[src/api.ts#login]]",
       "    > Sends the password hash.",
@@ -330,6 +332,10 @@ test("parseViewerDocument reads services, steps, and their references", () => {
   );
   // A description belongs to the line above it and joins continued lines.
   assert.equal(diagram.services[0]!.description, "Routes requests.");
+  assert.deepEqual(diagram.start, {
+    caption: "Alice has not logged in",
+    description: "No rows yet.",
+  });
   assert.equal(
     diagram.services[0]!.children[0]!.state[0]!.description,
     "Failures since the last success. Five locks the account.",
@@ -365,6 +371,122 @@ test("parseViewerDocument reads services, steps, and their references", () => {
   ]);
 });
 
+test("a services diff replays Today and Proposed separately", () => {
+  const document = parseViewerDocument(
+    [
+      "```services diff",
+      " service API",
+      "-  state count = 0",
+      "+  state count = 1",
+      "-service Cache",
+      "   state hits = 0",
+      "+service Queue",
+      "+  state jobs = 0",
+      "",
+      ' step "Handle"',
+      "-  API -> Cache: get",
+      "+  API -> Queue: push",
+      "-  Cache.hits = 1",
+      "+  Queue.jobs = 1",
+      "   API.count = 5",
+      '-step "Old cleanup"',
+      "   API.count = 9",
+      "```",
+      "",
+    ].join("\n"),
+  );
+  if (document instanceof Error) throw document;
+  const fence = document.nodes[0];
+  if (fence?.type !== "view" || fence.fence.kind !== "services")
+    throw new Error("expected a services fence");
+  if (!fence.fence.parsed.ok) throw new Error(fence.fence.parsed.reason);
+  const diagram = fence.fence.parsed.diagram;
+  // Unmarked lines inside a removed service or step take its sign.
+  assert.equal(diagram.services[1]!.state[0]!.sign, "-");
+  assert.equal(diagram.steps[1]!.updates[0]!.sign, "-");
+  assert.deepEqual(
+    diagram.steps[0]!.events.map((event) => event.sign),
+    ["-", "+"],
+  );
+  const at = (step: number, side: "today" | "proposed") =>
+    Object.fromEntries(
+      [...serviceStateAt(diagram, step, side)].map(([name, state]) => [
+        name,
+        Object.fromEntries(state),
+      ]),
+    );
+  // A - and a + declaration of one key give each side its own start value.
+  assert.deepEqual(at(0, "today"), {
+    API: { count: "0" },
+    Cache: { hits: "0" },
+    Queue: {},
+  });
+  assert.deepEqual(at(0, "proposed"), {
+    API: { count: "1" },
+    Cache: {},
+    Queue: { jobs: "0" },
+  });
+  assert.deepEqual(at(2, "today"), {
+    API: { count: "9" },
+    Cache: { hits: "1" },
+    Queue: {},
+  });
+  assert.deepEqual(at(2, "proposed"), {
+    API: { count: "5" },
+    Cache: {},
+    Queue: { jobs: "1" },
+  });
+});
+
+test("a services diff rejects unmarked lines and contradictory signs", () => {
+  assert.match(
+    String(
+      parseServicesSpec([" service API", "service Store"], "services diff"),
+    ),
+    /line 5\): Start every line of a services diff/,
+  );
+  assert.match(
+    String(
+      parseServicesSpec(
+        [" service API", '-step "Old"', "+  API -> API: new"],
+        "services diff",
+      ),
+    ),
+    /line 6\): A \+ line can't sit inside a removed step/,
+  );
+});
+
+test("a mermaid diff keeps every line and splits out each side", () => {
+  const document = parseViewerDocument(
+    [
+      "```mermaid diff [Request flow]",
+      " flowchart LR",
+      "-  A --> B[Old]",
+      "+  A --> B[New]",
+      "+  A --> C",
+      "   %% ref node:A [[src/a.ts]]",
+      "```",
+      "",
+    ].join("\n"),
+  );
+  if (document instanceof Error) throw document;
+  const fence = document.nodes[0];
+  if (fence?.type !== "view" || fence.fence.kind !== "mermaid")
+    throw new Error("expected a mermaid fence");
+  // Mermaid keeps a node's first label, so a change's + lines come first.
+  assert.equal(
+    fence.fence.source,
+    "flowchart LR\n  A --> B[New]\n  A --> C\n  A --> B[Old]\n  %% ref node:A [[src/a.ts]]",
+  );
+  assert.deepEqual(fence.fence.sides, {
+    today: "flowchart LR\n  A --> B[Old]\n  %% ref node:A [[src/a.ts]]",
+    proposed:
+      "flowchart LR\n  A --> B[New]\n  A --> C\n  %% ref node:A [[src/a.ts]]",
+  });
+  assert.equal(fence.fence.annotations.length, 1);
+  assert.equal(fence.fence.title, "Request flow");
+});
+
 test("parseViewerDocument fails on services errors with the file line", () => {
   const unknown = parseServicesSpec([
     "service API",
@@ -382,6 +504,15 @@ test("parseViewerDocument fails on services errors with the file line", () => {
   assert.match(String(undeclared), /line 6\): API has no state count/);
   const uncaptioned = parseServicesSpec(["service API", "step"]);
   assert.match(String(uncaptioned), /line 5\): Give the step a caption/);
+  const lateStart = parseServicesSpec([
+    "service API",
+    'step "Go"',
+    'start "Too late"',
+  ]);
+  assert.match(
+    String(lateStart),
+    /line 6\): Write one start line, before the first step/,
+  );
   const orphan = parseServicesSpec(["service API", "> Not indented."]);
   assert.match(String(orphan), /line 5\): Put a > line directly below/);
 });

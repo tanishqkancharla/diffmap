@@ -49,6 +49,9 @@ service Browser
     > The Diff panel opens next to the spec. It shows the code for the link that you clicked.
     state shows = none
 
+start "diffmap serve opens a spec in your browser"
+  > The agent has written the spec, but nothing serves it yet.
+
 step "The agent serves the spec"
   > Your agent runs diffmap serve with the path of the spec.
   Agent -> CLI: serve specs/search.md

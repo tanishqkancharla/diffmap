@@ -7,7 +7,7 @@ description: Create and update living specs and code walkthroughs with diffmap. 
 
 A spec is one Markdown file at `specs/<short-kebab-case-name>.md` that shows the current system, the plan, and the work done. Update it as the plan changes and work lands. For a walkthrough of an existing pull request, use its spec if it has one; otherwise write under `.diffmap/`. Check the repo's paths and symbols before writing.
 
-**Settle scope first.** Before writing a new spec, read the relevant code, then ask the user about each unclear choice, such as which design, where new behavior lives, what is in scope, or how phases split. Give options and your pick for each. Write once they are settled; ask again when implementation turns up a new one.
+**Settle scope first.** Read the relevant code before writing. When the design, scope, or phase split is unclear, check with the user before writing much: offer the options and your pick.
 
 ## Serve and share
 
@@ -23,42 +23,28 @@ Leave the server running and give the user the file path and URL. Open the brows
 
 ## Shape
 
-**Top-down.** Start with what changes for the end client: the person using the product (UI and UX), or the developer calling the code, CLI, or API. Then work back from the entry point they touch, layer by layer, to the implementation. This holds for the spec and for each phase.
+Write for someone who needs to understand the change quickly. Start from what changes for the person using it, such as a screen, command, API call, or error, then work back toward the implementation as far as the reader needs. A spec usually has a problem overview, a solution overview, goals and non-goals, phases, and **References**; let the content decide what each needs.
 
-The spec has a title, a problem overview (who is affected, what the current behavior costs them, why now), a solution overview (client-facing changes first, then the flows that deliver them, with diagrams), goals, non-goals, phases, and **References**.
+**Phases.** Keep each small enough to commit alone. Headings are plain when planned, ⏳ in progress, and ✅ done. Open each with a short **Today** and **Proposed** from the client's view, then explain it however suits the change: a new flow might want a diagram and a call stack, a refactor a call stack diff, a dependency bump a sentence or two. Match the length to the change, and say each thing once, where it belongs. A spec explains the change; it is not a task tracker.
 
-**Phases.** Keep each small enough to commit alone. Headings are plain when planned, ⏳ in progress, ✅ done; mark a heading ⏳ when you start its phase. Open each with **Today** and **Proposed**, a few sentences each from the client's view: what they see and do now and the problem it causes; what changes, how that solves it, and why the phase comes here when order matters. Name concrete differences, such as a command, flag, screen, error, return type, or step the client no longer takes. For an internal change, say so and name the client-facing change it prepares. Keep both after the phase is done.
+**Visuals.** Diagrams, call stacks, and code often explain a change better than paragraphs, so reach for one when prose gets long. Add one only when it shows the reader something they need, not to fill a slot.
 
-Then tell the phase as a story: show the client-facing change (usage snippet, CLI session, API call, UI state), then work back through each layer to the new logic and data shapes. Show the change rather than describe it: alternate short paragraphs with visuals, and when a paragraph needs more than three sentences, use a visual instead. Each paragraph sets up the visual after it. Every phase has:
+The views fit one model: services receive messages, update their state, and send messages on. Each view looks between services or inside one, at every path or at one message's trace:
 
-- at least one call stack diff, when the phase changes code;
-- pseudocode for each piece of new logic, in the repo's main language;
-- diagrams that orient the reader and show what changes, not only control flow;
-- a type for each new data shape.
+|                    | Every path                                       | One message                                                        |
+| ------------------ | ------------------------------------------------ | ------------------------------------------------------------------ |
+| Between services   | `mermaid` flowchart: who exists, who owns what   | `services`: a message crossing services, with the state it changes |
+| Inside one service | Pseudocode and types: its state, payloads, logic | `callstack`: how it turns one message into a result                |
 
-Never end a phase with a task list or checkboxes.
+Use `services` when the parts keep state, run at the same time, or fan out; use a call stack when they are function calls that return, branch, or return early. Mermaid sequence and state diagrams are lighter options. If a view needs more than about 7 services, collapse some and explain them separately.
 
-**Diagrams.** Make diagrams a default way to explain specs and walkthroughs, not an optional illustration after the prose. Use `mermaid` fences, or `services` for stateful services that send each other events. Open the solution overview with a diagram of the system and its boundaries. In each phase, put a focused diagram beside the explanation it supports, before the implementation detail. Use diagrams for ownership, dependencies, data shapes and relationships, user journeys, runtime order, control flow, data flow, and state changes.
+- To show a change, add `diff` after `mermaid` or `services` and start each line with `-` (Today only), `+` (Proposed only), or a space (both), as in a call stack. For code, use a `diff` fence.
+- Title Mermaid diagrams with `[Title]` after the language, as in `mermaid diff [Invalid records stop before storage]`. A `services` fence uses `start "caption"` before its first step as its title, with an optional `>` line for the initial state; caption each step with what happens.
+- Label nodes and arrows with real names, and link existing source with `%% ref` directives.
 
-- Pick the view that answers the reader's question: a flowchart for paths or ownership, a sequence for interactions over time, a state diagram for lifecycles, or a relationship graph for data and dependencies. When the flow is messages between stateful services, such as a request crossing a server and a database, use a `services` fence so the reader can step through each event and watch state change.
-- When replacing behavior, show **Today** and **Proposed** with matching names and layout so the difference is visible. For added behavior, show the new path and where it joins the existing system.
-- Label nodes and arrows with concrete components, inputs, outputs, and conditions. Show important boundaries and failure paths; link existing source with `%% ref` directives.
-- Keep each diagram focused on one question. Split a large diagram into an overview and local views; do not repeat the same diagram to meet a quota. Call stacks explain function-level data flow, while diagrams explain how the parts fit together. Use both rather than treating one as a substitute for the other.
+**Call stacks.** Write rows as data flow, `result = function(inputs)`, with `return` rows where they matter. Mark rows `-` (original), `+` (change), or a space (unchanged); a diff compares the same function before and after. Nest calls with `├──` and `└──`. Link real functions with source references; an unlinked helper is pseudocode, not a promised API. Keep stacks to about a dozen rows, splitting deep flows into an overview and a stack per changed callee.
 
-**Call stacks.** Write every `callstack` fence as readable data-flow pseudocode, not a list of function names or vague steps. Read top to bottom as `result = function(inputs)`:
-
-- Use named variables, function arguments, and returned values. Feed each output into the later calls that use it, and show explicit `return value` rows, including early returns.
-- Keep `-` for the original code, `+` for the change, and an unmarked space for unchanged rows. Keep `└──` / `├──` and indentation to show calls inside a function; nest a callee's work beneath its call.
-- Calls with only side effects need no assigned result: `await storage.save(record)` is enough. Show conditions and retries where they affect the flow.
-- Link real functions with source references. In proposals, unlinked helper names are pseudocode, not promises of extra public APIs; state this beside the stack when introducing such helpers.
-- Keep each stack to about 12 rows. For a deeper flow, show one overview stack, then a separate stack for each callee that changes. Collapse unchanged subtrees into one row.
-- Keep `#` comments short enough to read in the viewer. Use them for purpose or a non-obvious effect, not to repeat the call.
-- Highlight the rows that matter with `{3-4}` after `callstack`. When a row needs more than a short comment, explain it with a note at the bottom of the fence, as in [Pseudocode](#shape): `# [!note validateInput] text` or `# [!note L3] text`.
-
-**Pseudocode.** Keep each code fence short and about the behavior the paragraph before it explains: about 12 lines, one function or type per fence. Elide unchanged code with `// ...` and leave out imports, stubs, and types the reader has already seen. Highlight the lines that change with `{2-3}` after the language. Explain with notes at the bottom of the fence instead of long comments, one or two sentences each:
-
-- `// [!note symbol] text` explains a variable, call, or type wherever it appears in the fence.
-- `// [!note L3-L5] text` explains a line range. Line numbers count only the code above the notes.
+**Code.** Keep fences short and on the point the paragraph makes; elide unchanged code with `// ...`. Highlight lines with `{2-3}` after the language (or rows with `{3-4}` after `callstack`), and explain with notes at the bottom instead of long comments: `// [!note symbol] text` for a name wherever it appears, `// [!note L3-L5] text` for lines counted from the top of the fence. Call stacks take the same notes with `#`.
 
 **Links.** Link existing source with [references](#source-references); write planned symbols as plain text.
 
@@ -68,7 +54,7 @@ Follow Orwell's six rules from "Politics and the English Language" in all prose,
 
 ## Example phase
 
-This example uses illustrative files and a commit SHA, not Diffmap source paths.
+This example uses illustrative files and a commit SHA, not Diffmap source paths. Its change crosses a few layers, so it uses several views; a smaller phase needs fewer.
 
 ````md
 ### ⏳ Phase 1: Validate request input
@@ -91,22 +77,15 @@ const response = await client.saveRecord({ name: "" });
 
 Today every record reaches storage. In the proposed flow, a valid record follows the same save path, but an invalid one returns an error before storage. The unlinked `validateInput` helper is pseudocode, not a proposed public API:
 
-```mermaid
-flowchart LR
-    subgraph Today
-        T[requestHandler] -->|record| S[existingService]
-        S -->|record| D[Storage]
-    end
-    subgraph Proposed
-        A[requestHandler] -->|record| V[validateInput]
-        V -->|valid record| B[existingService]
-        B -->|record| N[Storage]
-        V -->|invalid record| E[Return name error]
-    end
-    %% ref node:T [[src/request.ts#requestHandler]]
-    %% ref node:S [[src/service.ts#existingService]]
-    %% ref node:A [[src/request.ts#requestHandler]]
-    %% ref node:B [[src/service.ts#existingService]]
+```mermaid diff [Invalid records stop before storage]
+ flowchart LR
+-    A[requestHandler] -->|record| B[existingService]
++    A[requestHandler] -->|record| V[validateInput]
++    V -->|valid record| B[existingService]
++    V -->|invalid record| E[Return name error]
+     B -->|record| D[Storage]
+     %% ref node:A [[src/request.ts#requestHandler]]
+     %% ref node:B [[src/service.ts#existingService]]
 ```
 
 The call stack shows how the validation result controls the return path:
@@ -188,7 +167,7 @@ Paths are relative to the repo root.
 - In prose, references render as clickable inline code; wrap one in backticks to show the syntax.
 - In Mermaid, `%% ref node:<id> [[reference]]` links a node or participant and `%% ref edge:<index> [[reference]]` an edge or message, counting from zero in declaration order. Use one directive per target, with several references when needed.
 
-Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them, `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes) with the files to review listed under it, and `html` trusted HTML you wrote. Other languages are pseudocode and types, with optional `{…}` highlights and `[!note …]` lines. `[Title]` after the language, as in ` ```callstack [Request flow] `, titles a call stack or code fence.
+Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them (add `diff` after either to mark lines `-` or `+`), `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes) with the files to review listed under it, and `html` trusted HTML you wrote. Other languages are pseudocode and types, with optional `{…}` highlights and `[!note …]` lines. `[Title]` after the language, as in ` ```callstack [Request flow] `, titles a call stack, code fence, or Mermaid diagram.
 
 ## Look up the rest
 

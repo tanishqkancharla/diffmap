@@ -171,7 +171,8 @@ const styles = {
   block: style({
     fontFamily: codeFontFamily,
     paddingInline: 0,
-    "& > code": {
+    // `:is(pre)` outranks the prose rule that shrinks inline code to 0.875em.
+    "&:is(pre) > code": {
       display: "inline-block",
       verticalAlign: "top",
       minWidth: "100%",

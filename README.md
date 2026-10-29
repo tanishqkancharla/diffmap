@@ -76,6 +76,7 @@ import {
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `mermaid`                                      | Beautiful Mermaid                                                                                 |
 | `services`                                     | Animated service diagram you can play or step through                                             |
+| `mermaid diff` or `services diff`              | The same diagram with [added and removed parts marked](#diagram-diffs)                            |
 | `callstack` or `diff` containing `└──` / `├──` | Interactive stack rows, no file header                                                            |
 | `diff` or `diff:path` with a file path         | Pierre patch with Pierre’s file header                                                            |
 | `diff` with no path                            | Pierre patch, no file header                                                                      |
@@ -111,8 +112,11 @@ function requestHandler(record: RecordInput) {
   outside the fence is a parse error. A note line above other code stays code.
 
 Add `[Title]` after the language to show a title above the code, as in
-` ```ts [src/request.ts] {2-3} `. Call stacks take a title the same way,
-or `::callstack{title="Request flow"}` in MDC.
+` ```ts [src/request.ts] {2-3} `. Call stacks and `mermaid` fences take a
+title the same way, as in ` ```mermaid diff [Request flow] `, or
+`::callstack{title="Request flow"}` and `::mermaid{title="Request flow"}` in
+MDC. A `services` fence uses its [start caption](#animated-service-diagrams)
+instead.
 
 Call stacks take the same highlights and notes, counting rows from the first.
 Write their notes with `#`. A symbol note matches the row text you see, not
@@ -253,6 +257,8 @@ service API "HTTP server" [[src/api.ts]]
     state attempts = 0
       > Failures since the last success. Five locks the account.
 
+start "Alice logs in"
+  > She is signed out.
 step "The browser submits the form"
   Browser -> API: POST /login
 step "The API asks Auth to verify"
@@ -270,6 +276,11 @@ step "The API sets the session cookie"
   another to nest it. Names are unique within the diagram.
 - `state <key> = <value>` declares a value and its initial state. Indent it under
   its service.
+- `start "caption"` at column 0, before the first step, captions the whole
+  diagram, such as `start "Alice logs in"`. It shows above the diagram until
+  the reader steps, and each step's caption replaces it. A `>` line under it
+  can say what the initial state shows. A `services` fence takes no `[Title]`;
+  the start caption is its title.
 - `step "caption"` starts a step at column 0. The caption is required: a
   sentence that says what happens, shown under the controls. Indented lines
   under it are `From -> To: label` events and `Service.key = value` updates.
@@ -279,7 +290,7 @@ step "The API sets the session cookie"
   consecutive `>` lines join.
   - Under a service or state, it is a description: the name gets a dotted
     underline and the text shows in a tooltip on hover or focus.
-  - Under a step, it explains the step and shows under the caption.
+  - Under `start` or a step, it explains the caption and shows under it.
   - Under an event or update, it is a note for that step. Notes appear in a
     column beside the diagram once the step's events land, each joined by a
     line to its event label or state row.
@@ -292,6 +303,60 @@ right, or top to bottom when that fits the column better, and routes one
 connection between each pair of services that talk. A request and its reply
 share that connection. Indentation is significant, so `services` has no MDC form.
 See [the runnable examples](fixtures/services.md).
+
+## Diagram diffs
+
+Add `diff` after `mermaid` or `services` to show a change in one diagram.
+Start every line with `-` for Today only, `+` for Proposed only, or a space
+for both, as in a call stack diff. Indentation starts after that column.
+
+````md
+```mermaid diff
+ flowchart LR
+   Client --> Handler
+-  Handler --> Service
++  Handler --> Validate
++  Validate --> Service
+```
+````
+
+diffmap draws every line once, so both versions share one layout. Nodes,
+edges, sequence participants, and messages that only Today has are red and
+dashed; those only Proposed has are green. A node whose label differs between
+the versions is amber and shows its Proposed label. Each version must also be
+a valid diagram on its own. To relabel a node, declare it on its own line
+(`-  B[Old]`, `+  B[New]`) so its edges are not drawn twice. In a diff,
+`%% ref edge:<index>` counts edges as drawn: within each run of changed lines,
+`+` lines come before `-` lines.
+
+````md
+```services diff
+ service API
+-  service SessionCache
+-    state active = 0
++  service Sessions
+ service Postgres
+-  state sessions = not used
++  state sessions = 0 rows
+
+ start "Sessions move to Postgres"
+-step "API caches the session"
+   API -> SessionCache: create(alice)
+   SessionCache.active = 1
++step "Sessions writes the session"
+   API -> Sessions: create(alice)
+   Sessions -> Postgres: INSERT
+   Postgres.sessions = 1 row
+```
+````
+
+In a `services diff`, lines inside a `-` or `+` service or step take its
+sign. Today replays the unmarked and `-` lines and Proposed the unmarked and
+`+` lines, so each state row shows Today's value struck through beside
+Proposed's when they differ. A `-` and a `+` declaration of the same state key
+give each version its own starting value. Added and removed steps color their
+segment of the progress bar, and their caption starts with **Added** or
+**Removed**. See [the runnable examples](fixtures/diagram-diffs.md).
 
 ## Link Mermaid nodes and edges
 

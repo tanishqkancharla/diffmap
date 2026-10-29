@@ -19,6 +19,8 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
       <MermaidBlock
         source={fence.source}
         annotations={fence.annotations}
+        sides={fence.sides}
+        title={fence.title}
         selectedAnnotation={props.selectedAnnotation}
         onSelectAnnotation={props.onSelectAnnotation}
       />

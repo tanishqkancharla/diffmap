@@ -14,6 +14,11 @@ service API "HTTP server" [[src/serve.ts]]
   %% A sub-service, indented further
   service Auth
 
+%% A caption for the whole diagram, shown above it before the first step
+start "API checks every request with Auth"
+  %% Optional: what the reader sees in the initial state
+  > No requests have arrived yet.
+
 %% A step, with a caption that says what happens
 step "API asks Auth to verify"
   %% Optional: a longer explanation, shown under the caption
@@ -54,6 +59,9 @@ service Postgres
   state users = alice, bob
   state sessions = 0 rows
     > Rows in the sessions table.
+
+start "Alice logs in"
+  > She is signed out, and Postgres already stores her password hash.
 
 step "Alice submits the login form"
   Browser -> API: POST /login
@@ -104,6 +112,9 @@ service Backend
       > Open tabs subscribed to this post.
 service BobTab "Bob's browser"
   state likes = 41
+
+start "A like reaches every open tab"
+  > Alice and Bob both see 41 likes.
 
 step "Alice clicks Like, and her tab updates right away"
   AliceTab.liked = true

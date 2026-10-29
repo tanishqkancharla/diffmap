@@ -7,8 +7,21 @@ import { parseAnnotation, type SourceAnnotation } from "./annotations.js";
  */
 export type ServiceDiagram = {
   services: Service[];
+  /** From `start "caption"`: what the declared state shows, before step 1. */
+  start: { caption: string; description: string | undefined } | undefined;
   steps: ServiceStep[];
+  /** From ```services diff: items carry `+` or `-` signs. */
+  diff: boolean;
 };
+
+/**
+ * In a `services diff`, `-` marks an item that exists only Today and `+` one
+ * that exists only in the Proposed version. Items inherit the sign of the
+ * service or step they sit in.
+ */
+export type Sign = "+" | "-" | " ";
+
+export type Side = "today" | "proposed";
 
 export type Service = {
   name: string;
@@ -17,12 +30,17 @@ export type Service = {
   state: ServiceState[];
   children: Service[];
   annotation: SourceAnnotation | undefined;
+  sign: Sign;
 };
 
 export type ServiceState = {
   key: string;
+  /** The Proposed initial value. */
   value: string;
+  /** Set when a `-` and a `+` line declare the key with different values. */
+  todayValue: string | undefined;
   description: string | undefined;
+  sign: Sign;
 };
 
 export type ServiceStep = {
@@ -31,6 +49,7 @@ export type ServiceStep = {
   description: string | undefined;
   events: ServiceEvent[];
   updates: ServiceUpdate[];
+  sign: Sign;
 };
 
 export type ServiceEvent = {
@@ -40,6 +59,7 @@ export type ServiceEvent = {
   /** Shown beside the event's label while its step is current. */
   note: string | undefined;
   annotation: SourceAnnotation | undefined;
+  sign: Sign;
 };
 
 export type ServiceUpdate = {
@@ -48,6 +68,7 @@ export type ServiceUpdate = {
   value: string;
   /** Shown beside the changed state while its step is current. */
   note: string | undefined;
+  sign: Sign;
 };
 
 export type ServicesParse =
@@ -60,6 +81,7 @@ const serviceLine = new RegExp(
 );
 const stateLine = new RegExp(String.raw`^state\s+(${name})\s*=\s*(.+)$`);
 const stepLine = /^step\b(?:\s+"([^"]*)")?\s*$/;
+const startLine = /^start\b(?:\s+"([^"]*)")?\s*$/;
 const eventLine = new RegExp(
   String.raw`^(${name})\s*->\s*(${name})(?:\s*:\s*(.*))?$`,
 );
@@ -77,10 +99,14 @@ const updateLine = new RegExp(String.raw`^(${name})\.(${name})\s*=\s*(.+)$`);
  *   Auth.attempts = 1
  * ```
  */
-export function parseServiceDiagram(source: string): ServicesParse {
+export function parseServiceDiagram(
+  source: string,
+  diff = false,
+): ServicesParse {
   const services: Service[] = [];
   const byName = new Map<string, Service>();
   const steps: ServiceStep[] = [];
+  let start: ServiceDiagram["start"];
   // Open services, innermost last, with the indent of their `service` line.
   const open: { indent: number; service: Service }[] = [];
   // Where a `>` line's text goes: a description on a service, state, or
@@ -104,16 +130,35 @@ export function parseServiceDiagram(source: string): ServicesParse {
     };
   };
   const lines = source.split("\n");
-  for (const [index, raw] of lines.entries()) {
+  for (const [index, row] of lines.entries()) {
     const line = index + 1;
     const fail = (reason: string): ServicesParse => ({
       ok: false,
       line,
       reason,
     });
+    if (row.trim().length === 0 || row.trim().startsWith("%%")) continue;
+    // A diff's first column is its sign, so indentation counts from column 1.
+    if (diff && !/^[+ -]/.test(row))
+      return fail("Start every line of a services diff with +, -, or a space.");
+    // SAFETY: the test above limits a diff row's first character to a Sign.
+    const own: Sign = diff ? (row[0] as Sign) : " ";
+    const raw = diff ? row.slice(1) : row;
     const text = raw.trim();
-    if (text.length === 0 || text.startsWith("%%")) continue;
+    if (text.length === 0) continue;
     const indent = raw.replace(/\t/g, "  ").search(/\S/);
+    // An item takes the sign of the service or step it sits in.
+    const signWithin = (
+      container: { sign: Sign } | undefined,
+      kind: string,
+    ) => {
+      const outer = container?.sign ?? " ";
+      if (outer === " " || own === " " || own === outer)
+        return outer === " " ? own : outer;
+      return fail(
+        `A ${own} line can't sit inside a ${outer === "-" ? "removed" : "added"} ${kind}.`,
+      );
+    };
     if (text.startsWith(">")) {
       if (described === undefined || indent <= described.indent)
         return fail(
@@ -135,6 +180,8 @@ export function parseServiceDiagram(source: string): ServicesParse {
       if (byName.has(serviceName))
         return fail(`Service ${serviceName} is declared twice.`);
       while (open.length > 0 && open.at(-1)!.indent >= indent) open.pop();
+      const sign = signWithin(open.at(-1)?.service, "service");
+      if (typeof sign !== "string") return sign;
       const service: Service = {
         name: serviceName,
         label: serviceMatch[2],
@@ -145,6 +192,7 @@ export function parseServiceDiagram(source: string): ServicesParse {
           annotation === undefined
             ? undefined
             : { ...annotation, text: serviceName },
+        sign,
       };
       (open.at(-1)?.service.children ?? services).push(service);
       byName.set(serviceName, service);
@@ -164,15 +212,51 @@ export function parseServiceDiagram(source: string): ServicesParse {
       if (owner === undefined)
         return fail("Indent state under the service that owns it.");
       const key = stateMatch[1]!;
-      if (owner.state.some((entry) => entry.key === key))
-        return fail(`${owner.name}.${key} is declared twice.`);
-      const entry = {
+      const value = stateMatch[2]!.trim();
+      const sign = signWithin(owner, "service");
+      if (typeof sign !== "string") return sign;
+      const declared = owner.state.find((entry) => entry.key === key);
+      if (declared !== undefined) {
+        // A `-` and a `+` declaration of one key change its initial value.
+        if (
+          declared.todayValue !== undefined ||
+          declared.sign === " " ||
+          sign === " " ||
+          declared.sign === sign
+        )
+          return fail(`${owner.name}.${key} is declared twice.`);
+        declared.todayValue = declared.sign === "-" ? declared.value : value;
+        declared.value = declared.sign === "+" ? declared.value : value;
+        declared.sign = " ";
+        describe(indent, declared);
+        continue;
+      }
+      const entry: ServiceState = {
         key,
-        value: stateMatch[2]!.trim(),
+        value,
+        todayValue: undefined,
         description: undefined,
+        sign,
       };
       owner.state.push(entry);
       describe(indent, entry);
+      continue;
+    }
+
+    const startMatch = startLine.exec(text);
+    if (startMatch !== null) {
+      if (indent !== 0) return fail("Start the start line at column 0.");
+      if (step !== undefined || start !== undefined)
+        return fail("Write one start line, before the first step.");
+      if (own !== " ")
+        return fail("The start line describes both versions; drop its sign.");
+      const caption = startMatch[1]?.trim();
+      if (caption === undefined || caption === "")
+        return fail(
+          'Give the start a caption that says what the initial state shows, like start "Alice is signed out".',
+        );
+      start = { caption, description: undefined };
+      describe(indent, start);
       continue;
     }
 
@@ -189,6 +273,7 @@ export function parseServiceDiagram(source: string): ServicesParse {
         description: undefined,
         events: [],
         updates: [],
+        sign: own,
       };
       steps.push(next);
       describe(indent, next);
@@ -201,6 +286,8 @@ export function parseServiceDiagram(source: string): ServicesParse {
         for (const service of [event[1]!, event[2]!])
           if (!byName.has(service)) return fail(`Unknown service ${service}.`);
         const label = (event[3] ?? "").trim();
+        const sign = signWithin(step, "step");
+        if (typeof sign !== "string") return sign;
         const entry: ServiceEvent = {
           from: event[1]!,
           to: event[2]!,
@@ -213,6 +300,7 @@ export function parseServiceDiagram(source: string): ServicesParse {
                   ...annotation,
                   text: `${event[1]} → ${event[2]}${label === "" ? "" : `: ${label}`}`,
                 },
+          sign,
         };
         step.events.push(entry);
         annotate(indent, entry);
@@ -226,11 +314,14 @@ export function parseServiceDiagram(source: string): ServicesParse {
           return fail(
             `${owner.name} has no state ${update[2]}. Declare it with state ${update[2]} = <initial value>.`,
           );
+        const sign = signWithin(step, "step");
+        if (typeof sign !== "string") return sign;
         const entry: ServiceUpdate = {
           service: owner.name,
           key: update[2]!,
           value: update[3]!.trim(),
           note: undefined,
+          sign,
         };
         step.updates.push(entry);
         annotate(indent, entry);
@@ -242,12 +333,12 @@ export function parseServiceDiagram(source: string): ServicesParse {
     }
 
     return fail(
-      `Expected service <Name>, state <key> = <value>, or step "<caption>", got "${text}".`,
+      `Expected service <Name>, state <key> = <value>, start "<caption>", or step "<caption>", got "${text}".`,
     );
   }
   if (services.length === 0)
     return { ok: false, line: 1, reason: "Declare at least one service." };
-  return { ok: true, diagram: { services, steps } };
+  return { ok: true, diagram: { services, start, steps, diff } };
 }
 
 /** Every service in declaration order, with its parent. */
@@ -261,17 +352,33 @@ export function flattenServices(
   ]);
 }
 
-/** State after the first `step` steps; step 0 is the declared state. */
-export function serviceStateAt(diagram: ServiceDiagram, step: number) {
+/**
+ * State after the first `step` steps; step 0 is the declared state. In a
+ * diff, Today skips `+` items and Proposed skips `-` items.
+ */
+export function serviceStateAt(
+  diagram: ServiceDiagram,
+  step: number,
+  side: Side = "proposed",
+) {
+  const skip: Sign = side === "today" ? "+" : "-";
   const state = new Map(
     flattenServices(diagram.services).map(({ service }) => [
       service.name,
-      new Map(service.state.map((entry) => [entry.key, entry.value])),
+      new Map(
+        service.state
+          .filter((entry) => entry.sign !== skip)
+          .map((entry) => [
+            entry.key,
+            side === "today" ? (entry.todayValue ?? entry.value) : entry.value,
+          ]),
+      ),
     ]),
   );
   for (const { updates } of diagram.steps.slice(0, step))
     for (const update of updates)
-      state.get(update.service)!.set(update.key, update.value);
+      if (update.sign !== skip)
+        state.get(update.service)!.set(update.key, update.value);
   return state;
 }
 
