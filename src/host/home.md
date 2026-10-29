@@ -2,7 +2,9 @@
 
 **Your coding agent writes more code than you can review.**
 
-`diffmap` shows a change as a page that you can review. The page explains the main ideas with call stacks and diagrams that you can click. When you want more detail, you can open the code from the page.
+**You should be spending time reviewing design decisions and risky changes, not boilerplate.**
+
+`diffmap` is an agent skill that lets your agent visually explain their changes to you. Agents can create interactive diagrams that link back to the source code.
 
 You can try `diffmap` before you install it. In a repository that has changes, paste this prompt into your agent:
 
@@ -18,7 +20,7 @@ If you like the result, install the skill:
 npx skills add tanishqkancharla/diffmap --skill generate-diffmap
 ```
 
-After you install the skill, your agent can write a spec each time that you ask. The agent saves each spec in `specs/<name>.md` and serves it on your computer. The agent can also share the spec as a link, as with this page.
+`diffmap` is [open source](https://github.com/tanishqkancharla/diffmap) and MIT licensed. Diffmaps are hosted locally by default, but you can choose to [upload a diffmap as a secret gist](#share-a-spec-with-a-link) and open it on diffmap.dev.
 
 ## See the main ideas
 
