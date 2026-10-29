@@ -19,6 +19,7 @@ import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
 import { DiffButton } from "./DiffButton.tsx";
+import { TocButton } from "./TocButton.tsx";
 import {
   hasTableOfContents,
   TableOfContents,
@@ -87,6 +88,7 @@ export function ViewerApp(props: {
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
   const hasToc = hasTableOfContents(viewerDocument.headings);
+  const [tocDrawerOpen, setTocDrawerOpen] = useState(false);
   useEffect(() => {
     document.title = title;
   }, [title]);
@@ -113,6 +115,12 @@ export function ViewerApp(props: {
       <div className={shell}>
         <header className={header}>
           <div className={heading}>
+            {hasToc && (
+              <TocButton
+                expanded={tocDrawerOpen}
+                onClick={() => setTocDrawerOpen(true)}
+              />
+            )}
             <div className={titleClass}>{title}</div>
           </div>
           <div className={actions}>
@@ -155,6 +163,8 @@ export function ViewerApp(props: {
                   <TableOfContents
                     headings={viewerDocument.headings}
                     articleRef={articleRef}
+                    drawerOpen={tocDrawerOpen}
+                    onDrawerOpenChange={setTocDrawerOpen}
                   />
                 )}
               </div>
