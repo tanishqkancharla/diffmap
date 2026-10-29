@@ -1,4 +1,4 @@
-import { radius, shadow, spacing } from "maui";
+import { backgroundColor, radius, shadow, spacing } from "maui";
 import { style, useStyles } from "purse-styles";
 
 export function HtmlBlock(props: { source: string }) {
@@ -15,5 +15,6 @@ export function HtmlBlock(props: { source: string }) {
 const styles = {
   shell: style(radius.md, shadow.subtle, spacing.padding({ all: 4 }), {
     minWidth: 0,
+    backgroundColor: backgroundColor.element,
   }),
 };

@@ -1,12 +1,4 @@
-import {
-  backgroundColor,
-  colors,
-  focusRing,
-  LARGE_SCALE,
-  spacing,
-  text,
-  Tooltip,
-} from "maui";
+import { colors, focusRing, LARGE_SCALE, spacing, text, Tooltip } from "maui";
 import { defineVars, style, useStyles } from "purse-styles";
 import { codeFontFamily } from "../codeFont.js";
 import {
@@ -141,7 +133,6 @@ const styles = {
     spacing.padding({ y: 2 }),
     {
       margin: 0,
-      backgroundColor: backgroundColor.app,
       overflowX: "hidden",
       maxWidth: "100%",
       // The shell's top padding goes below the title, between it and the rows.

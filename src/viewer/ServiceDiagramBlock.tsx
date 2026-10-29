@@ -9,6 +9,7 @@ import {
   RotateAntiClockwise,
   Text,
   Tooltip,
+  backgroundColor,
   borderColor,
   colors,
   flex,
@@ -281,6 +282,7 @@ const styles = {
       width: "100%",
       minWidth: 0,
       border: `1px solid ${borderColor.outline}`,
+      backgroundColor: backgroundColor.element,
     },
   ),
   controls: style(flex({ direction: "row", alignItems: "center", gap: 2 }), {

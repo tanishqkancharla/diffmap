@@ -1,7 +1,6 @@
 import { useId, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
-  backgroundColor,
   borderColor,
   ChevronRight,
   colors,
@@ -245,7 +244,6 @@ const STAT_INSET = 12;
 
 const styles = {
   shell: style(text({ size: "sm", color: "highContrast" }), {
-    backgroundColor: backgroundColor.app,
     maxWidth: "100%",
   }),
   // Same insets and gap as the file rows, so the branch icon lines up with the file icons

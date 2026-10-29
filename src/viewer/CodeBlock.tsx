@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getSharedHighlighter } from "@pierre/diffs";
 import {
-  backgroundColor,
   Button,
   Check,
   codeBlockStyles,
@@ -86,8 +85,9 @@ export function CodeBlock(props: {
       </pre>
       <Button
         className={copyClassName}
-        // Over code, the button needs its own surface so text does not show through.
-        variant={props.title === undefined ? "default" : "quiet"}
+        variant="quiet"
+        data-copy=""
+        data-copied={copied || undefined}
         size="sm"
         aria-label={copied ? "Copied" : "Copy code"}
         onPress={() => {
@@ -147,14 +147,27 @@ const styles = {
   figure: style({
     position: "relative",
     margin: 0,
-    backgroundColor: backgroundColor.app,
-    "& > pre": { boxShadow: "none", borderRadius: 0 },
+    "& > pre": {
+      boxShadow: "none",
+      borderRadius: 0,
+      backgroundColor: "transparent",
+    },
     // Room for the copy button, which sits in the title row.
     "& > figcaption": { paddingRight: "40px" },
+    "&:hover > [data-copy], &:focus-within > [data-copy]": { opacity: 1 },
     "&[data-wrap] > pre > code": { display: "block" },
     "&[data-wrap] .line": { whiteSpace: "pre-wrap", overflowWrap: "anywhere" },
   }),
-  copy: style({ position: "absolute", top: "6px", right: "6px" }),
+  // Hidden until the block is hovered or focused, and while it confirms a copy.
+  // Touch screens have no hover, so the button always shows there.
+  copy: style({
+    position: "absolute",
+    top: "6px",
+    right: "6px",
+    opacity: 0,
+    "&[data-copied]": { opacity: 1 },
+    "@media (hover: none)": { opacity: 1 },
+  }),
   block: style({
     fontFamily: codeFontFamily,
     paddingInline: 0,

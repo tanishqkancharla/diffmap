@@ -1,9 +1,18 @@
-import { border, colors, radius, shadow, spacing, text } from "maui";
+import {
+  backgroundColor,
+  border,
+  colors,
+  radius,
+  shadow,
+  spacing,
+  text,
+} from "maui";
 import { style } from "purse-styles";
 import { codeFontFamily } from "../codeFont.js";
 import { diffsTheme } from "./diffsTheme.ts";
 
-const pierreUnsafeCss = `:host { --diffs-font-family: ${codeFontFamily}; }`;
+// Pierre paints its own white; widgets use the element surface instead.
+const pierreUnsafeCss = `:host { --diffs-font-family: ${codeFontFamily}; --diffs-light-bg: ${backgroundColor.element}; --diffs-dark-bg: ${backgroundColor.element}; }`;
 
 export const sourceSelectionCss = `
 [data-selected-line] {
@@ -18,7 +27,9 @@ export const sourceSelectionCss = `
 }
 `;
 
+/** The card every widget sits in: raised element surface, subtle shadow. */
 export const pierreShell = style(radius.md, shadow.subtle, {
+  backgroundColor: backgroundColor.element,
   overflow: "hidden",
   minWidth: 0,
 });
