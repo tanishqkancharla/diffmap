@@ -1,4 +1,5 @@
 import type {
+  CodeViewLineSelection,
   DiffLineAnnotation,
   LineAnnotation,
   SelectedLineRange,
@@ -25,6 +26,10 @@ export function useLineComments(target: string) {
 }
 
 function lineCommentsFor(store: CommentStore, target: string) {
+  const draft =
+    store.draft?.kind === "lines" && store.draft.target === target
+      ? store.draft
+      : undefined;
   const forPath = (path: string) => [
     ...store.comments.flatMap((comment) =>
       comment.anchor.kind === "lines" &&
@@ -33,13 +38,17 @@ function lineCommentsFor(store: CommentStore, target: string) {
         ? [{ id: comment.id, anchor: comment.anchor }]
         : [],
     ),
-    ...(store.draft?.kind === "lines" &&
-    store.draft.target === target &&
-    store.draft.path === path
-      ? [{ id: DRAFT, anchor: store.draft }]
-      : []),
+    ...(draft?.path === path ? [{ id: DRAFT, anchor: draft }] : []),
   ];
   return {
+    /** The lines the draft covers, to highlight while it is being written. */
+    draftSelection:
+      draft === undefined
+        ? undefined
+        : ({
+            id: draft.path,
+            range: { start: draft.start, end: draft.end, side: draft.side },
+          } satisfies CodeViewLineSelection),
     diffAnnotations: (path: string): DiffLineAnnotation<string>[] =>
       forPath(path).map(({ id, anchor }) => ({
         side: anchor.side ?? "additions",

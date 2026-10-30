@@ -30,6 +30,7 @@ export function CommentCard(props: {
   const actions = useStyles(styles.actions);
   const comment = props.comment;
   const active = comment === undefined || store.activeId === comment.id;
+  const anchor = comment === undefined ? store.draft : comment.anchor;
   return (
     // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Focus inside the card activates it too; the click only brings it forward.
     <div
@@ -46,6 +47,12 @@ export function CommentCard(props: {
       {props.detached === true && comment?.anchor.kind === "text" && (
         <Text size="xs" color="lowContrast">
           Text not found: “{comment.anchor.display.trim()}”
+        </Text>
+      )}
+      {/* The card sits under the last line, so a range names its first line too. */}
+      {anchor?.kind === "lines" && anchor.start !== anchor.end && (
+        <Text size="xs" color="lowContrast">
+          Lines {anchor.start}–{anchor.end}
         </Text>
       )}
       {comment === undefined ? (

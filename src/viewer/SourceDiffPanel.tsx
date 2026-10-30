@@ -374,6 +374,13 @@ export function SourceDiffPanel(props: {
   const lineComments = useLineComments(
     file === undefined ? `panel:${page.rev}` : "panel-file",
   );
+  // Pierre only draws the selection it is given, so a gutter drag shows through this state.
+  const [dragSelection, setDragSelection] = useState<CodeViewLineSelection>();
+  const onDragSelection: CodeViewOptions<
+    string,
+    undefined
+  >["onLineSelectionChange"] = (range, context) =>
+    setDragSelection(range ? { id: context.item.id, range } : undefined);
   const commentedItems = useMemo(() => {
     const baseItems: CodeViewItem<string>[] =
       file === undefined
@@ -555,7 +562,9 @@ export function SourceDiffPanel(props: {
           ref={viewer}
           className={code}
           items={commentedItems}
-          selectedLines={selectedLines}
+          selectedLines={
+            dragSelection ?? lineComments.draftSelection ?? selectedLines
+          }
           disableWorkerPool
           options={{
             ...options,
@@ -567,6 +576,10 @@ export function SourceDiffPanel(props: {
             onTokenClick,
             enableGutterUtility: true,
             onGutterUtilityClick,
+            onLineSelectionStart: onDragSelection,
+            onLineSelectionChange: onDragSelection,
+            // The draft's lines take over once the drag ends.
+            onLineSelectionEnd: () => setDragSelection(undefined),
           }}
           renderAnnotation={(...[annotation]) => (
             <LineComment id={annotation.metadata} />
