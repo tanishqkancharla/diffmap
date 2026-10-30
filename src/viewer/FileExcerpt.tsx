@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { File } from "@pierre/diffs/react";
 import { useTheme } from "maui";
 import { useStyles } from "purse-styles";
+import {
+  commentedLines,
+  LineComment,
+  useLineComments,
+} from "./lineComments.tsx";
 import { pierreFileOptions, pierreShell } from "./pierre.ts";
 import { useViewerMode } from "./viewerMode.ts";
 import { useGitHubPin } from "../github/pin.ts";
@@ -25,16 +30,37 @@ export function FileExcerpt(props: {
   const shell = useStyles(pierreShell);
   const excerpt = useFileExcerpt(props);
   const pierre = pierreFileOptions(resolvedTheme);
+  const contents = excerpt === undefined ? props.fallback : excerpt.contents;
+  const comments = useLineComments(
+    `excerpt:${props.path}#${String(props.start)}-${String(props.end)}`,
+  );
 
   return (
     <div className={shell} data-file-path={props.path} data-diffmap-kind="file">
       <File
-        file={{
-          name: props.path,
-          contents: excerpt === undefined ? props.fallback : excerpt.contents,
-        }}
+        file={{ name: props.path, contents }}
         disableWorkerPool
-        options={pierre}
+        lineAnnotations={comments.fileAnnotations(props.path)}
+        renderAnnotation={(annotation) => (
+          <LineComment id={annotation.metadata} />
+        )}
+        options={{
+          ...pierre,
+          enableGutterUtility: true,
+          onGutterUtilityClick: (range) => {
+            const { start, end } = commentedLines(range);
+            comments.start({
+              path: props.path,
+              side: undefined,
+              start,
+              end,
+              // The excerpt numbers its lines from 1.
+              lineOffset: props.start - 1,
+              lines: contents.split(/\r?\n/).slice(start - 1, end),
+              context: "file excerpt in the document",
+            });
+          },
+        }}
       />
     </div>
   );

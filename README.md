@@ -58,6 +58,16 @@ instead of the rendered HTML. Use the URL printed by `serve`:
 curl -H 'Accept: text/markdown' http://127.0.0.1:<port>/
 ```
 
+## Comments
+
+Highlight text on the page and press **Comment** to leave a note beside it.
+In a diff, file excerpt, or the Diff panel, hover a line and press the **+**
+in the gutter, or drag it across several lines, to comment under those lines.
+Comments save in your browser (localStorage, per page) and survive reloads.
+**Copy comments** in the top right copies them all as a numbered Markdown list,
+each with its location and the quoted text or lines, ready to paste to an
+agent. ⌘/Ctrl-Enter saves a comment and Escape cancels it.
+
 ## Library
 
 ```ts

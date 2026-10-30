@@ -18,6 +18,9 @@ import type { ViewerDocument } from "../parseViewer.js";
 import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
+import { CommentsContext, useCommentStore } from "./comments.ts";
+import { CopyCommentsButton } from "./CopyCommentsButton.tsx";
+import { commentHighlightStyle, PageComments } from "./PageComments.tsx";
 import { DiffButton } from "./DiffButton.tsx";
 import { TocButton } from "./TocButton.tsx";
 import {
@@ -29,6 +32,8 @@ import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
 
 type ViewerMeta = {
   title: string;
+  /** The served markdown file's absolute path. */
+  file: string;
 };
 
 export function ViewerApp(props: {
@@ -82,7 +87,16 @@ export function ViewerApp(props: {
   const actions = useStyles(styles.actions);
   const article = useStyles(styles.article);
   const prose = useStyles(styles.prose);
-  const content = useStyles(proseHtml("md"), styles.content);
+  const content = useStyles(
+    proseHtml("md"),
+    styles.content,
+    commentHighlightStyle,
+  );
+  const contentRef = useRef<HTMLDivElement>(null);
+  // localStorage is per origin, so the path names the document: a gist file, a GitHub spec, or a local server's only page.
+  const comments = useCommentStore(
+    `diffmap-comments:${window.location.pathname}`,
+  );
   const closed = useStyles(styles.closed);
   const closedCopy = useStyles(styles.closedCopy);
   const stage = useStyles(styles.stage);
@@ -112,83 +126,98 @@ export function ViewerApp(props: {
 
   return (
     <ViewerModeContext.Provider value={props.mode}>
-      <div className={shell}>
-        <header className={header}>
-          <div className={heading}>
-            {hasToc && (
-              <TocButton
-                expanded={tocDrawerOpen}
-                onClick={() => setTocDrawerOpen(true)}
-              />
-            )}
-            <div className={titleClass}>{title}</div>
-          </div>
-          <div className={actions}>
-            {hasSourceDiffs && (
-              <DiffButton
-                pressed={showDiffPanel}
-                onClick={() => setShowDiffPanel((open) => !open)}
-              />
-            )}
-            {props.headerActions}
-            {props.mode === "local" && (
-              <CloseServerButton
-                onClick={() => {
-                  setShutDown(true);
-                  // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
-                  void closeViewer();
-                }}
-              />
-            )}
-          </div>
-        </header>
-        <div className={stage}>
-          <div className={body} data-has-source-diffs={diffPanelOpen}>
-            <article ref={articleRef} className={article}>
-              <div className={prose} data-has-toc={hasToc ? "true" : "false"}>
-                <div className={content} data-diffmap-kind="page">
-                  <ComarkView
-                    document={viewerDocument}
-                    selectedAnnotation={selection?.annotation}
-                    onSelectAnnotation={(line) => {
-                      setShowDiffPanel(true);
-                      select({
-                        annotation: line,
-                        reference: line.references[0]!,
-                      });
-                    }}
-                  />
-                </div>
-                {hasToc && (
-                  <TableOfContents
-                    headings={viewerDocument.headings}
-                    articleRef={articleRef}
-                    drawerOpen={tocDrawerOpen}
-                    onDrawerOpenChange={setTocDrawerOpen}
-                  />
-                )}
-              </div>
-            </article>
-            {diffPanelOpen && (
-              <SourceDiffPanel
-                rev={panelRev}
-                review={panelReview}
-                onRevChange={
+      <CommentsContext.Provider value={comments}>
+        <div className={shell}>
+          <header className={header}>
+            <div className={heading}>
+              {hasToc && (
+                <TocButton
+                  expanded={tocDrawerOpen}
+                  onClick={() => setTocDrawerOpen(true)}
+                />
+              )}
+              <div className={titleClass}>{title}</div>
+            </div>
+            <div className={actions}>
+              <CopyCommentsButton
+                title={title}
+                source={
                   local
-                    ? (rev) => {
-                        // A focused reference's lines belong to its own rev.
-                        setSelection(undefined);
-                        setPanelRev(rev);
-                      }
-                    : undefined
+                    ? meta?.file
+                    : `${window.location.origin}${window.location.pathname}`
                 }
-                selection={selection}
-                onSelect={select}
               />
-            )}
+              {hasSourceDiffs && (
+                <DiffButton
+                  pressed={showDiffPanel}
+                  onClick={() => setShowDiffPanel((open) => !open)}
+                />
+              )}
+              {props.headerActions}
+              {props.mode === "local" && (
+                <CloseServerButton
+                  onClick={() => {
+                    setShutDown(true);
+                    // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
+                    void closeViewer();
+                  }}
+                />
+              )}
+            </div>
+          </header>
+          <div className={stage}>
+            <div className={body} data-has-source-diffs={diffPanelOpen}>
+              <article ref={articleRef} className={article}>
+                <div className={prose} data-has-toc={hasToc ? "true" : "false"}>
+                  <div
+                    ref={contentRef}
+                    className={content}
+                    data-diffmap-kind="page"
+                  >
+                    <ComarkView
+                      document={viewerDocument}
+                      selectedAnnotation={selection?.annotation}
+                      onSelectAnnotation={(line) => {
+                        setShowDiffPanel(true);
+                        select({
+                          annotation: line,
+                          reference: line.references[0]!,
+                        });
+                      }}
+                    />
+                  </div>
+                  <PageComments contentRef={contentRef} />
+                  {hasToc && (
+                    <TableOfContents
+                      headings={viewerDocument.headings}
+                      articleRef={articleRef}
+                      drawerOpen={tocDrawerOpen}
+                      onDrawerOpenChange={setTocDrawerOpen}
+                    />
+                  )}
+                </div>
+              </article>
+              {diffPanelOpen && (
+                <SourceDiffPanel
+                  rev={panelRev}
+                  review={panelReview}
+                  onRevChange={
+                    local
+                      ? (rev) => {
+                          // A focused reference's lines belong to its own rev.
+                          setSelection(undefined);
+                          setPanelRev(rev);
+                        }
+                      : undefined
+                  }
+                  selection={selection}
+                  onSelect={select}
+                />
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </CommentsContext.Provider>
     </ViewerModeContext.Provider>
   );
 }

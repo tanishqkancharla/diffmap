@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { CodeView, type CodeViewHandle } from "@pierre/diffs/react";
-import type { CodeViewOptions, CodeViewLineSelection } from "@pierre/diffs";
+import type {
+  CodeViewItem,
+  CodeViewOptions,
+  CodeViewLineSelection,
+} from "@pierre/diffs";
 import {
   ActivityIndicator,
   backgroundColor,
@@ -27,6 +31,7 @@ import {
 import {
   changedFileItem,
   orderForReview,
+  shortRev,
   type Changes,
   type Rev,
 } from "../changes.js";
@@ -38,7 +43,18 @@ import { ChangesSummary } from "./ChangesCard.tsx";
 import { useChanges } from "./changesSource.ts";
 import { RangePicker } from "./RangePicker.tsx";
 import { requestSource, useSourceReference } from "./sourceNavigation.js";
-import { pierreDiffOptions, sourceSelectionCss } from "./pierre.js";
+import {
+  commentedLines,
+  hashNumber,
+  LineComment,
+  lineNumbers,
+  useLineComments,
+} from "./lineComments.tsx";
+import {
+  diffLineText,
+  pierreDiffOptions,
+  sourceSelectionCss,
+} from "./pierre.js";
 import { sourcePanelPin } from "./sourceHeader.ts";
 import { useViewerMode } from "./viewerMode.ts";
 
@@ -76,7 +92,7 @@ export function SourceDiffPanel(props: {
 }) {
   const { resolvedTheme } = useTheme();
   const mode = useViewerMode();
-  const viewer = useRef<CodeViewHandle<undefined, undefined>>(null);
+  const viewer = useRef<CodeViewHandle<string, undefined>>(null);
   const [navigation, setNavigation] = useState<DefinitionNavigation>({
     selection: props.selection,
     history: [],
@@ -309,7 +325,7 @@ export function SourceDiffPanel(props: {
     });
   }, [ready, rangeId, rangeStart, rangeEnd, rangeSide]);
 
-  const onTokenClick: CodeViewOptions<undefined, undefined>["onTokenClick"] = (
+  const onTokenClick: CodeViewOptions<string, undefined>["onTokenClick"] = (
     token,
     event,
     context,
@@ -325,18 +341,11 @@ export function SourceDiffPanel(props: {
       lineText = item.file.contents.split(/\r?\n/)[token.lineNumber - 1]!;
     } else {
       const side =
-        "side" in token && token.side === "deletions" ? "deletion" : "addition";
-      const diff = item.fileDiff;
-      filePath = diff.name;
-      const hunk = diff.hunks.find(
-        (h) =>
-          token.lineNumber >= h[`${side}Start`] &&
-          token.lineNumber < h[`${side}Start`] + h[`${side}Count`],
-      )!;
-      const index = diff.isPartial
-        ? hunk[`${side}LineIndex`] + token.lineNumber - hunk[`${side}Start`]
-        : token.lineNumber - 1;
-      lineText = diff[`${side}Lines`][index]!.replace(/\r?\n$/, "");
+        "side" in token && token.side === "deletions"
+          ? "deletions"
+          : "additions";
+      filePath = item.fileDiff.name;
+      lineText = diffLineText(item.fileDiff, side, token.lineNumber)!;
     }
     const params = new URLSearchParams({
       path: filePath,
@@ -358,6 +367,70 @@ export function SourceDiffPanel(props: {
           request: undefined,
         };
       });
+    });
+  };
+
+  // A diff's line numbers belong to its rev; a single file's to its current contents.
+  const lineComments = useLineComments(
+    file === undefined ? `panel:${page.rev}` : "panel-file",
+  );
+  const commentedItems = useMemo(() => {
+    const baseItems: CodeViewItem<string>[] =
+      file === undefined
+        ? // SAFETY: changed-file items carry no annotations yet.
+          (shownItems as CodeViewItem<string>[])
+        : [
+            {
+              type: "file",
+              id: file.path,
+              file: { name: file.path, contents: file.contents },
+            },
+          ];
+    return baseItems.map((item) => {
+      const annotations =
+        item.type === "file"
+          ? lineComments.fileAnnotations(item.id)
+          : lineComments.diffAnnotations(item.id);
+      if (annotations.length === 0) return item;
+      // Pierre only rereads an item's annotations when its version changes.
+      const key = annotations
+        .map((a) => `${a.metadata}@${String(a.lineNumber)}`)
+        .join();
+      return {
+        ...item,
+        annotations,
+        version: hashNumber(`${String(item.version ?? 0)}:${key}`),
+      } as CodeViewItem<string>;
+    });
+  }, [file, shownItems, lineComments]);
+  const onGutterUtilityClick: CodeViewOptions<
+    string,
+    undefined
+  >["onGutterUtilityClick"] = (range, context) => {
+    const item = context.item;
+    const { side = "additions", start, end } = commentedLines(range);
+    if (item.type === "file") {
+      lineComments.start({
+        path: item.id,
+        side: undefined,
+        start,
+        end,
+        lineOffset: 0,
+        lines: item.file.contents.split(/\r?\n/).slice(start - 1, end),
+        context: "current file",
+      });
+      return;
+    }
+    lineComments.start({
+      path: item.id,
+      side,
+      start,
+      end,
+      lineOffset: 0,
+      lines: lineNumbers(start, end).flatMap(
+        (line) => diffLineText(item.fileDiff, side, line) ?? [],
+      ),
+      context: `Diff panel: ${shortRev(page.rev)}`,
     });
   };
 
@@ -481,20 +554,7 @@ export function SourceDiffPanel(props: {
         <CodeView
           ref={viewer}
           className={code}
-          items={
-            file === undefined
-              ? shownItems
-              : [
-                  {
-                    type: "file",
-                    id: file.path,
-                    file: {
-                      name: file.path,
-                      contents: file.contents,
-                    },
-                  },
-                ]
-          }
+          items={commentedItems}
           selectedLines={selectedLines}
           disableWorkerPool
           options={{
@@ -505,7 +565,12 @@ export function SourceDiffPanel(props: {
             layout: { paddingTop: 0, paddingBottom: 0, gap: 0 },
             stickyHeaders: true,
             onTokenClick,
+            enableGutterUtility: true,
+            onGutterUtilityClick,
           }}
+          renderAnnotation={(...[annotation]) => (
+            <LineComment id={annotation.metadata} />
+          )}
           renderHeaderPrefix={(item) => (
             <span
               className={collapseIcon}
