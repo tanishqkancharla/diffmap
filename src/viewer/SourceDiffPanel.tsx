@@ -4,9 +4,11 @@ import type {
   CodeViewItem,
   CodeViewOptions,
   CodeViewLineSelection,
+  FileDiffMetadata,
 } from "@pierre/diffs";
 import {
   ActivityIndicator,
+  Badge,
   backgroundColor,
   border,
   borderColor,
@@ -17,6 +19,7 @@ import {
   motion,
   radius,
   shadow,
+  shadowVars,
   spacing,
   Text,
   text,
@@ -39,7 +42,7 @@ import type { SourceDefinition } from "../definitions.js";
 import { useGistPin } from "../gist/pin.ts";
 import { useGitHubPin } from "../github/pin.ts";
 import { useHostFiles } from "../host/files.ts";
-import { ChangesSummary, renderDiffStat } from "./ChangesCard.tsx";
+import { ChangesSummary, FilePath, renderDiffStat } from "./ChangesCard.tsx";
 import { useChanges } from "./changesSource.ts";
 import { RangePicker } from "./RangePicker.tsx";
 import { requestSource, useSourceReference } from "./sourceNavigation.js";
@@ -159,6 +162,7 @@ export function SourceDiffPanel(props: {
   const summary = useStyles(styles.summary);
   const codeWrap = useStyles(styles.codeWrap, styles.dimmed);
   const collapseIcon = useStyles(styles.collapseIcon);
+  const fileHeaderClass = useStyles(styles.fileHeader);
   const github = useGitHubPin();
   const gist = useGistPin();
   const loadingClass = useStyles(styles.loading);
@@ -304,9 +308,11 @@ export function SourceDiffPanel(props: {
       type: "item",
       id: focusedPath,
       align: "start",
+      // Keep the canvas gap above the card, as at the top of the list.
+      offset: showTitle ? 0 : CARD_GAP,
       behavior: "instant",
     });
-  }, [ready, focusedPath, rangeId, selection]);
+  }, [ready, focusedPath, rangeId, selection, showTitle]);
 
   useEffect(() => {
     if (
@@ -457,8 +463,6 @@ export function SourceDiffPanel(props: {
         className={header}
         data-diffmap-kind="source-header"
         data-loading={loading !== undefined}
-        // Pierre's file headers draw their own top border, which divides them from this header.
-        data-file-headers={!showTitle && items.length > 0}
       >
         {!showTitle && props.onRevChange !== undefined && (
           <div className={titleRow}>
@@ -559,6 +563,7 @@ export function SourceDiffPanel(props: {
       <div
         className={codeWrap}
         data-loading={loading !== undefined}
+        data-cards={!showTitle}
         // The last page stays visible while the next one loads, but it is no longer the one to act on.
         inert={loading !== undefined}
         onClick={onHeaderClick}
@@ -575,9 +580,16 @@ export function SourceDiffPanel(props: {
             ...options,
             unsafeCSS:
               options.unsafeCSS + sourceSelectionCss + panelBackgroundCss,
-            // Files stack flush under the header, with no gaps between them.
-            layout: { paddingTop: 0, paddingBottom: 0, gap: 0 },
+            // Diffs sit as separate cards; a single file fills the panel.
+            layout: showTitle
+              ? { paddingTop: 0, paddingBottom: 0, gap: 0 }
+              : {
+                  paddingTop: CARD_GAP,
+                  paddingBottom: CARD_GAP,
+                  gap: CARD_GAP,
+                },
             stickyHeaders: true,
+            itemMetrics: { diffHeaderHeight: FILE_HEADER_HEIGHT },
             onTokenClick,
             enableGutterUtility: true,
             onGutterUtilityClick,
@@ -589,19 +601,35 @@ export function SourceDiffPanel(props: {
           renderAnnotation={(...[annotation]) => (
             <LineComment id={annotation.metadata} />
           )}
-          renderHeaderPrefix={(item) => (
-            <span
-              className={collapseIcon}
-              data-collapse-path={item.id}
-              data-collapsed={collapse.paths.has(item.id)}
-              aria-hidden="true"
-            >
-              <ChevronDown size="sm" />
-            </span>
-          )}
-          renderHeaderMetadata={(item) =>
-            item.type === "diff" ? renderDiffStat(item.fileDiff) : undefined
-          }
+          renderCustomHeader={(item) => {
+            const label =
+              item.type === "diff" ? fileStatus[item.fileDiff.type] : undefined;
+            return (
+              <div className={fileHeaderClass}>
+                <span
+                  className={collapseIcon}
+                  data-collapse-path={item.id}
+                  data-collapsed={collapse.paths.has(item.id)}
+                  aria-hidden="true"
+                >
+                  <ChevronDown size="sm" />
+                </span>
+                <FilePath
+                  path={
+                    item.type === "diff" ? item.fileDiff.name : item.file.name
+                  }
+                />
+                <span className="meta">
+                  {label !== undefined && (
+                    <Badge className="status" data-status={label}>
+                      {label}
+                    </Badge>
+                  )}
+                  {item.type === "diff" && renderDiffStat(item.fileDiff)}
+                </span>
+              </div>
+            );
+          }}
         />
       </div>
       <div
@@ -621,6 +649,19 @@ export function SourceDiffPanel(props: {
   );
 }
 
+/** Space around and between file cards, in px. */
+const CARD_GAP = 12;
+/** File header height in px, the same as a changes card's header. Pierre sizes its estimates by it. */
+const FILE_HEADER_HEIGHT = 36;
+
+/** Badges a file that was not simply modified; Pierre's default header showed these as icons. */
+const fileStatus: Partial<Record<FileDiffMetadata["type"], string>> = {
+  new: "new",
+  deleted: "deleted",
+  "rename-pure": "renamed",
+  "rename-changed": "renamed",
+};
+
 /** Pierre paints its own white; the panel's background shows through instead. */
 const panelBackgroundCss = `:host {
   --diffs-light-bg: ${backgroundColor.app};
@@ -628,9 +669,7 @@ const panelBackgroundCss = `:host {
   --diffs-bg-separator-override: ${colors.gray[2]};
 }
 [data-diffs-header] {
-  background-color: ${colors.gray[4]};
-  color: ${colors.gray[12]};
-  border-top: 1px solid ${borderColor.border};
+  border-bottom: 1px solid ${borderColor.border};
   cursor: pointer;
 }`;
 
@@ -657,7 +696,6 @@ const styles = {
     border(["bottom"], "border"),
     text({ size: "sm", color: "lowContrast" }),
     {
-      "&[data-file-headers='true']": { borderBottom: "none" },
       gap: "6px",
       minWidth: 0,
       maxHeight: "35%",
@@ -695,6 +733,16 @@ const styles = {
     flex: "1 1 auto",
     minWidth: 0,
     minHeight: 0,
+    // Each file is a card on a gray canvas. The ring is a shadow and the inset a
+    // side margin, so neither changes the heights Pierre lays out; `clip`, unlike
+    // `hidden`, keeps the sticky headers sticking.
+    "&[data-cards='true']": { backgroundColor: colors.gray[2] },
+    "&[data-cards='true'] diffs-container": {
+      marginInline: `${String(CARD_GAP)}px`,
+      borderRadius: "8px",
+      boxShadow: shadowVars.subtle,
+      overflow: "clip",
+    },
   }),
   // Loads that finish within the delay swap pages without dimming.
   dimmed: style(motion.standard("opacity"), {
@@ -718,6 +766,31 @@ const styles = {
     },
   ),
   spinner: style({ marginRight: spacing.value(4) }),
+  // With Pierre's bottom border, the header is FILE_HEADER_HEIGHT tall.
+  fileHeader: style(
+    flex({ direction: "row", alignItems: "center" }),
+    text({ size: "sm", color: "lowContrast" }),
+    {
+      gap: "8px",
+      minHeight: `${String(FILE_HEADER_HEIGHT - 1)}px`,
+      paddingInline: "12px",
+      // The badge's 12px label and the stat's 13px code font only line up on their baselines.
+      "& .meta": {
+        display: "flex",
+        alignItems: "baseline",
+        gap: "8px",
+        flexShrink: 0,
+      },
+      "& .status[data-status='new']": {
+        backgroundColor: colors.greenAlpha[3],
+        color: colors.green[11],
+      },
+      "& .status[data-status='deleted']": {
+        backgroundColor: colors.redAlpha[3],
+        color: colors.red[11],
+      },
+    },
+  ),
   collapseIcon: style({
     display: "flex",
     color: colors.gray[11],

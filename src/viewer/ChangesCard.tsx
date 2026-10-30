@@ -161,10 +161,8 @@ function FileRow(
       }
     >
       <FileIcon path={file.path} />
-      <span className="name">
-        {file.path.split("/").pop()}
-        {file.status === "deleted" && <span className={muted}> deleted</span>}
-      </span>
+      <FilePath path={file.path} />
+      {file.status === "deleted" && <span className={muted}>deleted</span>}
       <DiffStat {...file} />
     </button>
   );
@@ -203,6 +201,28 @@ function revLabel(rev: Rev, changes: Changes | Error | undefined) {
   if (single && changes !== undefined && !(changes instanceof Error))
     return changes.title;
   return shortRev(rev).replace("..", "…");
+}
+
+/**
+ * A file's name, then its folder in muted text. The folder gives way first and
+ * truncates in the middle, keeping its first and last segments: `src/vi…/viewer`.
+ */
+export function FilePath(props: { path: string }) {
+  const className = useStyles(styles.filePath);
+  const slash = props.path.lastIndexOf("/");
+  const folder = slash < 0 ? "" : props.path.slice(0, slash);
+  const split = Math.max(folder.lastIndexOf("/"), 0);
+  return (
+    <span className={className} title={props.path}>
+      <span className="file-name">{props.path.slice(slash + 1)}</span>
+      {folder !== "" && (
+        <span className="file-folder">
+          <span className="head">{folder.slice(0, split)}</span>
+          <span className="tail">{folder.slice(split)}</span>
+        </span>
+      )}
+    </span>
+  );
 }
 
 // Keeps the `stat` class so the "other files" toggle can fade its total.
@@ -283,6 +303,38 @@ const styles = {
     flexShrink: 0,
     whiteSpace: "nowrap",
     fontVariantNumeric: "tabular-nums",
+  }),
+  // Only the folder shrinks, head first; the name and the folder's last segment
+  // truncate only once they alone are wider than the room they have. (A shrink
+  // factor would also shave a fraction of a pixel off them, enough for an ellipsis.)
+  filePath: style({
+    display: "flex",
+    alignItems: "baseline",
+    gap: "6px",
+    flex: "1 1 auto",
+    minWidth: 0,
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+    "& .file-name": {
+      flexShrink: 0,
+      maxWidth: "100%",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      fontWeight: 500,
+      color: colors.gray[12],
+    },
+    "& .file-folder": {
+      display: "flex",
+      minWidth: 0,
+      overflow: "hidden",
+      color: colors.gray[11],
+    },
+    "& .head, & .tail": { overflow: "hidden", textOverflow: "ellipsis" },
+    "& .head": { minWidth: 0 },
+    "& .tail": { flexShrink: 0, maxWidth: "100%" },
+    // Room for the ellipsis, so a squeezed folder still reads as `s…/viewer`.
+    "& .head:not(:empty)": { minWidth: "2ch" },
+    "& .head:not(:empty) + .tail": { maxWidth: "calc(100% - 2ch)" },
   }),
   stat: style(text({ size: "sm", color: "lowContrast" }), {
     display: "inline-flex",
