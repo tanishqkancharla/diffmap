@@ -1,5 +1,6 @@
 import { createElement, type ReactNode, useState } from "react";
 import {
+  Badge,
   Checkbox,
   Code,
   colors,
@@ -94,6 +95,7 @@ function renderElement(
       </Details>
     );
   }
+  if (node.tag === "badge") return <Badge key={key}>{children}</Badge>;
   if (node.tag === "li" && node.attrs.task === true) {
     return (
       <TaskListItem key={key} node={node}>

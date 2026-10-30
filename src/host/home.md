@@ -9,9 +9,7 @@
 You can try `diffmap` before you install it. In a repository that has changes, paste this prompt into your agent:
 
 ```text
-Write a diffmap spec for the changes on this branch. Use the instructions at
-https://raw.githubusercontent.com/tanishqkancharla/diffmap/main/skills/generate-diffmap/SKILL.md
-Then serve the spec with npx @tanishqkancharla/diffmap and send me the link.
+Write a diffmap spec for the changes on this branch. Use github.com/tanishqkancharla/diffmap
 ```
 
 If you like the result, install the skill:
@@ -20,11 +18,13 @@ If you like the result, install the skill:
 npx skills add tanishqkancharla/diffmap --skill generate-diffmap
 ```
 
-`diffmap` is [open source](https://github.com/tanishqkancharla/diffmap) and MIT licensed. Diffmaps are hosted locally by default, but you can choose to [upload a diffmap as a secret gist](#share-a-spec-with-a-link) and open it on diffmap.dev.
+`diffmap` is [open source](https://github.com/tanishqkancharla/diffmap) and MIT licensed. Diffmaps are hosted locally by default, but you can choose to [upload a diffmap as an unlisted gist](#share-a-spec-with-a-link-experimental) and open it on diffmap.dev.
 
 ## See the main ideas
 
 Your agent selects the best diagram for each idea. Each part of the diagram has a link to its code.
+
+The examples below explain one made-up pull request. It moves login sessions out of server memory and into Postgres, so a deploy no longer signs everyone out. Click a linked part of a diagram to open its diff.
 
 ### Service diagrams
 
@@ -32,16 +32,16 @@ A service diagram shows each service and its state. Each step shows one event an
 
 A service diagram can also show a change. Red parts exist only today, and green parts are new. As you step, each value shows today's state crossed out next to the new state.
 
-This change moves login sessions from memory to a database. Press **Play** to step through it:
+Press **Play** to step through a login before and after the pull request:
 
 ```services diff
  service Browser "login page"
    state cookie = none
- service API "HTTP server"
+ service API "HTTP server" [[src/routes/login.ts#login]]
 -  service Cache "in-memory sessions"
 -    state sessions = 0
-+  service Sessions
- service Postgres
++  service Sessions [[src/sessions/store.ts#SessionStore]]
+ service Postgres [[migrations/0004_sessions.sql]]
 -  state sessions = not used
 +  state sessions = 0 rows
 
@@ -55,74 +55,80 @@ This change moves login sessions from memory to a database. Press **Play** to st
    Cache.sessions = 1
      > The server loses this when it restarts.
 +step "Sessions writes the session to Postgres"
-   API -> Sessions: create(alice)
-   Sessions -> Postgres: INSERT s_81f
+   API -> Sessions: create(alice) [[src/sessions/store.ts#SessionStore.create]]
+   Sessions -> Postgres: INSERT s_81f [[5e5510a:src/sessions/store.ts#L18-L21]]
    Postgres.sessions = 1 row
      > The row survives a restart.
  step "The API sets the session cookie"
-   API -> Browser: 200 Set-Cookie
+   API -> Browser: 200 Set-Cookie [[5e5510a:src/routes/login.ts#L12]]
    Browser.cookie = sid=s_81f
 ```
 
 ### Mermaid diagrams
 
-The page shows Mermaid diagrams. Each node and each arrow can have a link to its code. A diagram can show a change in one picture: green parts are new, and red parts are removed.
+A Mermaid diagram can show a change in one picture: green parts are new, and red parts are removed. Each node and each arrow can have a link to its code.
 
-This diagram shows what occurs when you click a link, and what changed when diffmap.dev began to read code from GitHub:
+In this pull request, the login route and the sign-in check stop sharing a `Map` inside the server, and both go through `SessionStore`:
 
-```mermaid diff [diffmap.dev reads linked code from GitHub]
+```mermaid diff [Sessions move out of server memory]
  flowchart LR
-   Click[Click a link] --> Find[useSourceReference]
-   Find -->|diffmap serve| Local[Read the repo with git]
-+  Find -->|diffmap.dev| GitHub[fetchPinnedBlob]
-   Local --> Panel[SourceDiffPanel]
-+  GitHub --> Panel
-   %% ref node:Find [[src/viewer/sourceNavigation.ts#useSourceReference]]
-   %% ref node:GitHub [[src/github/fetchRepo.ts#fetchPinnedBlob]]
-   %% ref node:Panel [[src/viewer/SourceDiffPanel.tsx#SourceDiffPanel]]
-   %% ref edge:1 [[src/viewer/sourceNavigation.ts#requestSource]]
+   Login[POST /login] --> LoginRoute[login]
+   Orders[GET /orders] --> Guard[requireSession]
+-  LoginRoute --> Memory[(Map in server memory)]
+-  Guard --> Memory
++  LoginRoute -->|create| Store[SessionStore]
++  Guard -->|find| Store
++  Store -->|SQL| Postgres[(sessions table)]
+   %% ref node:LoginRoute [[src/routes/login.ts#login]]
+   %% ref node:Guard [[src/middleware/requireSession.ts#requireSession]]
+   %% ref node:Store [[src/sessions/store.ts#SessionStore]]
+   %% ref node:Postgres [[migrations/0004_sessions.sql]]
+   %% ref edge:2 [[5e5510a:src/routes/login.ts#L11]]
+   %% ref edge:3 [[5e5510a:src/middleware/requireSession.ts#L9]]
 ```
 
 ### Call stacks
 
 Each row has the form `result = call(inputs)`. Thus, you can follow the data from one call to the next call. A `+` row is new code, and a `−` row is old code that the change removes. Each row has a link to its code.
 
-This call stack shows how `diffmap` draws call stacks:
+This call stack shows how a signed-in request finds its session:
 
 ```callstack
- fence = parseFence(lang, source) [[src/parseFence.ts#parseFence]]
-+└── lines = parseCallStack(source) # one row per line, with its links [[src/annotations.ts#parseCallStack]]
- view = Fence({ fence }) [[src/viewer/Fence.tsx#Fence]]
--└── return CodeBlock(fence.source) # the tree as plain text
-+├── if fence.kind === "callstack":
-+│   └── return CallStackDiff(fence.lines) # rows with + and − marks [[src/viewer/CallStackDiff.tsx#CallStackDiff]]
-+└── return CodeBlock(fence.source) # other languages stay pseudocode
+ response = handle(GET /orders)
+ ├── requireSession(req, res, next) [[src/middleware/requireSession.ts#requireSession]]
+-│   ├── session = findSession(req.cookies.sid) # a Map lookup in this process
+-│   │   └── return sessions.get(id) # empty after every restart
++│   ├── session = await sessions.find(req.cookies.sid) [[src/sessions/store.ts#SessionStore.find]]
++│   │   └── return SELECT … WHERE id = $1 AND expires_at > now() # survives restarts
+ │   └── res.locals.session = session
+ └── return listOrders(res.locals.session.userId)
 ```
 
 ## Open the code
 
-A function name in a sentence can also be a link, for example [[src/share.ts#shareMarkdownFile]].
+A function name in a sentence can also be a link, for example [[src/sessions/store.ts#SessionStore.find]].
 
 When the work is complete, the spec shows a card for the commit. The links in the spec then refer to that commit. These links always show the code from that commit, also when the file changes later.
 
 ```changes
-6e4b5d3
+5e5510a
+src/sessions/store.ts
+src/middleware/requireSession.ts
+src/routes/login.ts
+migrations/0004_sessions.sql
 ```
 
 ```callstack
- nodes = fromNode(text) [[6e4b5d3:src/parseViewer.ts#L318-L326]]
--└── return [{ type: "text", value: text }] # prose stays plain text
-+└── return proseText(text) [[6e4b5d3:src/parseViewer.ts#L329-L353]]
-+    ├── reference = parseReference(match) # each link in double brackets
-+    └── return [...textBefore, { type: "reference", annotation }]
- element = renderNode(node) [[6e4b5d3:src/viewer/ComarkView.tsx#L64-L68]]
-+└── if node.type === "reference":
-+    └── return InlineReference(node.annotation) # a code button that opens the Diff panel [[6e4b5d3:src/viewer/ComarkView.tsx#L173-L189]]
+ response = login(req, res) [[5e5510a:src/routes/login.ts#L5-L14]]
+-├── session = createSession(user.id) # kept in a Map in the server
++├── session = await sessions.create(user.id) [[5e5510a:src/routes/login.ts#L11]]
++│   └── INSERT INTO sessions (id, user_id, expires_at) [[5e5510a:src/sessions/store.ts#L18-L21]]
+ └── res.cookie("sid", session.id) [[5e5510a:src/routes/login.ts#L12]]
 ```
 
-## Share a spec with a link
+## Share a spec with a link :badge[Experimental]
 
-A teammate can read your spec without a copy of your branch. One command uploads the spec as a secret GitHub gist and prints the link:
+A teammate can read your spec without a copy of your branch. One command uploads the spec as an unlisted GitHub gist and prints the link:
 
 ```sh
 npx @tanishqkancharla/diffmap share specs/search.md

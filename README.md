@@ -10,7 +10,7 @@ npx @tanishqkancharla/diffmap serve path/to/file.md
 
 Bare `npx @tanishqkancharla/diffmap path/to/file.md` is the same as `serve`.
 
-Share a secret gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
+Share an unlisted gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
 
 ```sh
 npx @tanishqkancharla/diffmap share path/to.md

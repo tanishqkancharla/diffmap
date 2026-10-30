@@ -13,17 +13,12 @@ import {
 import { HostFilesContext } from "./files.ts";
 import homeSource from "./home.md?raw";
 import shareSource from "../share.ts?raw";
-import serveSource from "../serve.ts?raw";
-import gitSource from "../git.ts?raw";
-import fetchRepoSource from "../github/fetchRepo.ts?raw";
-import fenceSource from "../viewer/Fence.tsx?raw";
-import callStackSource from "../viewer/CallStackDiff.tsx?raw";
-import sourceNavigationSource from "../viewer/sourceNavigation.ts?raw";
-import sourceDiffPanelSource from "../viewer/SourceDiffPanel.tsx?raw";
-import viewerAppSource from "../viewer/ViewerApp.tsx?raw";
-import parseFenceSource from "../parseFence.ts?raw";
-import annotationsSource from "../annotations.ts?raw";
 import hostFilesSource from "./files.ts?raw";
+import {
+  SESSION_STORE_REV,
+  sessionStoreChanges,
+  sessionStoreFiles,
+} from "./sessionStorePr.ts";
 
 let parserReady: Promise<void> | undefined;
 
@@ -33,23 +28,16 @@ function readyHostParser() {
 }
 
 const hostFiles = {
+  ...sessionStoreFiles,
   "src/share.ts": shareSource,
-  "src/serve.ts": serveSource,
-  "src/git.ts": gitSource,
-  "src/github/fetchRepo.ts": fetchRepoSource,
-  "src/viewer/Fence.tsx": fenceSource,
-  "src/viewer/CallStackDiff.tsx": callStackSource,
-  "src/viewer/sourceNavigation.ts": sourceNavigationSource,
-  "src/viewer/SourceDiffPanel.tsx": sourceDiffPanelSource,
-  "src/viewer/ViewerApp.tsx": viewerAppSource,
-  "src/parseFence.ts": parseFenceSource,
-  "src/annotations.ts": annotationsSource,
   "src/host/files.ts": hostFilesSource,
 };
 
-/** The homepage walks through diffmap's own commits, read from GitHub. */
+/** The made-up pull request is served here; diffmap's own commits are read from GitHub. */
 const loadHostChanges: ChangesLoader = (rev) =>
-  fetchGitHubChanges({ owner: "tanishqkancharla", repo: "diffmap" }, rev);
+  rev === SESSION_STORE_REV
+    ? Promise.resolve(sessionStoreChanges)
+    : fetchGitHubChanges({ owner: "tanishqkancharla", repo: "diffmap" }, rev);
 
 export function HostHome() {
   const [view, setView] = useState<

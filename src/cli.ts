@@ -61,7 +61,7 @@ const cli = Cli.create("diffmap", {
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
-  hint: "`serve <spec.md>` runs the local viewer. `share <spec.md>` publishes a secret gist. `update` (or `--update`) installs the latest diffmap.",
+  hint: "`serve <spec.md>` runs the local viewer. `share <spec.md>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
   examples: [
     {
       args: { file: "spec.md" },
@@ -84,7 +84,8 @@ const cli = Cli.create("diffmap", {
     run: runServe,
   })
   .command("share", {
-    description: "Publish a secret gist and print https://diffmap.dev/g/<id>",
+    description:
+      "Publish an unlisted gist and print https://diffmap.dev/g/<id>",
     args: z.object({
       file: z.string().describe("Path to the markdown file"),
     }),
@@ -99,7 +100,7 @@ const cli = Cli.create("diffmap", {
     examples: [
       {
         args: { file: "spec.md" },
-        description: "Secret gist → https://diffmap.dev/g/<id>",
+        description: "Unlisted gist → https://diffmap.dev/g/<id>",
       },
     ],
     async run(c) {

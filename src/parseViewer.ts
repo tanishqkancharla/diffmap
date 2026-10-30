@@ -277,7 +277,12 @@ function walkHeadings(
   for (const node of nodes) {
     if (node.type !== "element") continue;
     if (headingTags.has(node.tag)) {
-      const text = viewerNodeText(node);
+      // A badge, such as :badge[Experimental], labels the section; it is not part of its title.
+      const text = node.children
+        .filter((child) => child.type !== "element" || child.tag !== "badge")
+        .map(viewerNodeText)
+        .join("")
+        .trim();
       const id = ensureHeadingId(node, text, usedIds);
       headings.push({
         level: headingLevel(node.tag),

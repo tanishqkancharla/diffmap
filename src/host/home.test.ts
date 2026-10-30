@@ -73,6 +73,13 @@ test("homepage markdown is a real viewer document", async () => {
   const levels = new Set(document.headings.map((heading) => heading.level));
   assert.equal(levels.has(1), true);
   assert.equal(levels.has(2), true);
+  // The Experimental badge labels the section but stays out of its table of contents title.
+  assert.equal(
+    document.headings.some(
+      (heading) => heading.text === "Share a spec with a link",
+    ),
+    true,
+  );
   assert.ok(
     document.references.filter((ref) => ref.rev !== undefined).length >= 3,
   );
