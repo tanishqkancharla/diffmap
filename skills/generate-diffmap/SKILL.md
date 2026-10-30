@@ -169,6 +169,17 @@ Paths are relative to the repo root.
 
 Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them (add `diff` after either to mark lines `-` or `+`), `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes) with the files to review listed under it, and `html` trusted HTML you wrote. Other languages are pseudocode and types, with optional `{…}` highlights and `[!note …]` lines. `[Title]` after the language, as in ` ```callstack [Request flow] `, titles a call stack, code fence, or Mermaid diagram.
 
+## Feedback
+
+When diffmap gets in your way or the user has feedback on it, such as a rendering bug, a confusing error, a missing feature, or advice in this skill that did not work, open an issue on the diffmap repo. Search first, and comment on a matching issue instead of opening a duplicate:
+
+```sh
+gh issue list --repo tanishqkancharla/diffmap --search "<keywords>" --state all
+gh issue create --repo tanishqkancharla/diffmap --title "<short summary>" --body "<details>"
+```
+
+Say what you did, what you expected, and what happened, with the diffmap version (`npx @tanishqkancharla/diffmap --version`) and the smallest Markdown that shows the problem. Issues are public, so leave out private code, file contents, paths, and gist links unless the user agrees. Give the user the issue URL.
+
 ## Look up the rest
 
 - Full reference and fence syntax → [diffmap README](https://github.com/tanishqkancharla/diffmap#link-call-stacks-to-source-changes)

@@ -408,3 +408,7 @@ Write any reference in a paragraph, list item, or table cell, such as
 renders as clickable inline code labeled with the file name and fragment
 (`store.ts#Store.save`) and opens the same source panel. References inside code spans and link text stay
 literal, so `` `[[path]]` `` shows the syntax itself.
+
+## Feedback
+
+Found a bug, hit a confusing error, or want a feature? [Open an issue](https://github.com/tanishqkancharla/diffmap/issues/new) with what you did, what you expected, what happened, and your diffmap version (`diffmap --version`). Agents using the generate-diffmap skill do the same through `gh issue create`.
