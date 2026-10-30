@@ -279,6 +279,7 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
           active={active}
           events={current?.events ?? []}
           updates={current?.updates ?? []}
+          notes={current?.notes ?? []}
           phase={position.phase}
           stepKey={step}
         />

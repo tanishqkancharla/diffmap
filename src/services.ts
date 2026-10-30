@@ -49,6 +49,15 @@ export type ServiceStep = {
   description: string | undefined;
   events: ServiceEvent[];
   updates: ServiceUpdate[];
+  /** Notes on whole services, from a bare service name with a `>` line under it. */
+  notes: ServiceNote[];
+  sign: Sign;
+};
+
+/** Shown beside a service while its step is current, such as what the service is doing. */
+export type ServiceNote = {
+  service: string;
+  text: string;
   sign: Sign;
 };
 
@@ -86,6 +95,7 @@ const eventLine = new RegExp(
   String.raw`^(${name})\s*->\s*(${name})(?:\s*:\s*(.*))?$`,
 );
 const updateLine = new RegExp(String.raw`^(${name})\.(${name})\s*=\s*(.+)$`);
+const serviceNoteLine = new RegExp(String.raw`^(${name})$`);
 
 /**
  * ```services
@@ -129,6 +139,17 @@ export function parseServiceDiagram(
       },
     };
   };
+  // A bare service name in a step, waiting for the `>` line that is its note.
+  let pendingNote: { line: number; note: { text: string } } | undefined;
+  const noteMissing = () =>
+    pendingNote !== undefined && pendingNote.note.text === ""
+      ? ({
+          ok: false,
+          line: pendingNote.line,
+          reason:
+            "A service name in a step needs a > line under it with its note.",
+        } satisfies ServicesParse)
+      : undefined;
   const lines = source.split("\n");
   for (const [index, row] of lines.entries()) {
     const line = index + 1;
@@ -167,6 +188,9 @@ export function parseServiceDiagram(
       described.append(text.slice(1).trim());
       continue;
     }
+    const missing = noteMissing();
+    if (missing !== undefined) return missing;
+    pendingNote = undefined;
     const { text: body, references } = parseAnnotation(text);
     const annotation =
       references.length === 0 ? undefined : { text: body.trim(), references };
@@ -273,6 +297,7 @@ export function parseServiceDiagram(
         description: undefined,
         events: [],
         updates: [],
+        notes: [],
         sign: own,
       };
       steps.push(next);
@@ -327,8 +352,25 @@ export function parseServiceDiagram(
         annotate(indent, entry);
         continue;
       }
+      const noteTarget = serviceNoteLine.exec(text);
+      if (noteTarget !== null) {
+        if (!byName.has(noteTarget[1]!))
+          return fail(`Unknown service ${noteTarget[1]}.`);
+        const sign = signWithin(step, "step");
+        if (typeof sign !== "string") return sign;
+        const entry: ServiceNote = { service: noteTarget[1]!, text: "", sign };
+        step.notes.push(entry);
+        pendingNote = { line, note: entry };
+        described = {
+          indent,
+          append: (more) => {
+            entry.text = entry.text === "" ? more : `${entry.text} ${more}`;
+          },
+        };
+        continue;
+      }
       return fail(
-        `Expected an event (From -> To: label) or a state update (Service.key = value), got "${text}".`,
+        `Expected an event (From -> To: label), a state update (Service.key = value), or a service name with a > note under it, got "${text}".`,
       );
     }
 
@@ -336,6 +378,8 @@ export function parseServiceDiagram(
       `Expected service <Name>, state <key> = <value>, start "<caption>", or step "<caption>", got "${text}".`,
     );
   }
+  const missing = noteMissing();
+  if (missing !== undefined) return missing;
   if (services.length === 0)
     return { ok: false, line: 1, reason: "Declare at least one service." };
   return { ok: true, diagram: { services, start, steps, diff } };

@@ -36,7 +36,7 @@ The views fit one model: services receive messages, update their state, and send
 | Between services   | `mermaid` flowchart: who exists, who owns what   | `services`: a message crossing services, with the state it changes |
 | Inside one service | Pseudocode and types: its state, payloads, logic | `callstack`: how it turns one message into a result                |
 
-Use `services` when the parts keep state, run at the same time, or fan out; use a call stack when they are function calls that return, branch, or return early. Mermaid sequence and state diagrams are lighter options. If a view needs more than about 7 services, collapse some and explain them separately.
+Use `services` when the parts keep state, run at the same time, or fan out; use a call stack when they are function calls that return, branch, or return early. In a `services` diagram, state is what you would find inside a service if you paused between steps; a result passed back is a reply event, not state. To explain a step, put a `>` note under its event, its update, or a service name on its own line. Mermaid sequence and state diagrams are lighter options. If a view needs more than about 7 services, collapse some and explain them separately.
 
 - To show a change, add `diff` after `mermaid` or `services` and start each line with `-` (Today only), `+` (Proposed only), or a space (both), as in a call stack. For code, use a `diff` fence.
 - Title Mermaid diagrams with `[Title]` after the language, as in `mermaid diff [Invalid records stop before storage]`. A `services` fence uses `start "caption"` before its first step as the title of the whole diagram, with a `>` line under it that summarizes the full process in a few sentences; caption each step with what happens.

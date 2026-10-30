@@ -2,7 +2,7 @@
 
 A `services` fence declares services, their state, and their sub-services, then replays the events they send each other one step at a time. Press **Play**, or step with the arrow buttons or ← and →. Click a segment in the progress bar to jump to a step.
 
-A step's events travel one after another, in the order written. The step's state updates land when the last one arrives, and the changed values stay highlighted until the next step. A step can put notes beside its events and changed state to explain them. Service names and state keys with a dotted underline have a description; hover or focus them to read it.
+A step's events travel one after another, in the order written. The step's state updates land when the last one arrives, and the changed values stay highlighted until the next step. A step can put notes beside its events, its changed state, and its services to explain them. Service names and state keys with a dotted underline have a description; hover or focus them to read it.
 
 ```text
 %% A service with an optional label and reference
@@ -31,6 +31,9 @@ step "API asks Auth to verify"
   API.requests = 1
     %% Optional: a note shown beside the changed state during this step
     > Counted before Auth answers, so failed logins count too.
+  %% Optional: a service name alone, with a note shown beside it during this step
+  Auth
+    > Holds the request until Auth answers.
 ```
 
 ## Logging in
@@ -78,6 +81,8 @@ step "Postgres returns the stored hash"
 step "Auth compares the hash"
   > bcrypt hashes the submitted password with the stored salt and compares the results in constant time.
   Auth -> Auth: bcrypt.compare
+  Auth
+    > The check runs inside Auth, so the password never reaches Postgres.
 step "The password matches, so Auth asks Sessions for a session"
   Auth -> Sessions: create(alice)
 step "Sessions stores the new session"

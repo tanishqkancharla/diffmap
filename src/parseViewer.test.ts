@@ -307,6 +307,9 @@ test("parseViewerDocument reads services, steps, and their references", () => {
       "  Auth -> Store: insert",
       "  Store.rows = 1 row",
       "  Auth.attempts = 0",
+      "  Store",
+      "    > Writes the row,",
+      "    > then confirms.",
       "```",
       "",
     ].join("\n"),
@@ -343,6 +346,11 @@ test("parseViewerDocument reads services, steps, and their references", () => {
   assert.equal(diagram.steps[0]!.events[0]!.note, "Sends the password hash.");
   assert.equal(diagram.steps[0]!.updates[0]!.note, "One failure so far.");
   assert.equal(diagram.steps[1]!.updates[0]!.note, undefined);
+  // A bare service name in a step takes the > lines under it as a note on that service.
+  assert.deepEqual(diagram.steps[1]!.notes, [
+    { service: "Store", text: "Writes the row, then confirms.", sign: " " },
+  ]);
+  assert.deepEqual(diagram.steps[0]!.notes, []);
   const at = (step: number) =>
     Object.fromEntries(
       [...serviceStateAt(diagram, step)].map(([name, state]) => [
@@ -512,6 +520,17 @@ test("parseViewerDocument fails on services errors with the file line", () => {
   assert.match(
     String(lateStart),
     /line 6\): Write one start line, before the first step/,
+  );
+  const silent = parseServicesSpec([
+    "service API",
+    "service Store",
+    'step "Go"',
+    "  Store",
+    "  API -> Store: hi",
+  ]);
+  assert.match(
+    String(silent),
+    /line 7\): A service name in a step needs a > line/,
   );
   const orphan = parseServicesSpec(["service API", "> Not indented."]);
   assert.match(String(orphan), /line 5\): Put a > line directly below/);

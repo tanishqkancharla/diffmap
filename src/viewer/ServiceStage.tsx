@@ -26,6 +26,7 @@ import {
   type Service,
   type ServiceDiagram,
   type ServiceEvent,
+  type ServiceNote,
   type ServiceUpdate,
   type Sign,
 } from "../services.js";
@@ -45,12 +46,12 @@ export const TRAVEL_MS = 750;
 const NOTE_WIDTH = 200;
 const NOTE_GAP = 28;
 
-/** A step's note and the element it explains: an event label or a state row. */
+/** A step's note and the element it explains: an event label, a state row, or a service. */
 type StepNote = {
   id: string;
   text: string;
   target: string;
-  /** For a state row, the box whose right edge the leader starts from. */
+  /** For a state row or a service, the box whose right edge the leader starts from. */
   service: string | undefined;
 };
 
@@ -69,6 +70,7 @@ export type StageProps = {
   active: Set<string>;
   events: ServiceEvent[];
   updates: ServiceUpdate[];
+  notes: ServiceNote[];
   phase: "travel" | "settled";
   stepKey: number;
 } & SourceNavigation;
@@ -103,7 +105,8 @@ export function ServiceStage(props: StageProps) {
       diagram.steps.some(
         (step) =>
           step.events.some((event) => event.note !== undefined) ||
-          step.updates.some((update) => update.note !== undefined),
+          step.updates.some((update) => update.note !== undefined) ||
+          step.notes.length > 0,
       )
         ? NOTE_WIDTH + NOTE_GAP * 2
         : 0,
@@ -235,9 +238,15 @@ export function ServiceStage(props: StageProps) {
                     },
                   ],
             ),
+            ...props.notes.map((note, index) => ({
+              id: `service-${index}`,
+              text: note.text,
+              target: `[data-service-header="${note.service}"]`,
+              service: note.service,
+            })),
           ]
         : [],
-    [settled, props.events, props.updates],
+    [settled, props.events, props.updates, props.notes],
   );
   const notesX =
     placed === undefined
@@ -640,7 +649,11 @@ function ServiceCard(
     <>
       <Described description={service.description}>
         {annotation === undefined ? (
-          <div className={header} tabIndex={described ? 0 : undefined}>
+          <div
+            className={header}
+            tabIndex={described ? 0 : undefined}
+            data-service-header={service.name}
+          >
             {title}
           </div>
         ) : (
@@ -650,6 +663,7 @@ function ServiceCard(
             aria-pressed={props.selectedAnnotation === annotation}
             aria-controls="source-diff-panel"
             aria-label={`Open source: ${service.name}`}
+            data-service-header={service.name}
             onClick={() => props.onSelectAnnotation(annotation)}
           >
             {title}

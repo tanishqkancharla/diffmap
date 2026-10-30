@@ -346,6 +346,8 @@ step "The API sets the session cookie"
   - Under an event or update, it is a note for that step. Notes appear in a
     column beside the diagram once the step's events land, each joined by a
     line to its event label or state row.
+  - Under a service name on its own line in a step, it is a note on that
+    service for the step, joined by a line to the service box.
 - `%%` starts a comment line.
 - Append `[[reference]]` to a `service` line or an event to link it to source.
 
