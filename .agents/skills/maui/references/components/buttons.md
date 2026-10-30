@@ -30,7 +30,7 @@ Styled React Aria `Button` (default `type="button"`). Consumes `ButtonContext`, 
 | `onClick`      | Still supported. React Aria also exposes `onPress`                                                                                                |
 | `children`     | Text is wrapped for cap-height trim; SVG icons sit beside text. Icon-only needs `aria-label`                                                      |
 
-Primary: fill step 9, hover 10, light text (`onAccent`, or step 12 on amber/lime/mint/sky/yellow). Custom CSS fill drops alpha; hover is `l - 0.04`; text is white or near-black from lightness. Its raised shadow strengthens the white inset highlight and tints the tight outer edge from the fill. Quiet: no fill; `variantColor` tints the label/icon. Hover/press mix `grayAlpha[9]` (or that color’s alpha 9, or the hex) into transparent at 6% light / 9% dark; press is 2×. Hover fills snap.
+Primary: fill step 9, light text (`onAccent`, or step 12 on amber/lime/mint/sky/yellow). Custom CSS fill drops alpha; text is white or near-black from lightness. The fill is a diagonal gradient (`to top left`) from the fill shifted by OKLCH `l − 0.027`, `c × 1.05`, `h − 6.8` to the fill itself. In dark mode the shadow has a 0.5px white top highlight at 15% (`shadow.control` uses 9%); light mode has none. The shadow tints a soft lift from the fill, at half strength in dark mode, and adds a 0.5px edge painted beneath the lift: the fill color’s alpha step 6 in light mode (a custom CSS fill uses the fill at 35%); in dark mode a near-black tint of the fill (OKLCH lightness 0.18, half chroma) — no neutral gray. Hover layers a white-to-transparent sheen over the gradient; disabled drops the gradient. Quiet: no fill; `variantColor` tints the label/icon. Hover/press mix `grayAlpha[9]` (or that color’s alpha 9, or the hex) into transparent at 6% light / 9% dark; press is 2×. Hover fills snap.
 
 While a menu or overlay is open, the trigger keeps the active fill via RAC `data-pressed` / `aria-expanded` (same tokens as `:active`: `elementActive`, or primary step 10).
 
@@ -80,3 +80,19 @@ keyboard dismissal when a response is required. Actions are composed rather than
 passed as callback props so forms, loading states, links, and custom controls work.
 
 Edge-anchored mobile nav is [`Drawer`](drawer.md), not this Dialog and not Overlay.
+
+## Styles
+
+**Button** — `buttonStyles`
+
+- `root({ variant, size, variantColor })` — RAC `Button` or native `<button>`; same defaults as `Button`. Native `:hover`, `:focus-visible`, `:disabled`; icons must be direct `> svg` children.
+- `label` — `<span>` around each text run inside the button (cap-height trim).
+
+**Dialog** — `dialogStyles`
+
+- `overlay` — RAC `ModalOverlay`.
+- `modal({ size })` — RAC `Modal`; `size` is `"sm"` (default) | `"md"` | `"lg"`.
+- `dialog` — RAC `Dialog`.
+- `title` — RAC `Heading slot="title"`.
+- `body` — scrollable `div` inside the dialog.
+- `actions` — button row `div` inside the dialog.

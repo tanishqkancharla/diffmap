@@ -1,156 +1,194 @@
 # diffmap
 
-A viewer for specs and walkthroughs. Call stacks, mermaid that links into source, and a Diff panel. This page is one — `parseViewerDocument` plus `ViewerApp`, same path as `diffmap serve`.
+**Your coding agent writes more code than you can review.**
 
-TOC on the left, article here, Diff on the right. Click a stack row or a mermaid node.
+**You should be spending time reviewing design decisions and risky changes, not boilerplate.**
 
-## Install the skill
+`diffmap` is an agent skill that lets your agent visually explain their changes to you. Agents can create interactive diagrams that link back to the source code.
+
+You can try `diffmap` before you install it. In a repository that has changes, paste this prompt into your agent:
+
+```text
+Write a diffmap spec for the changes on this branch. Use github.com/tanishqkancharla/diffmap
+```
+
+If you like the result, install the skill:
 
 ```sh
 npx skills add tanishqkancharla/diffmap --skill generate-diffmap
 ```
 
-That keeps a living spec in `specs/<name>.md`. Same file for the life of the work: what’s already in the tree, and what’s still planned. Don’t start a second walkthrough later.
+`diffmap` is [open source](https://github.com/tanishqkancharla/diffmap) and MIT licensed. Diffmaps are hosted locally by default, but you can choose to [upload a diffmap as an unlisted gist](#share-a-spec-with-a-link-experimental) and open it on diffmap.dev.
 
-## Serve locally
+## See the main ideas
 
-```sh
-npx @tanishqkancharla/diffmap serve specs/<name>.md
+Your agent selects the best diagram for each idea. Each part of the diagram has a link to its code.
+
+The examples below explain one made-up pull request. It moves login sessions out of server memory and into Postgres, so a deploy no longer signs everyone out. Click a linked part of a diagram to open its diff.
+
+### Service diagrams
+
+A service diagram shows each service and its state. Each step shows one event and the state that the event changes. Thus, you do not have to remember the state.
+
+A service diagram can also show a change. Red parts exist only today, and green parts are new. As you step, each value shows today's state crossed out next to the new state.
+
+Press **Play** to step through a login before and after the pull request:
+
+```services diff
+ service Browser "login page"
+   state cookie = none
+ service API "HTTP server" [[src/routes/login.ts#login]]
+-  service Cache "in-memory sessions"
+-    state sessions = 0
++  service Sessions [[src/sessions/store.ts#SessionStore]]
+ service Postgres [[migrations/0004_sessions.sql]]
+-  state sessions = not used
++  state sessions = 0 rows
+
+ start "Sessions move from memory to Postgres"
+   > Alice logs in, and the API stores her session. Today it keeps the session in memory, so a server restart signs her out. After the change, Sessions writes it to Postgres, where it survives a restart.
+
+ step "Alice logs in"
+   Browser -> API: POST /login
+-step "The API keeps the session in memory"
+   API -> Cache: create(alice)
+   Cache.sessions = 1
+     > The server loses this when it restarts.
++step "Sessions writes the session to Postgres"
+   API -> Sessions: create(alice) [[src/sessions/store.ts#SessionStore.create]]
+   Sessions -> Postgres: INSERT s_81f [[5e5510a:src/sessions/store.ts#L18-L21]]
+   Postgres.sessions = 1 row
+     > The row survives a restart.
+ step "The API sets the session cookie"
+   API -> Browser: 200 Set-Cookie [[5e5510a:src/routes/login.ts#L12]]
+   Browser.cookie = sid=s_81f
 ```
 
-Bare `npx @tanishqkancharla/diffmap specs/<name>.md` is the same as `serve`. `list` shows running viewers — reuse the URL instead of starting a second server.
+### Mermaid diagrams
 
-**Close server** is only on that local page. This host has no process to stop.
+A Mermaid diagram can show a change in one picture: green parts are new, and red parts are removed. Each node and each arrow can have a link to its code.
 
-## Share
+In this pull request, the login route and the sign-in check stop sharing a `Map` inside the server, and both go through `SessionStore`:
 
-### Gist
-
-```sh
-npx @tanishqkancharla/diffmap share specs/<name>.md
+```mermaid diff [Sessions move out of server memory]
+ flowchart LR
+   Login[POST /login] --> LoginRoute[login]
+   Orders[GET /orders] --> Guard[requireSession]
+-  LoginRoute --> Memory[(Map in server memory)]
+-  Guard --> Memory
++  LoginRoute -->|create| Store[SessionStore]
++  Guard -->|find| Store
++  Store -->|SQL| Postgres[(sessions table)]
+   %% ref node:LoginRoute [[src/routes/login.ts#login]]
+   %% ref node:Guard [[src/middleware/requireSession.ts#requireSession]]
+   %% ref node:Store [[src/sessions/store.ts#SessionStore]]
+   %% ref node:Postgres [[migrations/0004_sessions.sql]]
+   %% ref edge:2 [[5e5510a:src/routes/login.ts#L11]]
+   %% ref edge:3 [[5e5510a:src/middleware/requireSession.ts#L9]]
 ```
-
-Prints `https://diffmap.dev/g/<gistId>` (optional `/<file.md>`). Secret gist: unlisted, not private. Anyone with the id can read it. Does not start a local server.
-
-### GitHub PR vs commit
-
-A spec on a public PR:
-
-`https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`
-
-Pinned commit:
-
-`https://diffmap.dev/<owner>/<repo>/commit/<sha>/specs/<name>.md`
-
-The pin is one SHA. The markdown and every `[[path]]`, mermaid `%% ref`, and excerpt load from that commit, not `main`. Commit references load their diffs from the GitHub API. A PR number only chooses the SHA (head at load, then pin). Refresh stays on the commit URL.
-
-## What the fences are
-
-### System flow
-
-Click a node. `%% ref` is a mermaid comment; `[[path]]`, `[[path#symbol]]`, and `[[<sha>:path#L12-L30]]` are the same references as on a stack row.
-
-```mermaid
-flowchart LR
-  Spec[Living spec] --> Serve[serve]
-  Spec --> Share[share]
-  Spec --> Pin[GitHub pin]
-  %% ref node:Spec [[src/parseViewer.ts#parseViewerDocument]]
-  %% ref node:Serve [[src/cli.ts]]
-  %% ref node:Share [[src/share.ts#shareMarkdownFile]]
-  %% ref node:Pin [[src/github/route.ts]]
-  %% ref edge:0 [[1257fe8:src/cli.ts#L49-L50]]
-```
-
-````md
-```mermaid
-flowchart LR
-  Spec[Living spec] --> Serve[serve]
-  %% ref node:Serve [[src/cli.ts]]
-```
-````
 
 ### Call stacks
 
-`-` is current, `+` is proposed. After a phase lands, commit it and retarget `[[path]]` to the commit: `[[<sha>:path#L12-L30]]`. Line numbers are the file after the commit.
+Each row has the form `result = call(inputs)`. Thus, you can follow the data from one call to the next call. A `+` row is new code, and a `−` row is old code that the change removes. Each row has a link to its code.
+
+This call stack shows how a signed-in request finds its session:
 
 ```callstack
- ViewerApp
--└── DoneButton  # a loud Done control
-+└── CloseServerButton  # quiet, local mode only [[dae6b98:src/viewer/ViewerApp.tsx#L219-L227]] [[dae6b98:src/viewer/CloseServerButton.tsx#L8-L16]]
-     └── DiffButton
+ response = handle(GET /orders)
+ ├── requireSession(req, res, next) [[src/middleware/requireSession.ts#requireSession]]
+-│   ├── session = findSession(req.cookies.sid) # a Map lookup in this process
+-│   │   └── return sessions.get(id) # empty after every restart
++│   ├── session = await sessions.find(req.cookies.sid) [[src/sessions/store.ts#SessionStore.find]]
++│   │   └── return SELECT … WHERE id = $1 AND expires_at > now() # survives restarts
+ │   └── res.locals.session = session
+ └── return listOrders(res.locals.session.userId)
 ```
 
-```callstack
- shareMarkdownFile [[src/share.ts#shareMarkdownFile]]
--└── print the gist URL
-+└── gistViewerUrl  # https://diffmap.dev/g/<id> [[d14ae1a:src/share.ts#L55-L59]]
-```
+## Open the code
 
-### Changes
+A function name in a sentence can also be a link, for example [[src/sessions/store.ts#SessionStore.find]].
 
-A `changes` fence names a commit. It renders a card with every file that commit changed. **Review** opens the Diff panel on all of them, with a sticky header per file; a row jumps to its file. An empty body means uncommitted changes.
+When the work is complete, the spec shows a card for the commit. The links in the spec then refer to that commit. These links always show the code from that commit, also when the file changes later.
 
 ```changes
-dae6b98
+5e5510a
+src/sessions/store.ts
+src/middleware/requireSession.ts
+src/routes/login.ts
+migrations/0004_sessions.sql
 ```
-
-Commit references must name a file the commit changed, and the range must fit the file after the commit. `serve` and `share` check this at startup.
-
-### File excerpts
-
-`start:end:path`. Locally the server reads the workspace file. Here the bundled file is sliced the same way.
-
-```58:72:src/cli.ts
-const cli = Cli.create("diffmap", {
-  description: "Serve a spec locally, or share it as a gist",
-  version: packageVersion,
-  args: serveArgs,
-  options: serveOptions,
-  output: serveOutput,
-  hint: "`serve <spec.md>` runs the local viewer. `share <spec.md>` publishes a secret gist. `update` (or `--update`) installs the latest diffmap.",
-  examples: [
-    {
-      args: { file: "spec.md" },
-      description: "Same as `diffmap serve spec.md`",
-    },
-  ],
-  run: runServe,
-})
-```
-
-### HTML
-
-Local `serve` trusts `html` in the file you pointed at. This host does not. Gist and GitHub pages are the same — no `dangerouslySetInnerHTML` from untrusted markdown.
-
-```html
-<aside>If this renders, the host leaked HTML.</aside>
-```
-
-## How a spec stays alive
-
-Write `specs/<name>.md`. Serve it while you plan. When the plan changes, edit this file. When a phase lands, commit it, add a `changes` fence, and retarget the links to the commit so the Diff panel opens the change, not just the file.
-
-### Phase 1: Spec and serve
 
 ```callstack
- generate-diffmap
- └── specs/name.md
-     └── diffmap serve [[src/cli.ts]]
+ response = login(req, res) [[5e5510a:src/routes/login.ts#L5-L14]]
+-├── session = createSession(user.id) # kept in a Map in the server
++├── session = await sessions.create(user.id) [[5e5510a:src/routes/login.ts#L11]]
++│   └── INSERT INTO sessions (id, user_id, expires_at) [[5e5510a:src/sessions/store.ts#L18-L21]]
+ └── res.cookie("sid", session.id) [[5e5510a:src/routes/login.ts#L12]]
 ```
 
-- [x] Install the skill.
-- [x] Keep one living spec.
-- [x] `diffmap serve` / `list`.
+## Share a spec with a link :badge[Experimental]
 
-### Phase 2: Share it
+A teammate can read your spec without a copy of your branch. One command uploads the spec as an unlisted GitHub gist and prints the link:
+
+```sh
+npx @tanishqkancharla/diffmap share specs/search.md
+# prints https://diffmap.dev/g/<gistId>
+```
+
+::details{summary="How sharing works"}
+The shared page cannot use git or a copy of your repository. Thus, the gist also contains the data that the spec uses:
+
+- A snapshot of each commit that the spec refers to
+- The current contents of each file that the spec quotes.
+
+Because of this data, this page can show code:
+
+```mermaid
+flowchart LR
+  subgraph Gist
+    Spec[spec.md]
+    Changes[diffmap-changes.json]
+    Files[diffmap-files.json]
+  end
+  Spec -->|Markdown| Page[The spec page]
+  Changes -->|commits| Cards[Changes cards and commit links]
+  Files -->|file contents| Excerpts[Excerpts and plain links]
+  %% ref node:Changes [[2f96051:src/share.ts#L44-L53]]
+  %% ref node:Files [[2f96051:src/share.ts#L105-L125]]
+  %% ref node:Excerpts [[src/host/files.ts#HostFilesContext]]
+```
+
+```changes
+2f96051
+```
+
+`share` makes the two snapshots before it calls `gh`. Thus, `diffmap` does not keep a GitHub token:
 
 ```callstack
- specs/name.md
--└── localhost only
-+├── diffmap share [[d14ae1a:src/share.ts#L55-L59]]
-+└── GitHub PR URL [[src/github/route.ts]]
+ result = shareMarkdownFile({ filePath, workspaceRoot }) [[2f96051:src/share.ts#L26-L103]]
+ ├── parsed = parseViewerDocument(source)
+ ├── if parsed is an error: return parsed # a broken diagram stops here
+ ├── changes = readDocumentChanges(workspaceRoot, parsed) # each linked commit
++├── files = readDocumentFiles(workspaceRoot, parsed) # each quoted file [[2f96051:src/share.ts#L105-L125]]
+ ├── await gh("auth", "status")
+-├── created = await gh("gist", "create", spec, changes)
++├── created = await gh("gist", "create", spec, changes, files)
+ └── return { gistId, viewerUrl: gistViewerUrl(gistId) }
 ```
 
-- [x] Gist URL for a snapshot.
-- [x] PR URL when the spec lives in the repo (pin to one SHA).
+This excerpt is from one of the quoted files. Thus, a shared copy of this page also shows it:
+
+```54:63:src/share.ts
+  // It has no files either, so excerpts and references without a commit read these.
+  const files = readDocumentFiles(input.workspaceRoot, parsed);
+  if (files instanceof Error) return files;
+
+  const auth = await runGh(["auth", "status"]);
+  if (auth instanceof DiffmapShareError) return auth;
+
+  const args = ["gist", "create"];
+  if (input.isPublic) args.push("--public");
+  args.push("--desc", extractTitle(source), filePath);
+```
+
+::

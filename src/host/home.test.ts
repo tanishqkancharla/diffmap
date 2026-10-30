@@ -32,11 +32,22 @@ test("homepage markdown is a real viewer document", async () => {
   assert.equal(kinds.has("callstack"), true);
   assert.equal(kinds.has("changes"), true);
   assert.equal(kinds.has("file"), true);
-  assert.equal(kinds.has("html"), true);
+  assert.equal(kinds.has("services"), true);
 
   const mermaid = fences.find((fence) => fence.kind === "mermaid");
   assert.notEqual(mermaid, undefined);
   if (mermaid?.kind !== "mermaid") return;
+  // The homepage shows diagram diffs, not only call stack diffs.
+  assert.notEqual(mermaid.sides, undefined);
+  assert.equal(
+    fences.some(
+      (fence) =>
+        fence.kind === "services" &&
+        fence.parsed.ok &&
+        fence.parsed.diagram.diff,
+    ),
+    true,
+  );
   assert.equal(
     mermaid.annotations.some((link) =>
       link.annotation.references.some((ref) => ref.kind === "file"),
@@ -62,22 +73,27 @@ test("homepage markdown is a real viewer document", async () => {
   const levels = new Set(document.headings.map((heading) => heading.level));
   assert.equal(levels.has(1), true);
   assert.equal(levels.has(2), true);
-  assert.equal(levels.has(3), true);
+  // The Experimental badge labels the section but stays out of its table of contents title.
+  assert.equal(
+    document.headings.some(
+      (heading) => heading.text === "Share a spec with a link",
+    ),
+    true,
+  );
   assert.ok(
     document.references.filter((ref) => ref.rev !== undefined).length >= 3,
   );
 
   const excerpt = fences.find(
-    (fence) => fence.kind === "file" && fence.path === "src/cli.ts",
+    (fence) => fence.kind === "file" && fence.path === "src/share.ts",
   );
   assert.equal(excerpt?.kind, "file");
   if (excerpt?.kind !== "file") return;
-  const cliPath = path.join(path.dirname(homePath), "..", "cli.ts");
-  const cli = await fs.readFile(cliPath, "utf8");
-  const lines = cli.split(/\n/);
+  const sharePath = path.join(path.dirname(homePath), "..", "share.ts");
+  const share = await fs.readFile(sharePath, "utf8");
+  const lines = share.split(/\n/);
   const slice = lines.slice(excerpt.start - 1, excerpt.end).join("\n");
   assert.equal(lines[excerpt.start - 1]?.trim().length !== 0, true);
-  assert.match(slice, /packageVersion/);
-  assert.match(slice, /\}\)\s*$/);
+  assert.match(slice, /"gist", "create"/);
   assert.equal(excerpt.source, slice);
 });

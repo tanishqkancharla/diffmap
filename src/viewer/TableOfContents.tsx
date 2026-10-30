@@ -10,6 +10,7 @@ import { motion, useReducedMotion, type Transition } from "motion/react";
 import {
   background,
   colors,
+  Drawer,
   focusRing,
   motionEasing,
   overlayMotion,
@@ -67,6 +68,9 @@ export function tocLineWidth(level: number, shallowestLevel: number) {
 export function TableOfContents(props: {
   headings: ViewerHeading[];
   articleRef: RefObject<HTMLElement | null>;
+  /** The narrow-screen drawer, opened from the header's TOC button. */
+  drawerOpen: boolean;
+  onDrawerOpenChange: (open: boolean) => void;
 }) {
   const headings = tocHeadings(props.headings);
   const items = nestHeadings(headings);
@@ -78,6 +82,7 @@ export function TableOfContents(props: {
   const docked = useDocked(navRef);
   const railClass = useStyles(styles.rail);
   const dockedClass = useStyles(styles.docked);
+  const drawerClass = useStyles(styles.drawer);
   const listClass = useStyles(styles.list);
 
   if (items.length === 0) return undefined;
@@ -92,24 +97,43 @@ export function TableOfContents(props: {
   );
 
   return (
-    <nav
-      ref={navRef}
-      id="diffmap-toc"
-      className={railClass}
-      aria-label="Table of contents"
-      data-diffmap-kind="toc"
-      data-docked={docked ? "true" : "false"}
-    >
-      {docked ? (
-        <div className={dockedClass} data-diffmap-kind="toc-list">
-          {list}
-        </div>
-      ) : (
-        <TocRail headings={headings} activeId={activeId}>
-          {list}
-        </TocRail>
-      )}
-    </nav>
+    <>
+      <nav
+        ref={navRef}
+        id="diffmap-toc"
+        className={railClass}
+        aria-label="Table of contents"
+        data-diffmap-kind="toc"
+        data-docked={docked ? "true" : "false"}
+      >
+        {docked ? (
+          <div className={dockedClass} data-diffmap-kind="toc-list">
+            {list}
+          </div>
+        ) : (
+          <TocRail headings={headings} activeId={activeId}>
+            {list}
+          </TocRail>
+        )}
+      </nav>
+      <Drawer
+        isOpen={props.drawerOpen}
+        onOpenChange={props.onDrawerOpenChange}
+        aria-label="Table of contents"
+      >
+        <nav className={drawerClass} aria-label="Table of contents">
+          <TocList
+            items={items}
+            className={listClass}
+            activeId={activeId}
+            onSelect={(id) => {
+              setActiveId(id);
+              props.onDrawerOpenChange(false);
+            }}
+          />
+        </nav>
+      </Drawer>
+    </>
   );
 }
 
@@ -390,6 +414,9 @@ const styles = {
     justifyContent: "center",
     alignItems: "flex-start",
     pointerEvents: "none",
+    "@media (max-width: 600px)": {
+      display: "none",
+    },
   }),
   cluster: style(spacing.padding({ top: 4, bottom: 4, left: 2, right: 6 }), {
     position: "relative",
@@ -455,6 +482,8 @@ const styles = {
     pointerEvents: "auto",
     ...tocListRules,
   }),
+  // The same list in Maui's Drawer, which supplies the surface and scrolling.
+  drawer: style(spacing.padding({ x: 3, y: 3 }), tocListRules),
   list: style(text({ size: "sm", fontWeight: 400, color: "lowContrast" })),
   item: style({
     "&::before": {

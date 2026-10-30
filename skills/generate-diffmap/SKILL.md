@@ -5,88 +5,121 @@ description: Create and update living specs and code walkthroughs with diffmap. 
 
 # Living spec
 
-Keep one Markdown file that shows the current system, the plan, and the work completed. Update it as the plan changes and implementation progresses.
+A spec is one Markdown file at `specs/<short-kebab-case-name>.md` that shows the current system, the plan, and the work done. Update it as the plan changes and work lands. For a walkthrough of an existing pull request, use its spec if it has one; otherwise write under `.diffmap/`. Check the repo's paths and symbols before writing.
 
-Write specs at `specs/<short-kebab-case-name>.md`. Check the repo's paths and symbols before writing. For a walkthrough of an existing pull request, use its spec if available; otherwise write under `tmp/`. Ask for clarification when the answer would change the plan or phase boundaries.
+**Settle scope first.** Read the relevant code before writing. When the design, scope, or phase split is unclear, check with the user before writing much: offer the options and your pick.
 
 ## Serve and share
 
-Run these commands from the repo root:
+Run from the repo root:
 
 ```sh
-npx @tanishqkancharla/diffmap list
+npx @tanishqkancharla/diffmap list                   # reuse the URL if this file is already served
 npx @tanishqkancharla/diffmap serve specs/<name>.md
+npx @tanishqkancharla/diffmap share specs/<name>.md  # only when asked; prints https://diffmap.dev/g/<id>
 ```
 
-The shorthand `npx @tanishqkancharla/diffmap specs/<name>.md` also serves the file. Reuse the URL from `list` when that file is already served. Leave the server running and give the user the file path and URL. Open the browser when requested.
+Leave the server running and give the user the file path and URL. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the gist, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`, pinned to a commit.
 
-When the user asks to share, run:
+## Shape
 
-```sh
-npx @tanishqkancharla/diffmap share specs/<name>.md
-```
+Write for someone who needs to understand the change quickly. Start from what changes for the person using it, such as a screen, command, API call, or error, then work back toward the implementation as far as the reader needs. A spec usually has a problem overview, a solution overview, goals and non-goals, phases, and **References**; let the content decide what each needs.
 
-Use the hosted URL it prints: `https://diffmap.dev/g/<id>`. The gist is unlisted and readable by anyone with the URL. A spec on a pull request is available at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`; that URL is pinned to a commit.
+**Phases.** Keep each small enough to commit alone. Headings are plain when planned, ⏳ in progress, and ✅ done. Open each with a short **Today** and **Proposed** from the client's view, then explain it however suits the change: a new flow might want a diagram and a call stack, a refactor a call stack diff, a dependency bump a sentence or two. Match the length to the change, and say each thing once, where it belongs. A spec explains the change; it is not a task tracker. End each phase with its `changes` fence, after the walkthrough and before the next phase or section, not right after Today and Proposed; leave it empty until the phase is committed.
 
-## File structure
+**Visuals.** Diagrams, call stacks, and code often explain a change better than paragraphs, so reach for one when prose gets long. Add one only when it shows the reader something they need, not to fill a slot.
 
-Start with a title, problem overview, and solution overview. Explain the system flows alongside the relevant diagrams. Follow with goals, non-goals, implementation phases, and **References**.
+The views fit one model: services receive messages, update their state, and send messages on. Each view looks between services or inside one, at every path or at one message's trace:
 
-Keep each phase small enough to commit on its own. Prefix in-progress phase headings with ⏳ and completed phase headings with ✅. Planned phases use plain headings.
+|                    | Every path                                       | One message                                                        |
+| ------------------ | ------------------------------------------------ | ------------------------------------------------------------------ |
+| Between services   | `mermaid` flowchart: who exists, who owns what   | `services`: a message crossing services, with the state it changes |
+| Inside one service | Pseudocode and types: its state, payloads, logic | `callstack`: how it turns one message into a result                |
 
-Start each phase with **Today** and **Proposed**. Use a few simple sentences for each: Today describes the behavior before the phase; Proposed explains the change and why it helps. Keep this comparison when the phase is completed.
+Use `services` when the parts keep state, run at the same time, or fan out; use a call stack when they are function calls that return, branch, or return early. Mermaid sequence and state diagrams are lighter options. If a view needs more than about 7 services, collapse some and explain them separately.
 
-After Today and Proposed, tell the phase's work as a story: walk through the change in the order a reader needs it, and interleave pseudocode, Mermaid diagrams, and call stack diffs between short paragraphs. Show the change rather than describe it. Every phase needs at least one call stack diff, pseudocode for each piece of new logic, a diagram whenever control flow, data flow, or state changes, and a type for each new data shape. When a paragraph runs past three sentences, replace the explanation with a visual. Each paragraph sets up the next visual, and each visual shows the step the paragraph just described. Do not stack visuals without prose between them, and do not end a phase with a task list or checkboxes. Call stack diffs use `-` for the original code, `+` for the change, and `└──` / `├──` for the call tree. Use `#` comments to explain a purpose, return value, or side effect.
+- To show a change, add `diff` after `mermaid` or `services` and start each line with `-` (Today only), `+` (Proposed only), or a space (both), as in a call stack. For code, use a `diff` fence.
+- Title Mermaid diagrams with `[Title]` after the language, as in `mermaid diff [Invalid records stop before storage]`. A `services` fence uses `start "caption"` before its first step as the title of the whole diagram, with a `>` line under it that summarizes the full process in a few sentences; caption each step with what happens.
+- Label nodes and arrows with real names, and link existing source with `%% ref` directives.
 
-Name each call stack row after a real function or method. When a row summarizes work instead, write it as a verb phrase that says what the code does, not a noun for the thing involved. Write `+├── run executor schema migrations`, not `+├── Executor schema migrations`, and `+└── load the encrypted credential provider`, not `+└── encrypted credential provider`. Write `#` comments as actions too.
+**Call stacks.** Write rows as data flow, `result = function(inputs)`, with `return` rows where they matter. Mark rows `-` (original), `+` (change), or a space (unchanged); a diff compares the same function before and after. Nest calls with `├──` and `└──`. Link real functions with source references; an unlinked helper is pseudocode, not a promised API. Keep stacks to about a dozen rows, splitting deep flows into an overview and a stack per changed callee.
 
-Write pseudocode in the source repo's main language, using its familiar syntax and a matching code fence.
+**Code.** Keep fences short and on the point the paragraph makes; elide unchanged code with `// ...`. Highlight lines with `{2-3}` after the language (or rows with `{3-4}` after `callstack`), and explain with notes at the bottom instead of long comments: `// [!note symbol] text` for a name wherever it appears, `// [!note L3-L5] text` for lines counted from the top of the fence. Call stacks take the same notes with `#`.
 
-Link existing source with `[[path]]` or `[[path#symbol]]`. Show symbols that are still planned as plain text. The spec can contain planned, in-progress, and completed phases together.
+**Links.** Link existing source with [references](#source-references); write planned symbols as plain text.
 
-End each phase with its `changes` summary fence, after all explanatory prose, diagrams, call stacks, and pseudocode, and before the next phase or section. Use an empty fence for uncommitted work; replace it with the phase's commit SHA or range when complete. Do not put the summary immediately after Today and Proposed.
+## Prose
+
+Follow Orwell's six rules from "Politics and the English Language" in all prose, comments, and diagram labels. Code names are not jargon.
 
 ## Example phase
 
-Adapt this example to the work:
+This example uses illustrative files and a commit SHA, not Diffmap source paths. Its change crosses a few layers, so it uses several views; a smaller phase needs fewer.
 
 ````md
 ### ⏳ Phase 1: Validate request input
 
 **Today**
 
-The handler passes records straight to the service. Empty names reach storage.
+The handler passes records straight to the service. A client that sends an empty name gets a success response, and the bad record surfaces later as a storage error the client never sees, so they keep sending bad input.
 
 **Proposed**
 
-Validate each record before calling the service. Return an error for an empty name so storage receives valid records.
+A client that sends an empty name gets an error naming the `name` field, so they can fix the request right away. Bulk import in Phase 2 needs every saved record to be valid, so this check comes first.
 
-The handler gains one step between receiving a record and saving it:
-
-```callstack
- requestHandler [[src/request.ts#requestHandler]]
-+├── validateInput # reject empty names
- └── existingService [[src/service.ts#existingService]]
-```
-
-A valid record continues to the service unchanged. An invalid one stops at validation and returns an error, so nothing reaches storage:
-
-```mermaid
-flowchart LR
-    A[requestHandler] --> V[validateInput]
-    V -->|valid| B[existingService]
-    V -->|invalid| E[Return error]
-    %% ref node:A [[src/request.ts#requestHandler]]
-    %% ref node:B [[src/service.ts#existingService]]
-```
-
-In code, the check is an early return before the existing call:
+From the client's side, the same empty-name request now fails at once:
 
 ```ts
+const response = await client.saveRecord({ name: "" });
+// before: { ok: true }
+// after:  { ok: false, error: "name must not be empty" }
+```
+
+Today every record reaches storage. In the proposed flow, a valid record follows the same save path, but an invalid one returns an error before storage. The unlinked `validateInput` helper is pseudocode, not a proposed public API:
+
+```mermaid diff [Invalid records stop before storage]
+ flowchart LR
+-    A[requestHandler] -->|record| B[existingService]
++    A[requestHandler] -->|record| V[validateInput]
++    V -->|valid record| B[existingService]
++    V -->|invalid record| E[Return name error]
+     B -->|record| D[Storage]
+     %% ref node:A [[src/request.ts#requestHandler]]
+     %% ref node:B [[src/service.ts#existingService]]
+```
+
+The call stack shows how the validation result controls the return path:
+
+```callstack
+ response = requestHandler(record) [[src/request.ts#requestHandler]]
+-└── return existingService(record) [[src/service.ts#existingService]]
++├── error = validateInput(record) # reject empty names
++├── if error: return error
++├── result = existingService(record) [[src/service.ts#existingService]]
++│   ├── storage.save(record)
++│   └── return { ok: true }
++└── return result
+```
+
+In code, the handler returns before the existing save:
+
+```ts {2-3}
 function requestHandler(record: RecordInput) {
   const error = validateInput(record);
   if (error) return error;
   return existingService(record);
+}
+// [!note validateInput] Returns an error when `name` is blank, otherwise undefined.
+// [!note L3] Storage never sees an invalid record.
+```
+
+The new check:
+
+```ts
+function validateInput(record: RecordInput) {
+  if (record.name.trim() === "")
+    return { ok: false, error: "name must not be empty" };
+  return undefined;
 }
 ```
 
@@ -99,36 +132,48 @@ function requestHandler(record: RecordInput) {
 
 Before starting the next phase:
 
-1. Commit the phase's code, then commit the spec update separately, since the spec names the code commit's SHA.
-2. Add or update the `changes` fence with that SHA at the end of the phase, after its walkthrough and before the next phase or section. It renders the phase's summary card: the commit title, files changed with lines added and removed, and a Review button.
-3. Point every reference the phase changed at the commit, in stack rows, Mermaid `%% ref` directives, and prose.
-4. Update the diagrams, call stack diffs, and pseudocode to match what was built, and mark the heading ✅.
-5. Restart `serve`; it checks commit references at startup.
+1. Commit the code. If the phase took several commits, use `<base>..<head>` wherever these steps say SHA.
+2. Put that SHA in the phase's `changes` fence at the end of the phase. It renders the phase's summary card. Under the SHA, list the files a reviewer should read, one path per line, in the order to read them: usually the client-facing entry point first, then down the layers. Leave out files that need no thought, such as lockfiles, generated code, snapshots, fixtures, and mechanical renames; the card folds them under "N other files".
+3. Point every reference the phase changed at the commit: stack rows, `%% ref` directives, and prose.
+4. Update diagrams, call stacks, and pseudocode to match what was built, and mark the heading ✅.
+5. Commit the spec update separately; it names the code commit's SHA.
+6. Restart `serve`; it checks commit references at startup.
 
-The completed example keeps its walkthrough and finishes with the summary:
+The example phase keeps its walkthrough, with references pointing at the commit, and ends with:
 
 ````md
 ```callstack
- requestHandler [[a1b2c3d:src/request.ts#L8-L20]]
-+├── validateInput # reject empty names [[a1b2c3d:src/validate.ts#L1-L9]]
- └── existingService [[src/service.ts#existingService]]
+ response = requestHandler(record) [[a1b2c3d:src/request.ts#L8-L20]]
+-└── return existingService(record) [[src/service.ts#existingService]]
++├── error = validateInput(record) [[a1b2c3d:src/validate.ts#L1-L9]]
++├── if error: return error
++├── result = existingService(record) [[src/service.ts#existingService]]
++│   ├── storage.save(record)
++│   └── return { ok: true }
++└── return result
 ```
-
-After the remaining diagrams and pseudocode, close the phase with its changes:
 
 ```changes
 a1b2c3d
+src/request.ts
+src/validate.ts
 ```
 ````
 
 ## Source references
 
-`[[path/to/file.ts#symbolName]]` links to a current TypeScript or JavaScript declaration. Use a qualified name such as `[[src/store.ts#Store.save]]` for ambiguous symbols. `[[path]]` links a whole file; `[[path#L12-L30]]` links a line range. Paths are relative to the repo root. References also work in prose, where they render as clickable inline code; wrap one in backticks to show the syntax literally. A reference without a commit opens that file's uncommitted changes, or the current file when it has none; this only works in a local viewer.
+Paths are relative to the repo root.
 
-`[[<sha>:path#L12-L30]]` links lines in a commit. Use a 7–40 character SHA, or `<base>..<head>` for a phase spread over several commits, where `<base>` is the commit before the first one. The file must change in that commit. Line numbers are the file's lines after the commit; find changed lines with `git show <sha> -- <path>` and number them with `git show <sha>:<path> | nl -ba`. Deleted lines cannot be referenced, and a commit cannot be combined with `#symbol`.
+- `[[path/to/file.ts#symbolName]]` links a TypeScript or JavaScript declaration; qualify ambiguous ones, as in `[[src/store.ts#Store.save]]`.
+- `[[path]]` links a file; `[[path#L12-L30]]` a line range.
+- `[[<sha>:path#L12-L30]]` links lines in a commit, or `<base>..<head>` for a phase over several commits, where `<base>` is the commit before the first. Lines are numbered after the commit, so deleted lines cannot be linked. Find them with `git show <sha> -- <path>` and `git show <sha>:<path> | nl -ba`.
+- A reference without a commit opens that file's uncommitted changes, or the current file when it has none. A shared gist opens the file as it was when shared.
+- In prose, references render as clickable inline code; wrap one in backticks to show the syntax.
+- In Mermaid, `%% ref node:<id> [[reference]]` links a node or participant and `%% ref edge:<index> [[reference]]` an edge or message, counting from zero in declaration order. Use one directive per target, with several references when needed.
 
-In Mermaid, link nodes or participants with `%% ref node:<id> [[reference]]` and edges or sequence messages with `%% ref edge:<index> [[reference]]`. Edge indices start at zero in declaration order. Use one directive per target, with multiple references on that directive as needed.
+Fences: `mermaid` draws a diagram, `services` an animated diagram of services, their state, and the events between them (add `diff` after either to mark lines `-` or `+`), `callstack` stack rows, `changes` a commit or range summary (empty for uncommitted changes) with the files to review listed under it, and `html` trusted HTML you wrote. Other languages are pseudocode and types, with optional `{…}` highlights and `[!note …]` lines. `[Title]` after the language, as in ` ```callstack [Request flow] `, titles a call stack, code fence, or Mermaid diagram.
 
-A `mermaid` fence draws a diagram; a `callstack` fence draws stack rows; a `changes` fence summarizes a commit or range, and an empty one summarizes uncommitted changes. Use other language fences for pseudocode and types. Use `html` fences for trusted HTML you authored: the viewer renders it directly.
+## Look up the rest
 
-The full syntax is in the [diffmap README](https://github.com/tanishqkancharla/diffmap#link-call-stacks-to-source-changes), the [annotations](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/annotations.md) fixture, and the [diagrams](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/references.md) fixture.
+- Full reference and fence syntax → [diffmap README](https://github.com/tanishqkancharla/diffmap#link-call-stacks-to-source-changes)
+- Worked examples → [annotations](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/annotations.md), [diagrams](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/references.md), and [services](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/services.md) fixtures

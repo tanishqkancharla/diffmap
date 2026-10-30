@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
-import test from "node:test";
+import test, { before } from "node:test";
 import { DiffmapServeError } from "./errors.js";
 import { startServer, type DiffmapServer } from "./serve.js";
 
@@ -91,6 +91,27 @@ async function waitForClosed(server: DiffmapServer, timeoutMs = 10_000) {
     }),
   ]);
 }
+
+// These tests run several servers at once. On a cold or stale cache each one
+// prebundles dependencies on its own, at over 1 GB each, which can exhaust the
+// machine's memory. Vite holds requests for a prebundled file until the bundle
+// is on disk, so fetching one here leaves a warm cache for the servers below.
+before(async () => {
+  const server = assertStarted(
+    await startServer({ filePath: sampleSpec, workspaceRoot: packageRoot }),
+  );
+  try {
+    const entry = await fetch(`${server.url}/src/viewer/main.tsx`);
+    const dep = /"(\/node_modules\/\.vite\/deps\/[^"]+)"/.exec(
+      await entry.text(),
+    )?.[1];
+    assert.ok(dep !== undefined, "viewer entry imports no prebundled module");
+    assert.equal((await fetch(`${server.url}${dep}`)).ok, true);
+  } finally {
+    await server.shutdown();
+    await waitForClosed(server);
+  }
+});
 
 test(
   "startServer binds distinct free ports when 4177 is taken",

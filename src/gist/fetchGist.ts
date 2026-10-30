@@ -1,4 +1,10 @@
-import { GIST_CHANGES_FILE, type Changes, type Rev } from "../changes.ts";
+import {
+  GIST_CHANGES_FILE,
+  GIST_FILES_FILE,
+  type Changes,
+  type Rev,
+} from "../changes.ts";
+import type { HostFiles } from "../host/files.ts";
 import { githubGistUrl, markdownFileNames, pickMarkdownFile } from "./route.ts";
 
 export type GistMarkdownFile = {
@@ -11,8 +17,10 @@ export type GistDocument = {
   htmlUrl: string;
   files: GistMarkdownFile[];
   chosen: GistMarkdownFile;
-  /** Snapshot `diffmap share` saved for each commit the spec references. */
+  /** Snapshot `diffmap share` saved for each commit and changes card the spec references. */
   changes: Record<Rev, Changes>;
+  /** Files excerpts and references without a commit read, as they were when shared. */
+  sourceFiles: HostFiles;
 };
 
 export type GistLoadResult =
@@ -98,23 +106,21 @@ export async function loadGistMarkdown(
     return { status: "missing-file", htmlUrl, files };
   }
 
-  const snapshotFile = apiFiles[GIST_CHANGES_FILE];
-  const snapshot =
-    snapshotFile === undefined
-      ? "{}"
-      : await readGistFile(snapshotFile, signal);
-  if (snapshot instanceof Error) {
-    return { status: "error", message: snapshot.message };
+  // SAFETY: diffmap share writes this file from readDocumentChanges.
+  const changes = (await readSnapshot(apiFiles, GIST_CHANGES_FILE, signal)) as
+    | Record<Rev, Changes>
+    | Error;
+  if (changes instanceof Error) {
+    return { status: "error", message: changes.message };
   }
-  let changes: Record<Rev, Changes>;
-  try {
-    // SAFETY: diffmap share writes this file from readDocumentChanges.
-    changes = JSON.parse(snapshot) as Record<Rev, Changes>;
-  } catch {
-    return {
-      status: "error",
-      message: `${GIST_CHANGES_FILE} is not valid JSON.`,
-    };
+  // SAFETY: diffmap share writes this file as path to contents.
+  const sourceFiles = (await readSnapshot(
+    apiFiles,
+    GIST_FILES_FILE,
+    signal,
+  )) as HostFiles | Error;
+  if (sourceFiles instanceof Error) {
+    return { status: "error", message: sourceFiles.message };
   }
 
   return {
@@ -125,8 +131,26 @@ export async function loadGistMarkdown(
       files,
       chosen,
       changes,
+      sourceFiles,
     },
   };
+}
+
+/** A JSON file `diffmap share` wrote, or `{}` when the gist predates it. */
+async function readSnapshot(
+  apiFiles: Record<string, GistApiFile>,
+  name: string,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  const file = apiFiles[name];
+  if (file === undefined) return {};
+  const text = await readGistFile(file, signal);
+  if (text instanceof Error) return text;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return new Error(`${name} is not valid JSON.`);
+  }
 }
 
 async function readGistFile(file: GistApiFile, signal?: AbortSignal) {

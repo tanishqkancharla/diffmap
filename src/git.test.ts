@@ -297,7 +297,7 @@ test("readDocumentChanges rejects unchanged files and ranges past the end", asyn
     const sha = (await git("rev-parse", "HEAD")).slice(0, 7);
     const check = (reference: { path: string; start?: number; end?: number }) =>
       readDocumentChanges(root, {
-        changeRevs: [],
+        changeCards: [],
         references: [{ kind: "file", rev: sha, ...reference }],
       });
 
@@ -316,6 +316,18 @@ test("readDocumentChanges rejects unchanged files and ranges past the end", asyn
     assert.match(
       unchanged instanceof Error ? unchanged.message : "",
       /gone\.ts is not changed/,
+    );
+
+    const review = (paths: string[]) =>
+      readDocumentChanges(root, {
+        changeCards: [{ rev: sha, review: paths }],
+        references: [],
+      });
+    assert.equal((await review(["keep.ts"])) instanceof Error, false);
+    const missing = await review(["keep.ts", "gone.ts"]);
+    assert.match(
+      missing instanceof Error ? missing.message : "",
+      /lists gone\.ts to review, but it is not changed/,
     );
   });
 });

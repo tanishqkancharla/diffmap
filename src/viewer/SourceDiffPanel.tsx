@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { CodeView, type CodeViewHandle } from "@pierre/diffs/react";
-import type { CodeViewOptions, CodeViewLineSelection } from "@pierre/diffs";
+import type {
+  CodeViewItem,
+  CodeViewOptions,
+  CodeViewLineSelection,
+} from "@pierre/diffs";
 import {
+  ActivityIndicator,
   backgroundColor,
   border,
   borderColor,
@@ -9,7 +14,11 @@ import {
   Button,
   ChevronDown,
   flex,
+  motion,
+  radius,
+  shadow,
   spacing,
+  Text,
   text,
   useTheme,
 } from "maui";
@@ -19,7 +28,13 @@ import {
   type SourceAnnotation,
   type SourceReference,
 } from "../annotations.js";
-import { changedFileItem, type Rev } from "../changes.js";
+import {
+  changedFileItem,
+  orderForReview,
+  shortRev,
+  type Changes,
+  type Rev,
+} from "../changes.js";
 import type { SourceDefinition } from "../definitions.js";
 import { useGistPin } from "../gist/pin.ts";
 import { useGitHubPin } from "../github/pin.ts";
@@ -28,7 +43,18 @@ import { ChangesSummary, renderDiffStat } from "./ChangesCard.tsx";
 import { useChanges } from "./changesSource.ts";
 import { RangePicker } from "./RangePicker.tsx";
 import { requestSource, useSourceReference } from "./sourceNavigation.js";
-import { pierreDiffOptions, sourceSelectionCss } from "./pierre.js";
+import {
+  commentedLines,
+  hashNumber,
+  LineComment,
+  lineNumbers,
+  useLineComments,
+} from "./lineComments.tsx";
+import {
+  diffLineText,
+  pierreDiffOptions,
+  sourceSelectionCss,
+} from "./pierre.js";
 import { sourcePanelPin } from "./sourceHeader.ts";
 import { useViewerMode } from "./viewerMode.ts";
 
@@ -40,12 +66,25 @@ export type SourceSelection = {
 type DefinitionNavigation = {
   selection: SourceSelection | undefined;
   history: SourceDefinition[];
-  status: string | undefined;
+  /** A definition request in flight, or the error it ended with. */
+  request: "finding" | Error | undefined;
+};
+
+/** Everything the panel renders from; it keeps the last loaded page while the next one loads. */
+type PanelPage = {
+  rev: Rev;
+  review: string[];
+  selection: SourceSelection | undefined;
+  history: SourceDefinition[];
+  changes: Changes | Error | undefined;
+  source: SourceDefinition | Error | undefined;
 };
 
 export function SourceDiffPanel(props: {
   /** The changes to show; references with their own rev open that rev instead. */
   rev: Rev;
+  /** Paths to show first, in order, as the rev's changes card lists them. */
+  review: string[];
   /** Local viewers pick other changes with the range picker. */
   onRevChange?: (rev: Rev) => void;
   selection: SourceSelection | undefined;
@@ -53,51 +92,85 @@ export function SourceDiffPanel(props: {
 }) {
   const { resolvedTheme } = useTheme();
   const mode = useViewerMode();
-  const viewer = useRef<CodeViewHandle<undefined, undefined>>(null);
+  const viewer = useRef<CodeViewHandle<string, undefined>>(null);
   const [navigation, setNavigation] = useState<DefinitionNavigation>({
     selection: props.selection,
     history: [],
-    status: undefined,
+    request: undefined,
   });
   if (navigation.selection !== props.selection) {
     setNavigation({
       selection: props.selection,
       history: [],
-      status: undefined,
+      request: undefined,
     });
   }
-  const { history } = navigation;
   const request = useRef(0);
+  const hostFiles = useHostFiles();
+  const nextChanges = useChanges(props.rev);
+  const nextReference = props.selection?.reference;
+  // A rev-less reference resolves against current files; a commit reference names its lines directly.
+  const nextSource = useSourceReference(
+    nextReference?.kind === "file" && nextReference.rev === undefined
+      ? nextReference
+      : undefined,
+  );
+  const loading =
+    nextChanges === undefined
+      ? "Loading changes…"
+      : nextReference?.kind === "file" &&
+          nextReference.rev === undefined &&
+          nextSource === undefined &&
+          (mode === "local" || mode === "github" || hostFiles !== undefined)
+        ? "Opening source…"
+        : navigation.request === "finding"
+          ? "Finding definition…"
+          : undefined;
+  const next: PanelPage = {
+    rev: props.rev,
+    review: props.review,
+    selection: props.selection,
+    history: navigation.history,
+    changes: nextChanges,
+    source: nextSource,
+  };
+  // The new page replaces the old one only once it has loaded, so nothing half-loaded shows in between.
+  const [page, setPage] = useState(next);
+  if (
+    loading === undefined &&
+    (page.rev !== next.rev ||
+      page.review !== next.review ||
+      page.selection !== next.selection ||
+      page.history !== next.history ||
+      page.changes !== next.changes ||
+      page.source !== next.source)
+  ) {
+    setPage(next);
+  }
+  const { history, selection, changes, source, review } = page;
   const definition = history.at(-1);
   const panel = useStyles(styles.panel);
-  const header = useStyles(styles.header);
+  const header = useStyles(styles.header, styles.dimmed);
   const titleRow = useStyles(styles.titleRow);
   const titleClass = useStyles(styles.title);
   const pinClass = useStyles(styles.pin);
   const links = useStyles(styles.links);
   const code = useStyles(styles.code);
   const summary = useStyles(styles.summary);
-  const codeWrap = useStyles(styles.codeWrap);
+  const codeWrap = useStyles(styles.codeWrap, styles.dimmed);
   const collapseIcon = useStyles(styles.collapseIcon);
   const github = useGitHubPin();
   const gist = useGistPin();
-  const hostFiles = useHostFiles();
-  const selection = props.selection;
+  const loadingClass = useStyles(styles.loading);
+  const spinner = useStyles(styles.spinner);
   const reference = selection?.reference;
-  const changes = useChanges(props.rev);
-  const items = useMemo(
-    () =>
-      changes === undefined || changes instanceof Error
-        ? []
-        : changes.files.flatMap((changed) => changedFileItem(changed) ?? []),
-    [changes],
-  );
-  // A rev-less reference resolves against current files; a commit reference names its lines directly.
-  const source = useSourceReference(
-    reference?.kind === "file" && reference.rev === undefined
-      ? reference
-      : undefined,
-  );
+  const items = useMemo(() => {
+    if (changes === undefined || changes instanceof Error) return [];
+    const { reviewed, other } = orderForReview(changes.files, review);
+    return [...reviewed, ...other].flatMap(
+      (changed) => changedFileItem(changed) ?? [],
+    );
+  }, [changes, review]);
   const resolvedFile = source instanceof Error ? undefined : source;
   const inChanges =
     resolvedFile !== undefined &&
@@ -108,24 +181,16 @@ export function SourceDiffPanel(props: {
       ? resolvedFile
       : undefined);
   const status =
-    navigation.status !== undefined
-      ? navigation.status
+    navigation.request instanceof Error
+      ? navigation.request.message
       : source instanceof Error
         ? source.message
-        : changes instanceof Error
+        : // A shown file replaces the changes, so their error is moot, as in a gist without uncommitted changes.
+          changes instanceof Error && file === undefined
           ? changes.message
-          : changes === undefined
-            ? "Loading changes…"
-            : reference?.kind === "file" &&
-                reference.rev === undefined &&
-                source === undefined &&
-                (mode === "local" ||
-                  mode === "github" ||
-                  hostFiles !== undefined)
-              ? "Opening source…"
-              : items.length === 0 && file === undefined
-                ? "No changes."
-                : undefined;
+          : changes !== undefined && items.length === 0 && file === undefined
+            ? "No changes."
+            : undefined;
   const selectedLines = useMemo<CodeViewLineSelection | null>(() => {
     if (file !== undefined)
       return { id: file.path, range: { start: file.start, end: file.end } };
@@ -151,9 +216,9 @@ export function SourceDiffPanel(props: {
     rev: Rev;
     selection: SourceSelection | undefined;
     paths: ReadonlySet<string>;
-  }>({ rev: props.rev, selection, paths: new Set() });
-  if (collapse.rev !== props.rev || collapse.selection !== selection) {
-    setCollapse({ rev: props.rev, selection, paths: new Set() });
+  }>({ rev: page.rev, selection, paths: new Set() });
+  if (collapse.rev !== page.rev || collapse.selection !== selection) {
+    setCollapse({ rev: page.rev, selection, paths: new Set() });
   }
   const rangeId = selectedLines?.id;
   const rangeStart = selectedLines?.range.start;
@@ -265,7 +330,7 @@ export function SourceDiffPanel(props: {
     });
   }, [ready, rangeId, rangeStart, rangeEnd, rangeSide]);
 
-  const onTokenClick: CodeViewOptions<undefined, undefined>["onTokenClick"] = (
+  const onTokenClick: CodeViewOptions<string, undefined>["onTokenClick"] = (
     token,
     event,
     context,
@@ -281,18 +346,11 @@ export function SourceDiffPanel(props: {
       lineText = item.file.contents.split(/\r?\n/)[token.lineNumber - 1]!;
     } else {
       const side =
-        "side" in token && token.side === "deletions" ? "deletion" : "addition";
-      const diff = item.fileDiff;
-      filePath = diff.name;
-      const hunk = diff.hunks.find(
-        (h) =>
-          token.lineNumber >= h[`${side}Start`] &&
-          token.lineNumber < h[`${side}Start`] + h[`${side}Count`],
-      )!;
-      const index = diff.isPartial
-        ? hunk[`${side}LineIndex`] + token.lineNumber - hunk[`${side}Start`]
-        : token.lineNumber - 1;
-      lineText = diff[`${side}Lines`][index]!.replace(/\r?\n$/, "");
+        "side" in token && token.side === "deletions"
+          ? "deletions"
+          : "additions";
+      filePath = item.fileDiff.name;
+      lineText = diffLineText(item.fileDiff, side, token.lineNumber)!;
     }
     const params = new URLSearchParams({
       path: filePath,
@@ -301,28 +359,97 @@ export function SourceDiffPanel(props: {
       text: lineText,
     });
     const currentRequest = ++request.current;
-    setNavigation({ selection, history, status: "Finding definition…" });
+    setNavigation({ selection, history, request: "finding" });
     // oxlint-disable-next-line typescript/no-floating-promises -- Token callbacks cannot await; the request owns its status update.
     void requestSource("definition", params).then((result) => {
       if (currentRequest !== request.current) return;
       setNavigation((current) => {
         if (current.selection !== selection) return current;
-        if (result instanceof Error)
-          return { ...current, status: result.message };
+        if (result instanceof Error) return { ...current, request: result };
         return {
           selection,
           history: [...history, result],
-          status: undefined,
+          request: undefined,
         };
       });
     });
   };
 
+  // A diff's line numbers belong to its rev; a single file's to its current contents.
+  const lineComments = useLineComments(
+    file === undefined ? `panel:${page.rev}` : "panel-file",
+  );
+  const commentedItems = useMemo(() => {
+    const baseItems: CodeViewItem<string>[] =
+      file === undefined
+        ? // SAFETY: changed-file items carry no annotations yet.
+          (shownItems as CodeViewItem<string>[])
+        : [
+            {
+              type: "file",
+              id: file.path,
+              file: { name: file.path, contents: file.contents },
+            },
+          ];
+    return baseItems.map((item) => {
+      const annotations =
+        item.type === "file"
+          ? lineComments.fileAnnotations(item.id)
+          : lineComments.diffAnnotations(item.id);
+      if (annotations.length === 0) return item;
+      // Pierre only rereads an item's annotations when its version changes.
+      const key = annotations
+        .map((a) => `${a.metadata}@${String(a.lineNumber)}`)
+        .join();
+      return {
+        ...item,
+        annotations,
+        version: hashNumber(`${String(item.version ?? 0)}:${key}`),
+      } as CodeViewItem<string>;
+    });
+  }, [file, shownItems, lineComments]);
+  const onGutterUtilityClick: CodeViewOptions<
+    string,
+    undefined
+  >["onGutterUtilityClick"] = (range, context) => {
+    const item = context.item;
+    const { side = "additions", start, end } = commentedLines(range);
+    if (item.type === "file") {
+      lineComments.start({
+        path: item.id,
+        side: undefined,
+        start,
+        end,
+        lineOffset: 0,
+        lines: item.file.contents.split(/\r?\n/).slice(start - 1, end),
+        context: "current file",
+      });
+      return;
+    }
+    lineComments.start({
+      path: item.id,
+      side,
+      start,
+      end,
+      lineOffset: 0,
+      lines: lineNumbers(start, end).flatMap(
+        (line) => diffLineText(item.fileDiff, side, line) ?? [],
+      ),
+      context: `Diff panel: ${shortRev(page.rev)}`,
+    });
+  };
+
   return (
-    <aside id="source-diff-panel" aria-label="Source changes" className={panel}>
+    <aside
+      id="source-diff-panel"
+      aria-label="Source changes"
+      aria-busy={loading !== undefined}
+      className={panel}
+    >
       <div
         className={header}
         data-diffmap-kind="source-header"
+        data-loading={loading !== undefined}
         // Pierre's file headers draw their own top border, which divides them from this header.
         data-file-headers={!showTitle && items.length > 0}
       >
@@ -338,7 +465,11 @@ export function SourceDiffPanel(props: {
           props.onRevChange === undefined &&
           loadedChanges !== undefined && (
             <div className={titleRow}>
-              {loadedChanges.url === undefined ? (
+              {selection?.annotation.title !== undefined ? (
+                <div className={titleClass} title={selection.annotation.title}>
+                  {selection.annotation.title}
+                </div>
+              ) : loadedChanges.url === undefined ? (
                 <div className={titleClass} title={loadedChanges.title}>
                   {loadedChanges.title}
                 </div>
@@ -366,7 +497,7 @@ export function SourceDiffPanel(props: {
                   setNavigation({
                     selection,
                     history: history.slice(0, -1),
-                    status: undefined,
+                    request: undefined,
                   });
                 }}
               >
@@ -418,24 +549,17 @@ export function SourceDiffPanel(props: {
           )}
       </div>
       {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Pierre's file headers are the click targets; this only catches their clicks. */}
-      <div className={codeWrap} onClick={onHeaderClick}>
+      <div
+        className={codeWrap}
+        data-loading={loading !== undefined}
+        // The last page stays visible while the next one loads, but it is no longer the one to act on.
+        inert={loading !== undefined}
+        onClick={onHeaderClick}
+      >
         <CodeView
           ref={viewer}
           className={code}
-          items={
-            file === undefined
-              ? shownItems
-              : [
-                  {
-                    type: "file",
-                    id: file.path,
-                    file: {
-                      name: file.path,
-                      contents: file.contents,
-                    },
-                  },
-                ]
-          }
+          items={commentedItems}
           selectedLines={selectedLines}
           disableWorkerPool
           options={{
@@ -446,7 +570,12 @@ export function SourceDiffPanel(props: {
             layout: { paddingTop: 0, paddingBottom: 0, gap: 0 },
             stickyHeaders: true,
             onTokenClick,
+            enableGutterUtility: true,
+            onGutterUtilityClick,
           }}
+          renderAnnotation={(...[annotation]) => (
+            <LineComment id={annotation.metadata} />
+          )}
           renderHeaderPrefix={(item) => (
             <span
               className={collapseIcon}
@@ -461,6 +590,19 @@ export function SourceDiffPanel(props: {
             item.type === "diff" ? renderDiffStat(item.fileDiff) : undefined
           }
         />
+      </div>
+      <div
+        className={loadingClass}
+        role="status"
+        data-loading={loading !== undefined}
+      >
+        {loading !== undefined && (
+          // Inline in the label, the spinner sits on the text's baseline at its size, so it lines up in any font.
+          <Text size="sm" color="lowContrast">
+            <ActivityIndicator className={spinner} />
+            {loading}
+          </Text>
+        )}
       </div>
     </aside>
   );
@@ -481,6 +623,7 @@ const panelBackgroundCss = `:host {
 
 const styles = {
   panel: style(flex({ direction: "column" }), border(["left"], "border"), {
+    position: "relative",
     gridArea: "diff",
     minWidth: 0,
     minHeight: 0,
@@ -540,6 +683,28 @@ const styles = {
     minWidth: 0,
     minHeight: 0,
   }),
+  // Loads that finish within the delay swap pages without dimming.
+  dimmed: style(motion.standard("opacity"), {
+    "&[data-loading='true']": { opacity: 0.4, transitionDelay: "150ms" },
+  }),
+  loading: style(
+    radius.md,
+    shadow.medium,
+    spacing.padding({ x: 6, y: 3 }),
+    motion.standard("opacity"),
+    {
+      position: "absolute",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      whiteSpace: "nowrap",
+      backgroundColor: backgroundColor.app,
+      pointerEvents: "none",
+      opacity: 0,
+      "&[data-loading='true']": { opacity: 1, transitionDelay: "150ms" },
+    },
+  ),
+  spinner: style({ marginRight: spacing.value(4) }),
   collapseIcon: style({
     display: "flex",
     color: colors.gray[11],

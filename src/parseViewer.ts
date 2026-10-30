@@ -8,18 +8,27 @@ import {
   type SourceReference,
 } from "./annotations.js";
 import { isRev, type Rev } from "./changes.js";
-import { DiffmapAnnotationError, DiffmapParseError } from "./errors.js";
+import { notesProblem } from "./codeNotes.js";
+import {
+  DiffmapAnnotationError,
+  DiffmapParseError,
+  DiffmapServicesError,
+} from "./errors.js";
 import { parseMermaidDiagram } from "./mermaid.js";
 import { parseFence, type Fence } from "./parseFence.js";
+import { serviceAnnotations } from "./services.js";
 
 export type ViewerDocument = {
   nodes: ViewerNode[];
   headings: ViewerHeading[];
   /** Every reference in stacks, diagrams, and prose. */
   references: SourceReference[];
-  /** Revs of `changes` fences, in document order. */
-  changeRevs: Rev[];
+  /** `changes` fences, in document order. */
+  changeCards: ChangeCard[];
 };
+
+/** A `changes` fence's rev and the paths it lists to review first. */
+export type ChangeCard = { rev: Rev; review: string[] };
 
 export type ViewerHeading = {
   level: 1 | 2 | 3 | 4 | 5 | 6;
@@ -75,6 +84,8 @@ export type ViewerElementAttrs = {
   task: boolean | undefined;
   alertType: string | undefined;
   align: string | undefined;
+  /** The label of an MDC `::details{summary="…"}` toggle. */
+  summary: string | undefined;
 };
 
 export function parseViewerDocument(source: string, path = "spec") {
@@ -85,12 +96,26 @@ export function parseViewerDocument(source: string, path = "spec") {
   if (tree instanceof Error) return tree;
   const nodes = tree.nodes.flatMap((node) => fromNode(node));
   const fences = collectFences(nodes);
-  const changeRevs: Rev[] = [];
+  const changeCards: ChangeCard[] = [];
   for (const fence of fences) {
     if (fence.kind === "code" && fence.lang.startsWith("source-diff")) {
       return new DiffmapAnnotationError({
         reason: `"${fence.lang}" fences were removed. Commit the change, then use a changes fence with the commit SHA and link lines with [[<sha>:path#L12-L30]]`,
       });
+    }
+    if (fence.kind === "code" || fence.kind === "callstack") {
+      const problem = notesProblem({
+        // Call stack symbols must appear in the row text readers see, not in a hidden [[reference]].
+        lines:
+          fence.kind === "code"
+            ? fence.source.split("\n")
+            : fence.lines.map((line) => line.text),
+        highlights: fence.highlights,
+        notes: fence.notes,
+      });
+      if (problem !== undefined)
+        return new DiffmapAnnotationError({ reason: problem });
+      continue;
     }
     if (fence.kind !== "changes") continue;
     if (!isRev(fence.rev)) {
@@ -98,28 +123,62 @@ export function parseViewerDocument(source: string, path = "spec") {
         reason: `Invalid changes "${fence.rev}". Use a commit SHA, a SHA range (a1b2c3d..e4f5a6b), or leave it empty for uncommitted changes`,
       });
     }
-    changeRevs.push(fence.rev);
+    const duplicate = fence.review.find(
+      (reviewPath, index) => fence.review.indexOf(reviewPath) !== index,
+    );
+    if (duplicate !== undefined) {
+      return new DiffmapAnnotationError({
+        reason: `changes "${fence.rev}" lists ${duplicate} twice. List each file to review once`,
+      });
+    }
+    changeCards.push({ rev: fence.rev, review: fence.review });
   }
   const annotations = [
     ...fences.flatMap((fence) => {
       if (fence.kind === "callstack") return fence.lines;
       if (fence.kind === "mermaid")
         return fence.annotations.map((link) => link.annotation);
+      if (fence.kind === "services" && fence.parsed.ok)
+        return serviceAnnotations(fence.parsed.diagram);
       return [];
     }),
     ...collectReferences(nodes),
   ];
+  const servicesFences = fences.flatMap((fence) =>
+    fence.kind === "services" ? [fence] : [],
+  );
+  for (const [offset, fence] of servicesFences.entries()) {
+    if (fence.parsed.ok) continue;
+    const start = fenceLine(source, "services", offset + 1);
+    return new DiffmapServicesError({
+      path,
+      where:
+        start === undefined
+          ? `diagram ${offset + 1}, line ${fence.parsed.line}`
+          : `line ${start + fence.parsed.line}`,
+      reason: fence.parsed.reason,
+    });
+  }
   const mermaidFences = fences.flatMap((fence) =>
     fence.kind === "mermaid" ? [fence] : [],
   );
   for (const [offset, fence] of mermaidFences.entries()) {
     const mermaidIndex = offset + 1;
-    const parsedMermaid = parseMermaidDiagram({
-      source: fence.source,
-      path,
-      where: mermaidWhere(source, mermaidIndex),
-    });
-    if (parsedMermaid instanceof Error) return parsedMermaid;
+    const where = mermaidWhere(source, mermaidIndex);
+    // A diff draws every line, and each side must also stand on its own.
+    for (const [side, diagram] of [
+      ["", fence.source],
+      [", Today side", fence.sides?.today],
+      [", Proposed side", fence.sides?.proposed],
+    ] as const) {
+      if (diagram === undefined) continue;
+      const parsedMermaid = parseMermaidDiagram({
+        source: diagram,
+        path,
+        where: `${where}${side}`,
+      });
+      if (parsedMermaid instanceof Error) return parsedMermaid;
+    }
     const targets = new Set<string>();
     for (const link of fence.annotations) {
       const target = `${link.target}:${link.id}`;
@@ -164,11 +223,11 @@ export function parseViewerDocument(source: string, path = "spec") {
     nodes,
     headings: collectHeadings(nodes),
     references: annotations.flatMap((annotation) => annotation.references),
-    changeRevs,
+    changeCards,
   };
 }
 
-function collectFences(nodes: ViewerNode[]): Fence[] {
+export function collectFences(nodes: ViewerNode[]): Fence[] {
   return nodes.flatMap((node) => {
     if (node.type === "view") return [node.fence];
     if (node.type === "element") return collectFences(node.children);
@@ -185,15 +244,18 @@ function collectReferences(nodes: ViewerNode[]): SourceAnnotation[] {
 }
 
 function mermaidWhere(source: string, index: number) {
-  const line = mermaidFenceLine(source, index);
+  const line = fenceLine(source, "mermaid", index);
   if (line === undefined) return `diagram ${index}`;
   return `diagram ${index}, line ${line}`;
 }
 
-function mermaidFenceLine(source: string, index: number) {
-  const match = [...source.matchAll(/^[ \t]*(`{3,}mermaid\b|::mermaid\b)/gm)][
-    index - 1
-  ];
+/** Line of the `index`th (1-based) fence or MDC block named `lang`. */
+function fenceLine(source: string, lang: string, index: number) {
+  const pattern = new RegExp(
+    String.raw`^[ \t]*(\`{3,}${lang}\b|::${lang}\b)`,
+    "gm",
+  );
+  const match = [...source.matchAll(pattern)][index - 1];
   if (match === undefined || match.index === undefined) return undefined;
   return source.slice(0, match.index).split("\n").length;
 }
@@ -215,7 +277,12 @@ function walkHeadings(
   for (const node of nodes) {
     if (node.type !== "element") continue;
     if (headingTags.has(node.tag)) {
-      const text = viewerNodeText(node);
+      // A badge, such as :badge[Experimental], labels the section; it is not part of its title.
+      const text = node.children
+        .filter((child) => child.type !== "element" || child.tag !== "badge")
+        .map(viewerNodeText)
+        .join("")
+        .trim();
       const id = ensureHeadingId(node, text, usedIds);
       headings.push({
         level: headingLevel(node.tag),
@@ -323,15 +390,34 @@ function fromElement(
   if (tag === "template")
     return children.flatMap((child) => fromNode(child, literalChildren));
   if (tag === "pre") {
-    return fenceView(stringAttr(element, "language"), comarkText(children));
-  }
-  if (tag === "mermaid") return fenceView("mermaid", comarkText(children));
-  if (tag === "callstack") return fenceView("callstack", comarkText(children));
-  if (tag === "changes")
+    // md4x parses ```ts [src/request.ts] into `filename`; diffmap shows it as the title.
     return fenceView(
-      "changes",
-      stringAttr(element, "rev") ?? comarkText(children),
+      stringAttr(element, "language"),
+      comarkText(children),
+      highlightsAttr(element),
+      stringAttr(element, "filename"),
+      stringAttr(element, "meta"),
     );
+  }
+  if (tag === "mermaid")
+    return fenceView(
+      "mermaid",
+      comarkText(children),
+      undefined,
+      stringAttr(element, "title"),
+    );
+  if (tag === "callstack")
+    return fenceView(
+      "callstack",
+      comarkText(children),
+      undefined,
+      stringAttr(element, "title"),
+    );
+  if (tag === "changes") {
+    const rev = stringAttr(element, "rev");
+    const body = comarkText(children);
+    return fenceView("changes", rev === undefined ? body : `${rev}\n${body}`);
+  }
   if (tag === "diff") {
     const path = stringAttr(element, "path");
     const lang = path === undefined ? "diff" : `diff:${path}`;
@@ -366,10 +452,22 @@ function unwrapTaskParagraph(children: ViewerNode[]): ViewerNode[] {
   return children;
 }
 
-function fenceView(lang: string | undefined, source: string): ViewerView {
+function fenceView(
+  lang: string | undefined,
+  source: string,
+  highlights?: number[],
+  title?: string,
+  meta?: string,
+): ViewerView {
   return {
     type: "view",
-    fence: parseFence(lang === undefined ? "" : lang, source),
+    fence: parseFence(
+      lang === undefined ? "" : lang,
+      source,
+      highlights,
+      title,
+      meta,
+    ),
   };
 }
 
@@ -420,6 +518,7 @@ function elementAttrs(element: ComarkElement): ViewerElementAttrs {
     task: element[1].task === true ? true : undefined,
     alertType: stringAttr(element, "type"),
     align: stringAttr(element, "align"),
+    summary: stringAttr(element, "summary"),
   };
 }
 
@@ -428,6 +527,13 @@ function stringAttr(element: ComarkElement, key: string) {
   if (value === undefined) return undefined;
   // SAFETY: md4x string attributes are JSON strings.
   return value as string;
+}
+
+/** md4x parses ```ts {2,4-5} into `highlights: [2, 4, 5]`. */
+function highlightsAttr(element: ComarkElement) {
+  const value = element[1].highlights;
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((line): line is number => typeof line === "number");
 }
 
 function lineAttr(element: ComarkElement, key: string) {

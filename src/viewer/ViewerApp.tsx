@@ -18,7 +18,11 @@ import type { ViewerDocument } from "../parseViewer.js";
 import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
+import { CommentsContext, useCommentStore } from "./comments.ts";
+import { CopyCommentsButton } from "./CopyCommentsButton.tsx";
+import { commentHighlightStyle, PageComments } from "./PageComments.tsx";
 import { DiffButton } from "./DiffButton.tsx";
+import { TocButton } from "./TocButton.tsx";
 import {
   hasTableOfContents,
   TableOfContents,
@@ -28,6 +32,8 @@ import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
 
 type ViewerMeta = {
   title: string;
+  /** The served markdown file's absolute path. */
+  file: string;
 };
 
 export function ViewerApp(props: {
@@ -45,7 +51,7 @@ export function ViewerApp(props: {
   const local = props.mode === "local";
   const documentRev =
     props.defaultRev ??
-    viewerDocument.changeRevs[0] ??
+    viewerDocument.changeCards[0]?.rev ??
     viewerDocument.references.find((ref) => ref.rev !== undefined)?.rev ??
     (local ? ALL : WORKING);
   const [panelRev, setPanelRev] = useState(documentRev);
@@ -58,9 +64,14 @@ export function ViewerApp(props: {
   const hasSourceDiffs =
     local ||
     viewerDocument.references.length > 0 ||
-    viewerDocument.changeRevs.length > 0 ||
+    viewerDocument.changeCards.length > 0 ||
     props.defaultRev !== undefined;
   const diffPanelOpen = hasSourceDiffs && showDiffPanel;
+  // The panel lists files in the order the rev's changes card asks them to be reviewed.
+  const panelReview =
+    viewerDocument.changeCards.find(
+      (card) => card.rev === panelRev && card.review.length > 0,
+    )?.review ?? NO_REVIEW;
   const body = useStyles(styles.body);
   const [shutDown, setShutDown] = useState(false);
   const parsedTitle =
@@ -76,12 +87,22 @@ export function ViewerApp(props: {
   const actions = useStyles(styles.actions);
   const article = useStyles(styles.article);
   const prose = useStyles(styles.prose);
-  const content = useStyles(proseHtml("md"), styles.content);
+  const content = useStyles(
+    proseHtml("md"),
+    styles.content,
+    commentHighlightStyle,
+  );
+  const contentRef = useRef<HTMLDivElement>(null);
+  // localStorage is per origin, so the path names the document: a gist file, a GitHub spec, or a local server's only page.
+  const comments = useCommentStore(
+    `diffmap-comments:${window.location.pathname}`,
+  );
   const closed = useStyles(styles.closed);
   const closedCopy = useStyles(styles.closedCopy);
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
   const hasToc = hasTableOfContents(viewerDocument.headings);
+  const [tocDrawerOpen, setTocDrawerOpen] = useState(false);
   useEffect(() => {
     document.title = title;
   }, [title]);
@@ -105,77 +126,103 @@ export function ViewerApp(props: {
 
   return (
     <ViewerModeContext.Provider value={props.mode}>
-      <div className={shell}>
-        <header className={header}>
-          <div className={heading}>
-            <div className={titleClass}>{title}</div>
-          </div>
-          <div className={actions}>
-            {hasSourceDiffs && (
-              <DiffButton
-                pressed={showDiffPanel}
-                onClick={() => setShowDiffPanel((open) => !open)}
-              />
-            )}
-            {props.headerActions}
-            {props.mode === "local" && (
-              <CloseServerButton
-                onClick={() => {
-                  setShutDown(true);
-                  // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
-                  void closeViewer();
-                }}
-              />
-            )}
-          </div>
-        </header>
-        <div className={stage}>
-          <div className={body} data-has-source-diffs={diffPanelOpen}>
-            <article ref={articleRef} className={article}>
-              <div className={prose} data-has-toc={hasToc ? "true" : "false"}>
-                <div className={content} data-diffmap-kind="page">
-                  <ComarkView
-                    document={viewerDocument}
-                    selectedAnnotation={selection?.annotation}
-                    onSelectAnnotation={(line) => {
-                      setShowDiffPanel(true);
-                      select({
-                        annotation: line,
-                        reference: line.references[0]!,
-                      });
-                    }}
-                  />
-                </div>
-                {hasToc && (
-                  <TableOfContents
-                    headings={viewerDocument.headings}
-                    articleRef={articleRef}
-                  />
-                )}
-              </div>
-            </article>
-            {diffPanelOpen && (
-              <SourceDiffPanel
-                rev={panelRev}
-                onRevChange={
+      <CommentsContext.Provider value={comments}>
+        <div className={shell}>
+          <header className={header}>
+            <div className={heading}>
+              {hasToc && (
+                <TocButton
+                  expanded={tocDrawerOpen}
+                  onClick={() => setTocDrawerOpen(true)}
+                />
+              )}
+              <div className={titleClass}>{title}</div>
+            </div>
+            <div className={actions}>
+              <CopyCommentsButton
+                title={title}
+                source={
                   local
-                    ? (rev) => {
-                        // A focused reference's lines belong to its own rev.
-                        setSelection(undefined);
-                        setPanelRev(rev);
-                      }
-                    : undefined
+                    ? meta?.file
+                    : `${window.location.origin}${window.location.pathname}`
                 }
-                selection={selection}
-                onSelect={select}
               />
-            )}
+              {hasSourceDiffs && (
+                <DiffButton
+                  pressed={showDiffPanel}
+                  onClick={() => setShowDiffPanel((open) => !open)}
+                />
+              )}
+              {props.headerActions}
+              {props.mode === "local" && (
+                <CloseServerButton
+                  onClick={() => {
+                    setShutDown(true);
+                    // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
+                    void closeViewer();
+                  }}
+                />
+              )}
+            </div>
+          </header>
+          <div className={stage}>
+            <div className={body} data-has-source-diffs={diffPanelOpen}>
+              <article ref={articleRef} className={article}>
+                <div className={prose} data-has-toc={hasToc ? "true" : "false"}>
+                  <div
+                    ref={contentRef}
+                    className={content}
+                    data-diffmap-kind="page"
+                  >
+                    <ComarkView
+                      document={viewerDocument}
+                      selectedAnnotation={selection?.annotation}
+                      onSelectAnnotation={(line) => {
+                        setShowDiffPanel(true);
+                        select({
+                          annotation: line,
+                          reference: line.references[0]!,
+                        });
+                      }}
+                    />
+                  </div>
+                  <PageComments contentRef={contentRef} />
+                  {hasToc && (
+                    <TableOfContents
+                      headings={viewerDocument.headings}
+                      articleRef={articleRef}
+                      drawerOpen={tocDrawerOpen}
+                      onDrawerOpenChange={setTocDrawerOpen}
+                    />
+                  )}
+                </div>
+              </article>
+              {diffPanelOpen && (
+                <SourceDiffPanel
+                  rev={panelRev}
+                  review={panelReview}
+                  onRevChange={
+                    local
+                      ? (rev) => {
+                          // A focused reference's lines belong to its own rev.
+                          setSelection(undefined);
+                          setPanelRev(rev);
+                        }
+                      : undefined
+                  }
+                  selection={selection}
+                  onSelect={select}
+                />
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </CommentsContext.Provider>
     </ViewerModeContext.Provider>
   );
 }
+
+const NO_REVIEW: string[] = [];
 
 function useViewerMeta(enabled: boolean) {
   const [meta, setMeta] = useState<ViewerMeta>();
@@ -265,6 +312,10 @@ const styles = {
     backgroundColor: backgroundColor.app,
     // Scrollport size for the sticky gutter rail (`100cqh`).
     containerType: "size",
+    "@media (max-width: 600px)": {
+      paddingInline: spacing.value(6),
+      paddingBlock: spacing.value(8),
+    },
   }),
   prose: style({
     display: "grid",
@@ -273,7 +324,10 @@ const styles = {
     maxWidth: "none",
     minWidth: 0,
     "&[data-has-toc='true']": {
-      gridTemplateColumns: `minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr) minmax(0, ${proseMaxWidth}) minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr)`,
+      gridTemplateColumns: `var(--diffmap-toc-columns, minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr) minmax(0, ${proseMaxWidth}) minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr))`,
+    },
+    "@media (max-width: 600px)": {
+      "--diffmap-toc-columns": "0 minmax(0, 1fr) 0",
     },
   }),
   content: style({

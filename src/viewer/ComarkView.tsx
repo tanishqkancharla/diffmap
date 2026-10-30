@@ -1,5 +1,6 @@
 import { createElement, type ReactNode, useState } from "react";
 import {
+  Badge,
   Checkbox,
   Code,
   colors,
@@ -87,6 +88,14 @@ function renderElement(
       </blockquote>
     );
   }
+  if (node.tag === "details") {
+    return (
+      <Details key={key} summary={node.attrs.summary ?? "Details"}>
+        {children}
+      </Details>
+    );
+  }
+  if (node.tag === "badge") return <Badge key={key}>{children}</Badge>;
   if (node.tag === "li" && node.attrs.task === true) {
     return (
       <TaskListItem key={key} node={node}>
@@ -188,6 +197,18 @@ function InlineReference(
   );
 }
 
+/** MDC `::details{summary="…"}`: content folded under a summary row. */
+function Details(props: { summary: string; children: ReactNode }) {
+  const className = useStyles(detailsClass);
+  const summaryClassName = useStyles(detailsSummaryClass);
+  return (
+    <details className={className}>
+      <summary className={summaryClassName}>{props.summary}</summary>
+      <div className="diffmap-details-content">{props.children}</div>
+    </details>
+  );
+}
+
 function TaskListItem(props: { node: ViewerElement; children: ReactNode }) {
   const [checked, setChecked] = useState(props.node.attrs.checked === true);
   const className = useStyles(taskListItemClass);
@@ -249,6 +270,21 @@ const inlineReferenceClass = style(
   },
   focusRing(),
 );
+
+const detailsSummaryClass = style(radius.sm, focusRing(), {
+  cursor: "pointer",
+  width: "fit-content",
+  fontWeight: 500,
+});
+
+const detailsClass = style({
+  "& > .diffmap-details-content": {
+    display: "flex",
+    flexDirection: "column",
+    gap: spacing.value(8),
+    marginTop: spacing.value(6),
+  },
+});
 
 const taskListItemClass = style({
   display: "grid",

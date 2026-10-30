@@ -12,10 +12,13 @@ import {
 } from "../viewer/changesSource.ts";
 import { HostFilesContext } from "./files.ts";
 import homeSource from "./home.md?raw";
-import cliSource from "../cli.ts?raw";
 import shareSource from "../share.ts?raw";
-import parseViewerSource from "../parseViewer.ts?raw";
-import githubRouteSource from "../github/route.ts?raw";
+import hostFilesSource from "./files.ts?raw";
+import {
+  SESSION_STORE_REV,
+  sessionStoreChanges,
+  sessionStoreFiles,
+} from "./sessionStorePr.ts";
 
 let parserReady: Promise<void> | undefined;
 
@@ -25,15 +28,16 @@ function readyHostParser() {
 }
 
 const hostFiles = {
-  "src/cli.ts": cliSource,
+  ...sessionStoreFiles,
   "src/share.ts": shareSource,
-  "src/parseViewer.ts": parseViewerSource,
-  "src/github/route.ts": githubRouteSource,
+  "src/host/files.ts": hostFilesSource,
 };
 
-/** The homepage walks through diffmap's own commits, read from GitHub. */
+/** The made-up pull request is served here; diffmap's own commits are read from GitHub. */
 const loadHostChanges: ChangesLoader = (rev) =>
-  fetchGitHubChanges({ owner: "tanishqkancharla", repo: "diffmap" }, rev);
+  rev === SESSION_STORE_REV
+    ? Promise.resolve(sessionStoreChanges)
+    : fetchGitHubChanges({ owner: "tanishqkancharla", repo: "diffmap" }, rev);
 
 export function HostHome() {
   const [view, setView] = useState<

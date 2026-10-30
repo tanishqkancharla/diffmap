@@ -8,26 +8,36 @@ import {
   colors,
   fontFamily,
   spacing,
+  text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
 import { mermaidSvg } from "../mermaid.js";
 import type { DiagramAnnotation } from "../diagramAnnotations.js";
 import type { SourceNavigation } from "../annotations.js";
+import { markDiagramChanges } from "./diagramDiff.js";
 import { linkDiagram } from "./diagramLinks.js";
+import { fenceTitle, pierreShell } from "./pierre.js";
 
 type MermaidProps = {
   source: string;
   annotations: DiagramAnnotation[];
+  sides: { today: string; proposed: string } | undefined;
+  title: string | undefined;
 } & SourceNavigation;
 
 export function MermaidBlock(props: MermaidProps) {
   const [fullscreen, setFullscreen] = useState(false);
-  const frame = useStyles(styles.frame);
+  const frame = useStyles(pierreShell, styles.frame);
   const expand = useStyles(styles.expand);
   const dialog = useStyles(styles.dialog);
   const header = useStyles(styles.header);
+  const caption = useStyles(fenceTitle);
+  const dialogTitle = useStyles(styles.dialogTitle);
   return (
-    <div className={frame}>
+    <figure className={frame}>
+      {props.title !== undefined && (
+        <figcaption className={caption}>{props.title}</figcaption>
+      )}
       <MermaidDiagram {...props} fullscreen={false} />
       <Button
         className={expand}
@@ -42,10 +52,11 @@ export function MermaidBlock(props: MermaidProps) {
         isOpen={fullscreen}
         onOpenChange={setFullscreen}
         size="lg"
-        aria-label="Diagram"
+        aria-label={props.title ?? "Diagram"}
         className={dialog}
       >
         <div className={header}>
+          <span className={dialogTitle}>{props.title}</span>
           <Button
             size="sm"
             variant="quiet"
@@ -65,7 +76,7 @@ export function MermaidBlock(props: MermaidProps) {
           }}
         />
       </Dialog>
-    </div>
+    </figure>
   );
 }
 
@@ -75,10 +86,10 @@ function MermaidDiagram(props: MermaidProps & { fullscreen: boolean }) {
     styles.shell,
     props.fullscreen ? styles.fullscreenShell : styles.inlineShell,
   );
-  const svg = useMemo(
-    () =>
+  const svg = useMemo(() => {
+    const draw = (source: string) =>
       mermaidSvg({
-        source: props.source,
+        source,
         bg: backgroundColor.app,
         fg: colors.gray[12],
         accent: colors.accent[9],
@@ -86,9 +97,15 @@ function MermaidDiagram(props: MermaidProps & { fullscreen: boolean }) {
         surface: backgroundColor.element,
         border: colors.gray[6],
         font: fontFamily,
-      }),
-    [props.source],
-  );
+      });
+    const all = draw(props.source);
+    if (all instanceof Error || props.sides === undefined) return all;
+    const today = draw(props.sides.today);
+    if (today instanceof Error) return today;
+    const proposed = draw(props.sides.proposed);
+    if (proposed instanceof Error) return proposed;
+    return markDiagramChanges(all, { today, proposed });
+  }, [props.source, props.sides]);
   const linked = useMemo(
     () => (svg instanceof Error ? svg : linkDiagram(svg, props.annotations)),
     [svg, props.annotations],
@@ -152,16 +169,23 @@ function MermaidDiagram(props: MermaidProps & { fullscreen: boolean }) {
 }
 
 const styles = {
+  // A card like a code block: the title row, then the diagram, padded.
   frame: style({
     position: "relative",
     width: "100%",
-    minWidth: 0,
+    margin: 0,
+    // Room for the full-screen button, which sits in the title row.
+    "& > figcaption": { paddingRight: "40px" },
+    "& > [data-diffmap-kind='mermaid']": { padding: spacing.value(6) },
   }),
   expand: style({
     position: "absolute",
-    top: 0,
-    insetInlineEnd: 0,
+    top: "6px",
+    right: "6px",
   }),
+  dialogTitle: style(
+    text({ size: "xs", fontWeight: 500, color: "lowContrast" }),
+  ),
   dialog: style({
     width: "calc(100vw - 32px)",
     height: "calc(100dvh - 32px)",
@@ -170,7 +194,8 @@ const styles = {
   }),
   header: style({
     display: "flex",
-    justifyContent: "flex-end",
+    alignItems: "center",
+    justifyContent: "space-between",
   }),
   inlineShell: style({
     maxHeight: "60vh",
@@ -210,5 +235,21 @@ const styles = {
       width: "100%",
       height: "auto",
     },
+    ...changeStyles("-", colors.red),
+    ...changeStyles("+", colors.green),
+    ...changeStyles("~", colors.amber),
   }),
 };
+
+/** Colors a `mermaid diff`'s marked nodes and edges; removed ones are dashed. */
+function changeStyles(sign: string, scale: typeof colors.red) {
+  const marked = `[data-change='${sign}']`;
+  const dash = sign === "-" ? { strokeDasharray: "5 3" } : {};
+  return {
+    [`& [data-id]${marked} > :is(rect, polygon, circle, ellipse, path), & .edge-label${marked} > rect`]:
+      { fill: scale[2], stroke: scale[9], strokeWidth: 1.5, ...dash },
+    [`& ${marked} text`]: { fill: scale[11] },
+    [`& :is(polyline, line)${marked}, & ${marked} > :is(line, polyline, path)`]:
+      { stroke: scale[9], strokeWidth: 1.5, ...dash },
+  };
+}

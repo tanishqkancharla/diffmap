@@ -159,8 +159,29 @@ export type Changes = {
   files: ChangedFile[];
 };
 
+/**
+ * Splits files into the ones to review, in `review` order, and the rest in
+ * their original order. An empty `review` means every file is to be reviewed.
+ */
+export function orderForReview(files: ChangedFile[], review: string[]) {
+  if (review.length === 0) return { reviewed: files, other: [] };
+  const reviewed = review.flatMap(
+    (path) => files.find((file) => file.path === path) ?? [],
+  );
+  return {
+    reviewed,
+    other: files.filter((file) => !reviewed.includes(file)),
+  };
+}
+
 /** Gist file holding the changes a shared spec references, keyed by rev. */
 export const GIST_CHANGES_FILE = "diffmap-changes.json";
+
+/**
+ * Gist file holding the current contents of files a shared spec reads live,
+ * keyed by path: file excerpts and references without a commit.
+ */
+export const GIST_FILES_FILE = "diffmap-files.json";
 
 export type ChangesResponse = { changes?: Changes; error?: string };
 

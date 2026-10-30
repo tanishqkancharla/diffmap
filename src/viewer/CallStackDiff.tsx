@@ -1,33 +1,60 @@
-import {
-  backgroundColor,
-  colors,
-  focusRing,
-  LARGE_SCALE,
-  spacing,
-  text,
-} from "maui";
+import { colors, focusRing, LARGE_SCALE, text, Tooltip } from "maui";
 import { defineVars, style, useStyles } from "purse-styles";
 import { codeFontFamily } from "../codeFont.js";
-import type { SourceAnnotation, SourceNavigation } from "../annotations.js";
-import { pierreShell } from "./pierre.js";
+import {
+  callStackRow,
+  type SourceAnnotation,
+  type SourceNavigation,
+} from "../annotations.js";
+import { lineSymbolMatches, type CodeNote } from "../codeNotes.js";
+import { NoteText, NoteTokens } from "./notes.tsx";
+import { fenceTitle, pierreShell } from "./pierre.js";
 
 export function CallStackDiff(
-  props: { lines: SourceAnnotation[] } & SourceNavigation,
+  props: {
+    lines: SourceAnnotation[];
+    highlights: number[];
+    notes: CodeNote[];
+    title: string | undefined;
+  } & SourceNavigation,
 ) {
   const shell = useStyles(pierreShell, styles.shell);
-  const row = useStyles(styles.row);
+  const titleClassName = useStyles(fenceTitle);
+  const rowClassName = useStyles(styles.row);
   return (
-    <div className={shell} data-diffmap-kind="callstack">
+    <figure className={shell} data-diffmap-kind="callstack">
+      {props.title !== undefined && (
+        <figcaption className={titleClassName}>{props.title}</figcaption>
+      )}
       {props.lines.map((line, index) => {
-        const sign = line.text.startsWith("+")
-          ? "+"
-          : line.text.startsWith("-")
-            ? "-"
-            : " ";
-        const label = line.text.replace(/^[+ -]/, "");
-        const tree = /^[ \t│┃├└─]*/u.exec(label)![0];
-        const description = label.slice(tree.length);
+        const { sign, tree, description } = callStackRow(line.text);
         const comment = description.indexOf("#");
+        const linked = line.references.length > 0;
+        const row = index + 1;
+        const lineNote = props.notes.find(
+          (note) =>
+            note.target.kind === "lines" &&
+            note.target.start <= row &&
+            row <= note.target.end,
+        );
+        const matches = lineSymbolMatches(description, props.notes);
+        const rowProps = {
+          className: rowClassName,
+          "data-change": sign,
+          "data-highlighted": props.highlights.includes(row) || undefined,
+          "data-note":
+            lineNote === undefined
+              ? undefined
+              : lineNote.target.kind === "lines" &&
+                  lineNote.target.start === row
+                ? "start"
+                : "",
+          // A native title would show beside the note tooltip.
+          title:
+            lineNote === undefined && matches.length === 0
+              ? description
+              : undefined,
+        };
         const content = (
           <>
             <span className="diff-sign" aria-hidden="true">
@@ -40,12 +67,21 @@ export function CallStackDiff(
                 ))}
               </span>
               <span className="stack-label">
-                {comment === -1 ? description : description.slice(0, comment)}
-                {comment !== -1 && (
-                  <span className="stack-comment">
-                    {description.slice(comment)}
-                  </span>
-                )}
+                <NoteTokens
+                  tokens={
+                    comment === -1
+                      ? [{ content: description }]
+                      : [
+                          { content: description.slice(0, comment) },
+                          {
+                            content: description.slice(comment),
+                            className: "stack-comment",
+                          },
+                        ]
+                  }
+                  matches={matches}
+                  focusable={!linked}
+                />
               </span>
             </span>
             {line.references.length > 0 && (
@@ -55,55 +91,58 @@ export function CallStackDiff(
             )}
           </>
         );
-        if (line.references.length === 0) {
-          return (
-            <div
-              key={index}
-              className={row}
-              data-change={sign}
-              title={description}
-            >
-              {content}
-            </div>
-          );
-        }
-        return (
+        const element = linked ? (
           <button
             key={index}
             type="button"
-            className={row}
-            data-change={sign}
+            {...rowProps}
             aria-pressed={props.selectedAnnotation === line}
             aria-controls="source-diff-panel"
-            title={description}
             aria-label={description}
             onClick={() => props.onSelectAnnotation(line)}
           >
             {content}
           </button>
+        ) : (
+          <div
+            key={index}
+            {...rowProps}
+            tabIndex={lineNote === undefined ? undefined : 0}
+          >
+            {content}
+          </div>
+        );
+        if (lineNote === undefined) return element;
+        return (
+          <Tooltip key={index} content={<NoteText text={lineNote.text} />}>
+            {element}
+          </Tooltip>
         );
       })}
-    </div>
+    </figure>
   );
 }
 
 const rowSize = defineVars({
-  height: { default: "28px", [LARGE_SCALE]: "40px" },
+  height: { default: "22px", [LARGE_SCALE]: "32px" },
 });
 
 const styles = {
-  shell: style(
-    text({ size: "sm", fontWeight: 500, color: "highContrast" }),
-    spacing.padding({ y: 2 }),
-    {
-      backgroundColor: backgroundColor.app,
-      overflowX: "hidden",
-      maxWidth: "100%",
+  // Sized like Maui's code block, but in the proportional UI font.
+  shell: style(text({ size: "xs", fontWeight: 400, color: "highContrast" }), {
+    margin: 0,
+    paddingBlock: "8px",
+    overflowX: "hidden",
+    maxWidth: "100%",
+    // The shell's top padding goes below the title, between it and the rows.
+    "& > figcaption": {
+      marginTop: "-8px",
+      marginBottom: "8px",
     },
-  ),
+  }),
   row: style(
-    spacing.padding({ x: 3 }),
     {
+      paddingInline: "12px",
       display: "flex",
       alignItems: "center",
       gap: "12px",
@@ -120,6 +159,29 @@ const styles = {
       border: 0,
       "&[data-change='+']": { backgroundColor: colors.green[3] },
       "&[data-change='-']": { backgroundColor: colors.red[3] },
+      "&[data-highlighted]": {
+        backgroundColor: colors.blue[3],
+        boxShadow: `inset 3px 0 ${colors.blue[9]}`,
+      },
+      "&[data-change='+'][data-highlighted]": {
+        backgroundColor: colors.green[5],
+        boxShadow: `inset 3px 0 ${colors.green[9]}`,
+      },
+      "&[data-change='-'][data-highlighted]": {
+        backgroundColor: colors.red[5],
+        boxShadow: `inset 3px 0 ${colors.red[9]}`,
+      },
+      // The sign fills the row gutter, so the dot follows the label instead.
+      "&[data-note='start'] .stack-label::after": {
+        content: '""',
+        display: "inline-block",
+        width: "5px",
+        height: "5px",
+        marginLeft: "8px",
+        verticalAlign: "middle",
+        borderRadius: "50%",
+        backgroundColor: colors.blue[9],
+      },
       "&[aria-pressed]": { cursor: "pointer" },
       "&[aria-pressed]:hover": { backgroundColor: colors.blue[2] },
       "&[aria-pressed='true'], &[aria-pressed='true']:hover": {
@@ -138,7 +200,7 @@ const styles = {
         alignSelf: "center",
         flex: "1 1 auto",
         minWidth: 0,
-        paddingBlock: "3px",
+        paddingBlock: "1px",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
