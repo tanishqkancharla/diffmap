@@ -1,30 +1,70 @@
 # diffmap
 
-<img width="2031" height="1212" alt="Screenshot 2026-09-10 at 10 41 03 AM" src="https://github.com/user-attachments/assets/8650f8be-44ca-4c21-b9bf-4ce938b4083e" />
+[![Watch the diffmap launch video](media/launch.jpg)](https://x.com/tanishqk/status/2116212881125691850)
 
-diffmap is a set of personal skills as well as a web-viewer for Markdown files. It has a unique form of showing diffs using a mixture of callstack diffs and mermaid diagram links, which I've found to be personally extremely helpful in understanding massive diffs.
+**Your coding agent writes more code than you can review.** You should spend your review time on design decisions and risky changes, not boilerplate.
+
+diffmap is an agent skill that lets your agent explain its changes to you visually. The agent writes a spec with interactive diagrams, and each part of a diagram links back to its source code.
+
+> Want a cloud-hosted viewer for sharing diffmaps with your team? [Upvote Diffmap Cloud](https://github.com/tanishqkancharla/diffmap/issues/32) so I know there's interest.
+
+## Try it
+
+You can try diffmap before you install it. In a repository that has changes, paste this prompt into your agent:
+
+```text
+Write a diffmap spec for the changes on this branch. Use github.com/tanishqkancharla/diffmap
+```
+
+If you like the result, install the skill:
+
+```sh
+npx skills add tanishqkancharla/diffmap --skill generate-diffmap
+```
+
+The skill keeps a spec in `specs/` that stays true to what is planned and what is already in the tree. diffmap is open source and MIT licensed. Specs are served locally by default, but you can choose to [share one as an unlisted gist](#share-a-spec-with-a-link-experimental) and open it on diffmap.dev.
+
+## See the main ideas
+
+Your agent picks the best diagram for each idea, and each part of a diagram links to its code. [diffmap.dev](https://diffmap.dev) walks through each one on an example pull request.
+
+### Service diagrams
+
+A service diagram shows each service and its state. Each step shows one event and the state that the event changes, so you do not have to remember the state. Press **Play** to step through it. See [Animated service diagrams](#animated-service-diagrams) for the syntax.
+
+![A service diagram stepping through how a client reopens a saved agent's thread](media/service-diagram.webp)
+
+### Diagram and call stack diffs
+
+A Mermaid or service diagram can show a change in one picture: red parts exist only today, and green parts are new. In a service diagram diff, each value shows today's state crossed out next to the new state. Call stacks show a change the same way, with `+` rows for new code and `-` rows for code the change removes. See [Diagram diffs](#diagram-diffs).
+
+![Mermaid flowchart, sequence, and service diagram diffs for moving sessions from an in-memory cache to Postgres](media/diagram-diffs.webp)
+
+### Phases and commits
+
+The agent writes the plan in phases, each small enough to be one commit. When a phase is done, the spec shows a card for its commit with the files to review, most important first. Click a file to open its diff. Every link in the phase then points at that commit, so it keeps showing the code from that commit after the file changes.
+
+![A finished phase's commit card, with a file opening in the Diff panel](media/phase-commits.webp)
+
+### Comments
+
+Highlight text on the page and press **Comment** to leave a note beside it.
+In a diff, file excerpt, or the Diff panel, hover a line and press the **+**
+in the gutter, or drag it across several lines, to comment under those lines.
+Comments save in your browser (localStorage, per page) and survive reloads.
+**Copy comments** in the top right copies them all as a numbered Markdown list,
+each with its location and the quoted text or lines, ready to paste to an
+agent. ⌘/Ctrl-Enter saves a comment and Escape cancels it.
+
+![Leaving comments on a spec and its diff, then copying them for the agent](media/comments.webp)
+
+## Run the viewer
 
 ```sh
 npx @tanishqkancharla/diffmap serve path/to/file.md
 ```
 
 Bare `npx @tanishqkancharla/diffmap path/to/file.md` is the same as `serve`.
-
-Share an unlisted gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
-
-```sh
-npx @tanishqkancharla/diffmap share path/to.md
-```
-
-Hosted viewer: `https://diffmap.dev/g/<gistId>` (optional `/<file.md>`; `#heading` is the table of contents). The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
-
-## Agent skills
-
-```sh
-npx skills add tanishqkancharla/diffmap --skill generate-diffmap
-```
-
-Keeps a spec in `specs/` that stays true to what's planned versus already in the tree. Serve it with diffmap. Share from a GitHub PR (`https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`) or `npx @tanishqkancharla/diffmap share`.
 
 Options:
 
@@ -58,15 +98,17 @@ instead of the rendered HTML. Use the URL printed by `serve`:
 curl -H 'Accept: text/markdown' http://127.0.0.1:<port>/
 ```
 
-## Comments
+## Share a spec with a link (experimental)
 
-Highlight text on the page and press **Comment** to leave a note beside it.
-In a diff, file excerpt, or the Diff panel, hover a line and press the **+**
-in the gutter, or drag it across several lines, to comment under those lines.
-Comments save in your browser (localStorage, per page) and survive reloads.
-**Copy comments** in the top right copies them all as a numbered Markdown list,
-each with its location and the quoted text or lines, ready to paste to an
-agent. ⌘/Ctrl-Enter saves a comment and Escape cancels it.
+Share an unlisted gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
+
+```sh
+npx @tanishqkancharla/diffmap share path/to.md
+```
+
+Hosted viewer: `https://diffmap.dev/g/<gistId>` (optional `/<file.md>`; `#heading` is the table of contents). The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
+
+A spec committed to a GitHub pull request also opens at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`.
 
 ## Library
 
