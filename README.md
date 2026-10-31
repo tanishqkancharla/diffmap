@@ -329,13 +329,14 @@ step "The API sets the session cookie"
   another to nest it. Names are unique within the diagram.
 - `state <key> = <value>` declares a value and its initial state. Indent it under
   its service.
-- `start "caption"` at column 0, before the first step, captions the whole
-  diagram, such as `start "Alice logs in"`. It shows above the diagram until
-  the reader steps, and each step's caption replaces it. A `>` line under it
-  gives an overview of the whole process. A `services` fence takes no
+- `start "caption"` at column 0, before the first step, titles the whole
+  diagram, such as `start "Alice logs in"`. It stays in the title row while the
+  reader steps. A `>` line under it gives an overview of the whole process,
+  shown under the title until the first step. A `services` fence takes no
   `[Title]`; the start caption is its title.
 - `step "caption"` starts a step at column 0. The caption is required: a
-  sentence that says what happens, shown under the controls. Indented lines
+  sentence that says what happens, shown under the title row above the
+  controls. Indented lines
   under it are `From -> To: label` events and `Service.key = value` updates.
   A step's events travel one after another, in the order written, and the
   updates land when the last one arrives.

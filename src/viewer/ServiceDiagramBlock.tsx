@@ -144,7 +144,8 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
   const controls = useStyles(styles.controls);
   const scrubber = useStyles(styles.scrubber);
   const segment = useStyles(styles.segment);
-  const detail = useStyles(fenceTitle, styles.detail);
+  const title = useStyles(fenceTitle);
+  const detail = useStyles(styles.detail);
   const counter = useStyles(styles.counter);
 
   return (
@@ -154,35 +155,47 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
       // Capture: Maui's Button stops arrow keys from bubbling.
       onKeyDownCapture={onKeyDown}
     >
-      {/* The caption leads: before step 1 it is the start caption, which
-          captions the whole diagram. */}
-      {(captioned !== undefined || last > 0) && (
-        <figcaption className={detail} aria-live="polite">
-          {captioned !== undefined && (
-            <Text size="sm" fontWeight={500}>
-              {current !== undefined && current.sign !== " " && (
-                <Text
-                  size="sm"
-                  fontWeight={600}
-                  style={{
-                    color:
-                      current.sign === "+" ? colors.green[11] : colors.red[11],
-                  }}
-                >
-                  {signLabel[current.sign]}
-                </Text>
-              )}
-              {captioned.caption}
-            </Text>
-          )}
-          {captioned?.description !== undefined && (
-            <Text size="xs" color="lowContrast">
-              {captioned.description}
-            </Text>
-          )}
-        </figcaption>
+      {/* The start caption titles the whole diagram and never changes. */}
+      {diagram.start !== undefined && (
+        <figcaption className={title}>{diagram.start.caption}</figcaption>
       )}
       <div className={body}>
+        {/* Only this changes: each step's caption, or the overview before step 1. */}
+        {(captioned !== undefined || last > 0) && (
+          <div className={detail} aria-live="polite">
+            {/* One main line in one style: the overview, then each step's caption. */}
+            {current === undefined ? (
+              diagram.start?.description !== undefined && (
+                <Text size="sm">{diagram.start.description}</Text>
+              )
+            ) : (
+              <>
+                <Text size="sm">
+                  {current.sign !== " " && (
+                    <Text
+                      size="sm"
+                      fontWeight={600}
+                      style={{
+                        color:
+                          current.sign === "+"
+                            ? colors.green[11]
+                            : colors.red[11],
+                      }}
+                    >
+                      {signLabel[current.sign]}
+                    </Text>
+                  )}
+                  {current.caption}
+                </Text>
+                {current.description !== undefined && (
+                  <Text size="xs" color="lowContrast">
+                    {current.description}
+                  </Text>
+                )}
+              </>
+            )}
+          </div>
+        )}
         {last > 0 && (
           <div className={controls}>
             <Tooltip content="Restart" placement="top">
