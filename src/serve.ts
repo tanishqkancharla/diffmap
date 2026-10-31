@@ -124,6 +124,21 @@ export async function startServer(input: StartServerInput) {
               void serveMarkdown({ filePath, res });
               return;
             }
+            if (req.method === "GET" && pathname === "/__diffmap/media") {
+              // Vite's /@fs serves the file, checks fs.allow, and answers range requests for video seeking.
+              const src = new URL(
+                url ?? "",
+                "http://127.0.0.1",
+              ).searchParams.get("path");
+              const resolved = path.resolve(path.dirname(filePath), src ?? "");
+              req.url = `/@fs/${resolved
+                .split(path.sep)
+                .filter((part) => part !== "")
+                .map(encodeURIComponent)
+                .join("/")}`;
+              next();
+              return;
+            }
             if (url === undefined || !url.startsWith("/__diffmap")) {
               next();
               return;

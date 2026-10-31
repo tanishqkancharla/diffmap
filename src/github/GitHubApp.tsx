@@ -15,6 +15,7 @@ import {
   type PinnedSpec,
 } from "./fetchRepo.ts";
 import { GitHubPinContext } from "./pin.ts";
+import { MediaResolverContext } from "../viewer/Media.tsx";
 import {
   githubBlobUrl,
   githubCommitPath,
@@ -144,26 +145,37 @@ export function GitHubApp() {
   const spec = view.spec;
   return (
     <GitHubPinContext.Provider value={spec}>
-      <ChangesLoaderContext.Provider value={view.loadChanges}>
-        <ViewerApp
-          defaultRev={spec.pullRev}
-          key={`${spec.owner}/${spec.repo}@${spec.sha}:${spec.path}`}
-          document={view.document}
-          mode="github"
-          headerActions={
-            <GitHubHeader
-              owner={spec.owner}
-              repo={spec.repo}
-              sha={spec.sha}
-              path={spec.path}
-              pullNumber={spec.pullNumber}
-              pullUrl={spec.pullUrl}
-            />
-          }
-        />
-      </ChangesLoaderContext.Provider>
+      <MediaResolverContext.Provider value={(src) => rawMediaUrl(spec, src)}>
+        <ChangesLoaderContext.Provider value={view.loadChanges}>
+          <ViewerApp
+            defaultRev={spec.pullRev}
+            key={`${spec.owner}/${spec.repo}@${spec.sha}:${spec.path}`}
+            document={view.document}
+            mode="github"
+            headerActions={
+              <GitHubHeader
+                owner={spec.owner}
+                repo={spec.repo}
+                sha={spec.sha}
+                path={spec.path}
+                pullNumber={spec.pullNumber}
+                pullUrl={spec.pullUrl}
+              />
+            }
+          />
+        </ChangesLoaderContext.Provider>
+      </MediaResolverContext.Provider>
     </GitHubPinContext.Provider>
   );
+}
+
+/** Media beside the spec, at the pinned commit. */
+function rawMediaUrl(spec: PinnedSpec, src: string) {
+  const specUrl = `https://raw.githubusercontent.com/${spec.owner}/${spec.repo}/${spec.sha}/${spec.path
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/")}`;
+  return new URL(src, specUrl).href;
 }
 
 async function loadView(

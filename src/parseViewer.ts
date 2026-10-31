@@ -11,9 +11,11 @@ import { isRev, type Rev } from "./changes.js";
 import { notesProblem } from "./codeNotes.js";
 import {
   DiffmapAnnotationError,
+  DiffmapGalleryError,
   DiffmapParseError,
   DiffmapServicesError,
 } from "./errors.js";
+import { GALLERY_LAYOUTS } from "./media.js";
 import { parseMermaidDiagram } from "./mermaid.js";
 import { parseFence, type Fence } from "./parseFence.js";
 import { serviceAnnotations } from "./services.js";
@@ -86,6 +88,8 @@ export type ViewerElementAttrs = {
   align: string | undefined;
   /** The label of an MDC `::details{summary="…"}` toggle. */
   summary: string | undefined;
+  /** A gallery's `side-by-side`, `grid`, or `carousel`. */
+  layout: string | undefined;
 };
 
 export function parseViewerDocument(source: string, path = "spec") {
@@ -95,6 +99,9 @@ export function parseViewerDocument(source: string, path = "spec") {
   });
   if (tree instanceof Error) return tree;
   const nodes = tree.nodes.flatMap((node) => fromNode(node));
+  const galleryProblem = findGalleryProblem(nodes);
+  if (galleryProblem !== undefined)
+    return new DiffmapGalleryError({ path, reason: galleryProblem });
   const fences = collectFences(nodes);
   const changeCards: ChangeCard[] = [];
   for (const fence of fences) {
@@ -233,6 +240,43 @@ export function collectFences(nodes: ViewerNode[]): Fence[] {
     if (node.type === "element") return collectFences(node.children);
     return [];
   });
+}
+
+/** The `src` of every image and video, in document order. */
+export function collectMedia(nodes: ViewerNode[]): string[] {
+  return nodes.flatMap((node) => {
+    if (node.type !== "element") return [];
+    if (node.tag === "img")
+      return node.attrs.src === undefined ? [] : [node.attrs.src];
+    return collectMedia(node.children);
+  });
+}
+
+function findGalleryProblem(nodes: ViewerNode[]): string | undefined {
+  for (const node of nodes) {
+    if (node.type !== "element") continue;
+    if (node.tag !== "gallery") {
+      const problem = findGalleryProblem(node.children);
+      if (problem !== undefined) return problem;
+      continue;
+    }
+    const layout = node.attrs.layout;
+    if (layout === undefined || !GALLERY_LAYOUTS.includes(layout)) {
+      return `${layout === undefined ? "Missing layout" : `Unknown layout "${layout}"`}. Write :::gallery side-by-side, grid, or carousel`;
+    }
+    if (node.attrs.title !== undefined && layout !== "carousel") {
+      return "Only a carousel takes a [Title]; side-by-side and grid items show their own labels";
+    }
+    if (
+      node.children.length === 0 ||
+      node.children.some(
+        (child) => child.type !== "element" || child.tag !== "img",
+      )
+    ) {
+      return "A gallery holds only images and videos, one ![label](path) per line";
+    }
+  }
+  return undefined;
 }
 
 function collectReferences(nodes: ViewerNode[]): SourceAnnotation[] {
@@ -424,6 +468,7 @@ function fromElement(
     return fenceView(lang, comarkText(children));
   }
   if (tag === "file") return fileView(element, children);
+  if (tag === "gallery") return galleryElement(element, children);
   if (tag === "html") return htmlView(element, children);
   const convertedChildren = children.flatMap((child) =>
     fromNode(child, literalChildren),
@@ -450,6 +495,35 @@ function unwrapTaskParagraph(children: ViewerNode[]): ViewerNode[] {
     return first.children;
   }
   return children;
+}
+
+/** Amp's `:::gallery side-by-side`, or MDC `::gallery{layout="grid"}`. A carousel may add `[Title]`. Its items are unwrapped from paragraphs. */
+function galleryElement(
+  element: ComarkElement,
+  children: ComarkNode[],
+): ViewerElement {
+  const items = children
+    .flatMap((child) => fromNode(child))
+    .flatMap((node) =>
+      node.type === "element" && node.tag === "p" ? node.children : [node],
+    )
+    .filter((node) => node.type !== "text" || node.value.trim() !== "");
+  const layout = stringAttr(element, "layout");
+  // md4x reads everything after `:::gallery` as the title: the layout, then an optional [Title].
+  const info =
+    layout === undefined
+      ? /^(\S+)(?:\s+\[(.+)\])?$/.exec(stringAttr(element, "title") ?? "")
+      : undefined;
+  return {
+    type: "element",
+    tag: "gallery",
+    attrs: {
+      ...elementAttrs(element),
+      title: layout === undefined ? info?.[2] : stringAttr(element, "title"),
+      layout: layout ?? info?.[1] ?? stringAttr(element, "title"),
+    },
+    children: items,
+  };
 }
 
 function fenceView(
@@ -519,6 +593,7 @@ function elementAttrs(element: ComarkElement): ViewerElementAttrs {
     alertType: stringAttr(element, "type"),
     align: stringAttr(element, "align"),
     summary: stringAttr(element, "summary"),
+    layout: undefined,
   };
 }
 

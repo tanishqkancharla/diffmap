@@ -24,9 +24,10 @@ import type {
 import type { SourceAnnotation, SourceNavigation } from "../annotations.js";
 import { Fence } from "./Fence.tsx";
 import { HtmlPlaceholder } from "./HtmlPlaceholder.tsx";
+import { Gallery, Media, MediaCard } from "./Media.tsx";
 import { useViewerMode } from "./viewerMode.ts";
 
-const voidTags = new Set(["img", "hr", "br"]);
+const voidTags = new Set(["hr", "br"]);
 
 export function ComarkView(
   props: { document: ViewerDocument } & SourceNavigation,
@@ -96,6 +97,24 @@ function renderElement(
     );
   }
   if (node.tag === "badge") return <Badge key={key}>{children}</Badge>;
+  if (node.tag === "gallery") return <Gallery key={key} node={node} />;
+  // An image on its own line is a block, shown as a card; one inside a sentence stays inline.
+  const mediaOnly = mediaOnlyChildren(node);
+  if (mediaOnly !== undefined) {
+    return mediaOnly.map((item, index) => (
+      <MediaCard key={`${key}-${index}`} item={item} />
+    ));
+  }
+  if (node.tag === "img") {
+    return (
+      <Media
+        key={key}
+        src={node.attrs.src ?? ""}
+        alt={node.attrs.alt}
+        title={node.attrs.title}
+      />
+    );
+  }
   if (node.tag === "li" && node.attrs.task === true) {
     return (
       <TaskListItem key={key} node={node}>
@@ -118,6 +137,19 @@ function renderElement(
     return createElement(node.tag, { key, ...domAttrs(node) });
   }
   return createElement(node.tag, { key, ...domAttrs(node) }, children);
+}
+
+function mediaOnlyChildren(node: ViewerElement) {
+  if (node.tag !== "p") return undefined;
+  const items = node.children.filter(
+    (child) => child.type !== "text" || child.value.trim() !== "",
+  );
+  if (
+    items.length === 0 ||
+    !items.every((child) => child.type === "element" && child.tag === "img")
+  )
+    return undefined;
+  return items as ViewerElement[];
 }
 
 function tableElements(node: ViewerElement, tag: string): ViewerElement[] {

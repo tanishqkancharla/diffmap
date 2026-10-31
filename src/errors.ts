@@ -25,6 +25,11 @@ export class DiffmapServicesError extends errore.createTaggedError({
   message: "diffmap could not parse services in $path ($where): $reason",
 }) {}
 
+export class DiffmapGalleryError extends errore.createTaggedError({
+  name: "DiffmapGalleryError",
+  message: "diffmap could not parse a gallery in $path: $reason",
+}) {}
+
 export class DiffmapParseError extends errore.createTaggedError({
   name: "DiffmapParseError",
   message: "diffmap could not parse markdown",

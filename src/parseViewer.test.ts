@@ -663,6 +663,114 @@ test("shareMarkdownFile uploads the files excerpts and rev-less references read"
   });
 });
 
+test("parseViewerDocument reads Amp and MDC galleries, with a carousel title", () => {
+  const parsed = parseViewerDocument(
+    [
+      ":::gallery side-by-side",
+      "![Before](before.png)",
+      "![After](after.webm)",
+      ":::",
+      "",
+      ":::gallery carousel [Saving a record]",
+      '![One](one.png "First")',
+      "",
+      "![Two](two.png)",
+      ":::",
+      "",
+      '::gallery{layout="carousel" title="Opening"}',
+      "![Three](three.png)",
+      "::",
+      "",
+    ].join("\n"),
+  );
+  assert.equal(parsed instanceof Error, false, String(parsed));
+  if (parsed instanceof Error) return;
+  const galleries = parsed.nodes.map((node) => {
+    assert.equal(node.type === "element" && node.tag === "gallery", true);
+    if (node.type !== "element") return undefined;
+    return {
+      layout: node.attrs.layout,
+      title: node.attrs.title,
+      items: node.children.map((child) =>
+        child.type === "element"
+          ? [child.tag, child.attrs.src, child.attrs.alt, child.attrs.title]
+          : child.type,
+      ),
+    };
+  });
+  assert.deepEqual(galleries, [
+    {
+      layout: "side-by-side",
+      title: undefined,
+      items: [
+        ["img", "before.png", "Before", undefined],
+        ["img", "after.webm", "After", undefined],
+      ],
+    },
+    {
+      layout: "carousel",
+      title: "Saving a record",
+      items: [
+        ["img", "one.png", "One", "First"],
+        ["img", "two.png", "Two", undefined],
+      ],
+    },
+    {
+      layout: "carousel",
+      title: "Opening",
+      items: [["img", "three.png", "Three", undefined]],
+    },
+  ]);
+});
+
+test("parseViewerDocument rejects galleries without a known layout or with prose", () => {
+  for (const [source, reason] of [
+    [":::gallery\n![A](a.png)\n:::", "Missing layout"],
+    [":::gallery compare\n![A](a.png)\n:::", 'Unknown layout "compare"'],
+    [
+      ":::gallery grid\nSee ![A](a.png)\n:::",
+      "A gallery holds only images and videos",
+    ],
+    [
+      ":::gallery grid [Shots]\n![A](a.png)\n:::",
+      "Only a carousel takes a \\[Title\\]",
+    ],
+    [
+      ":::gallery carousel Shots\n![A](a.png)\n:::",
+      'Unknown layout "carousel Shots"',
+    ],
+  ] as const) {
+    const parsed = parseViewerDocument(source, "spec.md");
+    assert.match(
+      String(parsed),
+      new RegExp(`could not parse a gallery in spec\\.md: ${reason}`),
+    );
+  }
+});
+
+test("shareMarkdownFile refuses local media before calling gh", async () => {
+  const spec = [
+    "![Remote](https://example.com/a.png)",
+    "",
+    ":::gallery side-by-side",
+    "![Before](media/before.png)",
+    "![After](../after.mp4)",
+    ":::",
+    "",
+  ].join("\n");
+  await withTempSpec(spec, async (filePath) => {
+    const shared = await shareMarkdownFile({
+      workspaceRoot: packageRoot,
+      filePath,
+      isPublic: false,
+    });
+    assert.equal(
+      String(shared),
+      "DiffmapShareError: diffmap share failed: a shared gist cannot show local images or videos (media/before.png, ../after.mp4). Link them by https URL, or view the spec with serve",
+    );
+  });
+});
+
 function mermaidCliMessage(filePath: string) {
   return `diffmap could not parse mermaid in ${filePath} (diagram 1, line 3): Invalid mermaid header: "flwochart TD". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.`;
 }

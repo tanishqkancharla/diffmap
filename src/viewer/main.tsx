@@ -4,6 +4,7 @@ import { MauiProvider, P } from "maui";
 import { parseError, viewerDocument } from "virtual:diffmap";
 import { ViewerApp } from "./ViewerApp.tsx";
 import { GistStatus } from "../gist/GistStatus.tsx";
+import { localMediaUrl, MediaResolverContext } from "./Media.tsx";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -17,7 +18,9 @@ createRoot(root).render(
           <P>{parseError ?? "Unknown parse error."}</P>
         </GistStatus>
       ) : (
-        <ViewerApp document={viewerDocument} mode="local" />
+        <MediaResolverContext.Provider value={localMediaUrl}>
+          <ViewerApp document={viewerDocument} mode="local" />
+        </MediaResolverContext.Provider>
       )}
     </MauiProvider>
   </StrictMode>,

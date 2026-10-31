@@ -9,8 +9,10 @@ import { extractGistId, gistViewerUrl } from "./gist/route.ts";
 import { GIST_CHANGES_FILE, GIST_FILES_FILE } from "./changes.js";
 import { readSourceReference } from "./definitions.js";
 import { readChanges, readDocumentChanges } from "./git.js";
+import { isLocalMedia } from "./media.js";
 import {
   collectFences,
+  collectMedia,
   parseViewerDocument,
   type ViewerDocument,
 } from "./parseViewer.js";
@@ -41,6 +43,13 @@ export async function shareMarkdownFile(input: {
 
   const parsed = parseViewerDocument(source, filePath);
   if (parsed instanceof Error) return parsed;
+  // A gist holds only text files, so the hosted viewer has no local media to load.
+  const localMedia = collectMedia(parsed.nodes).filter(isLocalMedia);
+  if (localMedia.length > 0) {
+    return new DiffmapShareError({
+      reason: `a shared gist cannot show local images or videos (${localMedia.join(", ")}). Link them by https URL, or view the spec with serve`,
+    });
+  }
   // The hosted viewer has no git, so the gist carries a snapshot of each commit.
   const changes = await readDocumentChanges(input.workspaceRoot, parsed);
   if (changes instanceof Error) return changes;

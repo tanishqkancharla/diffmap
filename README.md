@@ -215,6 +215,48 @@ Folded content: prose, lists, and any fence above.
 `::details` folds its content under the `summary` label until the reader opens it.
 `.md` and `.mdx` are both markdown. Curly braces in prose are plain text.
 
+## Images, videos, and galleries
+
+Show screenshots and recordings with Markdown image syntax. Paths are relative
+to the spec file.
+
+```md
+![The save button after the fix](media/save.png)
+![Saving a record](media/save.mp4)
+```
+
+A `.mp4`, `.webm`, `.mov`, `.m4v`, or `.ogv` file renders as a video player;
+anything else is an image. On its own line, it shows centered in a card, with
+its alt text as the title row. A title, as in `![alt](path "title")`, shows on
+hover.
+
+Group related images and videos in a gallery, with the layout after `:::gallery`:
+
+```md
+:::gallery side-by-side
+![Before](media/before.png)
+![After](media/after.png)
+:::
+```
+
+- `side-by-side` puts every item in one row, to compare before and after or one
+  page at several widths.
+- `grid` wraps items into rows, to scan states or variants.
+- `carousel` shows one item at a time with Previous and Next (← and →), to step
+  through a flow. Add a title after the layout, as in
+  `:::gallery carousel [Saving a record]`; it stays in the title row while the
+  current item's label changes below it.
+
+Each item's alt text is its visible label. A gallery holds only images and
+videos, and `::gallery{layout="grid"}` works too. The syntax matches galleries
+in Amp threads.
+
+`serve` loads media from beside the spec, and a spec on a GitHub pull request
+loads it from the same commit. `share` fails when a spec uses local media,
+because a gist holds only text files; link media by https URL to share it.
+
+Run `npx @tanishqkancharla/diffmap fixtures/media.md` for an example.
+
 ## Link call stacks to source changes
 
 Append a reference to a call stack line to link it. Paths are relative to `--root`.
