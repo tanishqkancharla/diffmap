@@ -14,7 +14,12 @@ import {
   type Delta,
   type DeltaWindow,
 } from "./changes.js";
-import { listDeltas, readChanges, readDocumentChanges } from "./git.js";
+import {
+  findUnlistedFiles,
+  listDeltas,
+  readChanges,
+  readDocumentChanges,
+} from "./git.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -320,15 +325,48 @@ test("readDocumentChanges rejects unchanged files and ranges past the end", asyn
 
     const review = (paths: string[]) =>
       readDocumentChanges(root, {
-        changeCards: [{ rev: sha, review: paths }],
+        changeCards: [{ rev: sha, review: paths, ignore: [] }],
         references: [],
       });
     assert.equal((await review(["keep.ts"])) instanceof Error, false);
     const missing = await review(["keep.ts", "gone.ts"]);
     assert.match(
       missing instanceof Error ? missing.message : "",
-      /lists gone\.ts to review, but it is not changed/,
+      /lists gone\.ts, but it is not changed/,
     );
+  });
+});
+
+test("findUnlistedFiles warns about committed files a changes card leaves off both lists", async () => {
+  await withRepo(async (root, git) => {
+    const write = (file: string, contents: string) =>
+      fs.writeFile(path.join(root, file), contents);
+    await write("keep.ts", "one\ntwo\nthree\nfour\n");
+    await git("mv", "old-name.ts", "new-name.ts");
+    await git("rm", "-q", "gone.ts");
+    await write("added.ts", "new\n");
+    await git("add", ".");
+    await git("commit", "-qm", "Change");
+    const sha = (await git("rev-parse", "HEAD")).slice(0, 7);
+    await write("dirty.ts", "wip\n");
+    const changeCards = [
+      { rev: sha, review: ["keep.ts"], ignore: ["new-name.ts"] },
+      // An empty card shows every file, and uncommitted cards are in progress.
+      { rev: sha, review: [], ignore: [] },
+      { rev: "working", review: ["keep.ts"], ignore: [] },
+    ];
+    const changes = await readDocumentChanges(root, {
+      changeCards,
+      references: [],
+    });
+    if (changes instanceof Error) throw changes;
+    const working = await readChanges(root, "working");
+    if (working instanceof Error) throw working;
+    changes.set("working", working);
+
+    assert.deepEqual(findUnlistedFiles(changeCards, changes), [
+      `changes ${sha} does not list added.ts, gone.ts. Add each file a reviewer should read to the review list, and the rest after an ignore: line.`,
+    ]);
   });
 });
 

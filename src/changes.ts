@@ -161,10 +161,16 @@ export type Changes = {
 
 /**
  * Splits files into the ones to review, in `review` order, and the rest in
- * their original order. An empty `review` means every file is to be reviewed.
+ * their original order. Listing no files at all means every file is to be
+ * reviewed; listing only files to ignore means none is.
  */
-export function orderForReview(files: ChangedFile[], review: string[]) {
-  if (review.length === 0) return { reviewed: files, other: [] };
+export function orderForReview(
+  files: ChangedFile[],
+  review: string[],
+  ignore: string[] = [],
+) {
+  if (review.length === 0 && ignore.length === 0)
+    return { reviewed: files, other: [] };
   const reviewed = review.flatMap(
     (path) => files.find((file) => file.path === path) ?? [],
   );

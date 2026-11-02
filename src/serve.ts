@@ -7,7 +7,12 @@ import { DiffmapFileError, DiffmapServeError } from "./errors.js";
 import { extractTitle } from "./extractDocument.js";
 import { parseViewerDocument } from "./parseViewer.js";
 import { findDefinition, readSourceReference } from "./definitions.js";
-import { listDeltas, readChanges, readDocumentChanges } from "./git.js";
+import {
+  findUnlistedFiles,
+  listDeltas,
+  readChanges,
+  readDocumentChanges,
+} from "./git.js";
 import {
   registerRunningDiffmap,
   unregisterRunningDiffmap,
@@ -16,6 +21,8 @@ import {
 export type DiffmapServer = {
   url: string;
   filePath: string;
+  /** Changed files a commit's `changes` card leaves unlisted, one line per card. */
+  warnings: string[];
   shutdown: () => Promise<void>;
   closed: Promise<void>;
 };
@@ -61,6 +68,7 @@ export async function startServer(input: StartServerInput) {
   if (parsed instanceof Error) return parsed;
   const changes = await readDocumentChanges(workspaceRoot, parsed);
   if (changes instanceof Error) return changes;
+  const warnings = findUnlistedFiles(parsed.changeCards, changes);
 
   const title = extractTitle(source);
 
@@ -206,6 +214,7 @@ export async function startServer(input: StartServerInput) {
   return {
     url,
     filePath,
+    warnings,
     shutdown,
     closed: closedBarrier.closed,
   };
