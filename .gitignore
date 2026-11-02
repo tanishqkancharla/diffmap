@@ -1,6 +1,7 @@
 node_modules/
 dist/
 viewer-dist/
+lib/
 .vercel/
 .DS_Store
 *.tgz

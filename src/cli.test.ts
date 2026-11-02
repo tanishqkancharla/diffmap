@@ -10,18 +10,16 @@ const execFileAsync = promisify(execFile);
 const srcDir = fileURLToPath(new URL(".", import.meta.url));
 const packageRoot = path.resolve(srcDir, "..");
 const cliPath = path.join(srcDir, "cli.ts");
+// The published entry point: compiled JavaScript run by plain Node, with no TypeScript loader.
+const binPath = path.join(packageRoot, "bin.js");
 
 async function runCli(args: string[]) {
   try {
-    const result = await execFileAsync(
-      process.execPath,
-      ["--import", "tsx", cliPath, ...args],
-      {
-        cwd: packageRoot,
-        timeout: 20_000,
-        maxBuffer: 1_000_000,
-      },
-    );
+    const result = await execFileAsync(process.execPath, [binPath, ...args], {
+      cwd: packageRoot,
+      timeout: 20_000,
+      maxBuffer: 1_000_000,
+    });
     return { exitCode: 0, stdout: result.stdout, stderr: result.stderr };
   } catch (cause) {
     if (typeof cause !== "object" || !cause) throw cause;

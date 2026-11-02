@@ -13,12 +13,15 @@
   },
   "files": [
     "bin.js",
-    "src",
+    "lib",
     "viewer-dist"
   ],
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
   },
   "publishConfig": {
     "access": "public",
@@ -30,15 +33,16 @@
     "format:check": "oxfmt --check .",
     "lint": "oxlint --deny-warnings src vite.config.ts vite.gist.config.ts vite.viewer.config.ts bin.js",
     "lint:fix": "oxlint --fix src vite.config.ts vite.gist.config.ts vite.viewer.config.ts bin.js",
-    "prepack": "npm run build:viewer",
+    "prepack": "npm run build:viewer && npm run build:lib",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run format:check",
     "release": "npm publish",
-    "pretest": "npm run build:viewer",
+    "pretest": "npm run build:viewer && npm run build:lib",
     "test": "tsx --test src/cli.test.ts src/update.test.ts src/parseViewer.test.ts src/git.test.ts src/serve.test.ts src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts src/viewer/comments.test.ts src/host/home.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "build:gist": "vite build",
     "build:viewer": "vite build --config vite.viewer.config.ts",
+    "build:lib": "node -e \"fs.rmSync('lib', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
     "preview:gist": "vite preview --config vite.gist.config.ts --host 127.0.0.1 --port 4178"
   },
   "dependencies": {

@@ -14,7 +14,8 @@ it goes live.
 
 ## Running the viewer from a checkout
 
-`serve` serves the prebuilt viewer from `viewer-dist/`; `npm run build:viewer`
-writes it, and `npm test` and `npm pack` run it. While changing the viewer,
-use `npm run cli -- serve <file>` instead: it sets `DIFFMAP_DEV=1`, which
-serves the viewer from `src/` through Vite with hot reload.
+`serve` serves the prebuilt viewer from `viewer-dist/` and runs compiled code
+from `lib/`; `npm run build:viewer` and `npm run build:lib` write them, and
+`npm test` and `npm pack` run both. While changing the viewer, use
+`npm run cli -- serve <file>` instead: it sets `DIFFMAP_DEV=1`, which serves
+the viewer from `src/` through Vite with hot reload.
