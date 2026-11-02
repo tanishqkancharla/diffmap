@@ -1,11 +1,7 @@
-#!/usr/bin/env -S node --import tsx
-
 import { Cli, z } from "incur";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
 import { packageVersion } from "./packageVersion.js";
 import { listRunningDiffmaps } from "./registry.js";
-import { startServer } from "./serve.js";
-import { shareMarkdownFile } from "./share.js";
 import {
   detectInstallMethod,
   fetchLatestVersion,
@@ -36,6 +32,8 @@ type ServeContext = {
 };
 
 async function* runServe(c: ServeContext) {
+  // Loaded per command so `--version`, `list`, and `update` skip the server's dependencies.
+  const { startServer } = await import("./serve.js");
   const started = await startServer({
     filePath: resolveFromInvokeCwd(c.args.file),
     workspaceRoot:
@@ -104,6 +102,7 @@ const cli = Cli.create("diffmap", {
       },
     ],
     async run(c) {
+      const { shareMarkdownFile } = await import("./share.js");
       const shared = await shareMarkdownFile({
         filePath: resolveFromInvokeCwd(c.args.file),
         workspaceRoot: resolveFromInvokeCwd("."),
