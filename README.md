@@ -75,7 +75,7 @@ Options:
 
 The server also stops after 24 hours without a page or source request.
 Loading or refreshing the page resets the timer; background health checks and
-Vite connections do not keep it alive.
+the live-reload connection do not keep it alive.
 
 List every running viewer, including viewers using custom ports:
 

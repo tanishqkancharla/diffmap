@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
+import http from "node:http";
 import fs from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
@@ -7,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
-import test, { before } from "node:test";
+import test from "node:test";
 import { DiffmapServeError } from "./errors.js";
 import { startServer, type DiffmapServer } from "./serve.js";
 
@@ -91,27 +92,6 @@ async function waitForClosed(server: DiffmapServer, timeoutMs = 10_000) {
     }),
   ]);
 }
-
-// These tests run several servers at once. On a cold or stale cache each one
-// prebundles dependencies on its own, at over 1 GB each, which can exhaust the
-// machine's memory. Vite holds requests for a prebundled file until the bundle
-// is on disk, so fetching one here leaves a warm cache for the servers below.
-before(async () => {
-  const server = assertStarted(
-    await startServer({ filePath: sampleSpec, workspaceRoot: packageRoot }),
-  );
-  try {
-    const entry = await fetch(`${server.url}/src/viewer/main.tsx`);
-    const dep = /"(\/node_modules\/\.vite\/deps\/[^"]+)"/.exec(
-      await entry.text(),
-    )?.[1];
-    assert.ok(dep !== undefined, "viewer entry imports no prebundled module");
-    assert.equal((await fetch(`${server.url}${dep}`)).ok, true);
-  } finally {
-    await server.shutdown();
-    await waitForClosed(server);
-  }
-});
 
 test(
   "startServer binds distinct free ports when 4177 is taken",
@@ -321,6 +301,142 @@ test(
       } finally {
         first.child.kill("SIGTERM");
         second.child.kill("SIGTERM");
+      }
+    });
+  },
+);
+
+test(
+  "startServer serves media beside the spec, with ranges, and nothing outside it",
+  { timeout: 30_000 },
+  async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-media-"));
+    const workspace = path.join(dir, "workspace");
+    await fs.mkdir(workspace);
+    const clip = Buffer.from(Array.from({ length: 1000 }, (_, i) => i % 251));
+    await Promise.all([
+      fs.writeFile(path.join(workspace, "spec.md"), "# Media\n"),
+      fs.writeFile(path.join(workspace, "clip.webm"), clip),
+      fs.writeFile(path.join(workspace, ".env"), "SECRET=1\n"),
+      fs.writeFile(path.join(dir, "outside.png"), "outside"),
+    ]);
+    const server = assertStarted(
+      await startServer({
+        filePath: path.join(workspace, "spec.md"),
+        workspaceRoot: workspace,
+      }),
+    );
+    const media = (src: string) =>
+      `${server.url}/__diffmap/media?${new URLSearchParams({ path: src })}`;
+    try {
+      const whole = await fetch(media("clip.webm"));
+      assert.equal(whole.status, 200);
+      assert.equal(whole.headers.get("content-type"), "video/webm");
+      assert.deepEqual(Buffer.from(await whole.arrayBuffer()), clip);
+
+      const ranged = await fetch(media("clip.webm"), {
+        headers: { range: "bytes=990-" },
+      });
+      assert.equal(ranged.status, 206);
+      assert.equal(ranged.headers.get("content-range"), "bytes 990-999/1000");
+      assert.deepEqual(
+        Buffer.from(await ranged.arrayBuffer()),
+        clip.subarray(990),
+      );
+
+      assert.equal((await fetch(media(".env"))).status, 403);
+      // Denied names match in any case, since macOS and Windows open .env for .ENV.
+      assert.equal((await fetch(media(".ENV"))).status, 403);
+      assert.equal((await fetch(media("../outside.png"))).status, 403);
+      assert.equal((await fetch(media("missing.png"))).status, 404);
+
+      const rawStatus = (requestPath: string, host?: string) =>
+        new Promise<number | undefined>((resolve) => {
+          http
+            .get(
+              server.url,
+              {
+                path: requestPath,
+                headers: host === undefined ? {} : { host },
+              },
+              (res) => {
+                res.resume();
+                resolve(res.statusCode);
+              },
+            )
+            .on("error", () => resolve(undefined));
+        });
+      assert.equal(await rawStatus("/__diffmap/meta", "attacker.example"), 403);
+      // A path the URL parser rejects fails that request only.
+      assert.equal(await rawStatus("//"), 500);
+      assert.equal(await rawStatus("/__diffmap/meta"), 200);
+    } finally {
+      await server.shutdown();
+      await waitForClosed(server);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  "startServer tells the page to reload when the spec changes",
+  { timeout: 30_000 },
+  async () => {
+    await withTempSpecs(async (file) => {
+      const server = assertStarted(
+        await startServer({ filePath: file, workspaceRoot: packageRoot }),
+      );
+      const socket = new WebSocket(
+        `${server.url.replace("http", "ws")}/__diffmap/events`,
+      );
+      try {
+        await new Promise((resolve, reject) => {
+          socket.addEventListener("open", resolve, { once: true });
+          socket.addEventListener("error", reject, { once: true });
+        });
+        // A browser sends Origin, so the page must carry the token the server put in its HTML.
+        const upgrade = (query: string) =>
+          new Promise<number | undefined>((resolve) => {
+            http
+              .get(`${server.url}/__diffmap/events${query}`, {
+                headers: {
+                  connection: "Upgrade",
+                  upgrade: "websocket",
+                  origin: "https://attacker.example",
+                  "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==",
+                  "sec-websocket-version": "13",
+                },
+              })
+              .on("upgrade", (res, upgraded) => {
+                upgraded.destroy();
+                resolve(res.statusCode);
+              })
+              .on("error", () => resolve(undefined));
+          });
+        const page = await (await fetch(server.url)).text();
+        const token = /name="diffmap-reload-token" content="([^"]+)"/.exec(
+          page,
+        )?.[1];
+        assert.ok(token !== undefined);
+        assert.equal(await upgrade(""), undefined);
+        assert.equal(await upgrade(`?token=${token}`), 101);
+        const message = new Promise<unknown>((resolve) => {
+          socket.addEventListener("message", (event) => resolve(event.data), {
+            once: true,
+          });
+        });
+        // Save the way many editors do: write a new file and rename it over the spec.
+        await fs.writeFile(`${file}.tmp`, "# Edited spec\n");
+        await fs.rename(`${file}.tmp`, file);
+        assert.equal(await message, "change");
+        const document = (await (
+          await fetch(`${server.url}/__diffmap/document`)
+        ).json()) as { viewerDocument?: unknown };
+        assert.match(JSON.stringify(document.viewerDocument), /Edited spec/);
+      } finally {
+        socket.close();
+        await server.shutdown();
+        await waitForClosed(server);
       }
     });
   },

@@ -48,6 +48,13 @@
       })();
     </script>
     <title>diffmap</title>
+    <!-- main.tsx fetches the spec; start it while the viewer's code downloads. -->
+    <link
+      rel="preload"
+      href="/__diffmap/document"
+      as="fetch"
+      crossorigin="anonymous"
+    />
     <!-- A + over a −, like a diff. -->
     <link
       rel="icon"

@@ -1,7 +1,7 @@
 services:
   diffmap:
-    # Amp sets __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS to the portal hostname, so Vite accepts portal requests.
-    command: node --import tsx src/cli.ts serve fixtures/sample.mdx --port "$PORT"
+    # Amp sets __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS to the portal hostname, so the server accepts portal requests.
+    command: DIFFMAP_DEV=1 node --import tsx src/cli.ts serve fixtures/sample.mdx --port "$PORT"
     portal:
       title: diffmap
       description: Serves fixtures/sample.mdx. Run the CLI on another file to view it.
