@@ -27,6 +27,7 @@ const serveOptions = z.object({
 const serveOutput = z.object({
   url: z.string(),
   file: z.string(),
+  warnings: z.array(z.string()).optional(),
 });
 
 type ServeContext = {
@@ -50,9 +51,14 @@ async function* runServe(c: ServeContext) {
       message: started.message,
     });
   }
-  yield { url: started.url, file: started.filePath };
+  const output = {
+    url: started.url,
+    file: started.filePath,
+    ...(started.warnings.length > 0 ? { warnings: started.warnings } : {}),
+  };
+  yield output;
   await started.closed;
-  return { url: started.url, file: started.filePath };
+  return output;
 }
 
 const cli = Cli.create("diffmap", {

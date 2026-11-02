@@ -29,8 +29,8 @@ export type ViewerDocument = {
   changeCards: ChangeCard[];
 };
 
-/** A `changes` fence's rev and the paths it lists to review first. */
-export type ChangeCard = { rev: Rev; review: string[] };
+/** A `changes` fence's rev, the paths it lists to review first, and the paths it lists to ignore. */
+export type ChangeCard = { rev: Rev; review: string[]; ignore: string[] };
 
 export type ViewerHeading = {
   level: 1 | 2 | 3 | 4 | 5 | 6;
@@ -130,15 +130,20 @@ export function parseViewerDocument(source: string, path = "spec") {
         reason: `Invalid changes "${fence.rev}". Use a commit SHA, a SHA range (a1b2c3d..e4f5a6b), or leave it empty for uncommitted changes`,
       });
     }
-    const duplicate = fence.review.find(
-      (reviewPath, index) => fence.review.indexOf(reviewPath) !== index,
+    const listed = [...fence.review, ...fence.ignore];
+    const duplicate = listed.find(
+      (listedPath, index) => listed.indexOf(listedPath) !== index,
     );
     if (duplicate !== undefined) {
       return new DiffmapAnnotationError({
-        reason: `changes "${fence.rev}" lists ${duplicate} twice. List each file to review once`,
+        reason: `changes "${fence.rev}" lists ${duplicate} twice. List each file once, to review or after ignore:`,
       });
     }
-    changeCards.push({ rev: fence.rev, review: fence.review });
+    changeCards.push({
+      rev: fence.rev,
+      review: fence.review,
+      ignore: fence.ignore,
+    });
   }
   const annotations = [
     ...fences.flatMap((fence) => {
