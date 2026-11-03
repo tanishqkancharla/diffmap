@@ -11,17 +11,17 @@ import {
   text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
-import { mermaidSvg } from "../mermaid.js";
+import { themeMermaidSvg } from "../mermaidTheme.js";
 import type { DiagramAnnotation } from "../diagramAnnotations.js";
+import type { Fence } from "../parseFence.js";
 import type { SourceNavigation } from "../annotations.js";
 import { markDiagramChanges } from "./diagramDiff.js";
 import { linkDiagram } from "./diagramLinks.js";
 import { fenceTitle, pierreShell } from "./pierre.js";
 
 type MermaidProps = {
-  source: string;
+  svg: NonNullable<Extract<Fence, { kind: "mermaid" }>["svg"]>;
   annotations: DiagramAnnotation[];
-  sides: { today: string; proposed: string } | undefined;
   title: string | undefined;
 } & SourceNavigation;
 
@@ -87,9 +87,8 @@ function MermaidDiagram(props: MermaidProps & { fullscreen: boolean }) {
     props.fullscreen ? styles.fullscreenShell : styles.inlineShell,
   );
   const svg = useMemo(() => {
-    const draw = (source: string) =>
-      mermaidSvg({
-        source,
+    const draw = (diagram: string) =>
+      themeMermaidSvg(diagram, {
         bg: backgroundColor.app,
         fg: colors.gray[12],
         accent: colors.accent[9],
@@ -98,16 +97,15 @@ function MermaidDiagram(props: MermaidProps & { fullscreen: boolean }) {
         border: colors.gray[6],
         font: fontFamily,
       });
-    const all = draw(props.source);
-    if (all instanceof Error || props.sides === undefined) return all;
-    const today = draw(props.sides.today);
-    if (today instanceof Error) return today;
-    const proposed = draw(props.sides.proposed);
-    if (proposed instanceof Error) return proposed;
-    return markDiagramChanges(all, { today, proposed });
-  }, [props.source, props.sides]);
+    const all = draw(props.svg.all);
+    if (!("today" in props.svg)) return all;
+    return markDiagramChanges(all, {
+      today: draw(props.svg.today),
+      proposed: draw(props.svg.proposed),
+    });
+  }, [props.svg]);
   const linked = useMemo(
-    () => (svg instanceof Error ? svg : linkDiagram(svg, props.annotations)),
+    () => linkDiagram(svg, props.annotations),
     [svg, props.annotations],
   );
   // React replaces innerHTML when this object changes, which drops SVG focus.

@@ -17,9 +17,9 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
   if (fence.kind === "mermaid")
     return (
       <MermaidBlock
-        source={fence.source}
+        // SAFETY: parseViewerDocument draws every diagram it accepts.
+        svg={fence.svg!}
         annotations={fence.annotations}
-        sides={fence.sides}
         title={fence.title}
         selectedAnnotation={props.selectedAnnotation}
         onSelectAnnotation={props.onSelectAnnotation}

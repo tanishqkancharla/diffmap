@@ -17,6 +17,8 @@ export type Fence =
       sides: { today: string; proposed: string } | undefined;
       /** From the info string, as in ```mermaid [Request flow]. */
       title: string | undefined;
+      /** Drawn by parseViewerDocument while it checks the diagram and each side; see themeMermaidSvg. */
+      svg?: { all: string; today: string; proposed: string } | { all: string };
     }
   | {
       kind: "services";

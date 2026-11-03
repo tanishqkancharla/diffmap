@@ -6,7 +6,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
+import { renderMermaidSVG } from "beautiful-mermaid";
 import { DiffmapMermaidError, DiffmapServicesError } from "./errors.js";
+import { themeMermaidSvg } from "./mermaidTheme.js";
 import { parseViewerDocument } from "./parseViewer.js";
 import { serviceStateAt } from "./services.js";
 import { shareMarkdownFile } from "./share.js";
@@ -84,6 +86,48 @@ test("parseViewerDocument accepts a spec with valid mermaid", async () => {
     ),
     true,
   );
+});
+
+test("a parsed mermaid diagram, themed, matches drawing it in that theme", async () => {
+  // The viewer's theme is CSS variables and maui's font stack; layout must not depend on them.
+  const theme = {
+    bg: "var(--purse-kBDNdM-app)",
+    fg: "var(--purse-crrLAn-12)",
+    accent: "var(--purse-fjZxwV-9)",
+    muted: "var(--purse-crrLAn-11)",
+    surface: "var(--purse-ciqofu-element)",
+    border: "var(--purse-crrLAn-6)",
+    font: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
+  };
+  const file = path.join(packageRoot, "fixtures", "diagram-diffs.md");
+  // A label may quote a theme stand-in; it must stay as written.
+  const quoting =
+    '```mermaid\nflowchart TD\n  A["var(--diffmap-mermaid-bg) in the diffmap mermaid font"] --> B\n```\n';
+  const document = parseViewerDocument(
+    `${await fs.readFile(file, "utf8")}\n${quoting}`,
+    file,
+  );
+  if (document instanceof Error) throw document;
+  const diagrams = document.nodes.flatMap((node) =>
+    node.type === "view" && node.fence.kind === "mermaid" ? [node.fence] : [],
+  );
+  assert.ok(diagrams.some((fence) => fence.sides !== undefined));
+  for (const fence of diagrams) {
+    const drawn = [fence.source, fence.sides?.today, fence.sides?.proposed];
+    const svg = fence.svg!;
+    const parsed = [
+      svg.all,
+      "today" in svg ? svg.today : undefined,
+      "proposed" in svg ? svg.proposed : undefined,
+    ];
+    for (const [index, source] of drawn.entries()) {
+      if (source === undefined) continue;
+      assert.equal(
+        themeMermaidSvg(parsed[index]!, theme),
+        renderMermaidSVG(source, { ...theme, transparent: true }),
+      );
+    }
+  }
 });
 
 test("parseViewerDocument turns prose [[path#symbol]] into a short reference", () => {

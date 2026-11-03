@@ -173,18 +173,24 @@ export function parseViewerDocument(source: string, path = "spec") {
     const mermaidIndex = offset + 1;
     const where = mermaidWhere(source, mermaidIndex);
     // A diff draws every line, and each side must also stand on its own.
-    for (const [side, diagram] of [
-      ["", fence.source],
-      [", Today side", fence.sides?.today],
-      [", Proposed side", fence.sides?.proposed],
-    ] as const) {
-      if (diagram === undefined) continue;
-      const parsedMermaid = parseMermaidDiagram({
-        source: diagram,
+    const all = parseMermaidDiagram({ source: fence.source, path, where });
+    if (all instanceof Error) return all;
+    if (fence.sides === undefined) {
+      fence.svg = { all };
+    } else {
+      const today = parseMermaidDiagram({
+        source: fence.sides.today,
         path,
-        where: `${where}${side}`,
+        where: `${where}, Today side`,
       });
-      if (parsedMermaid instanceof Error) return parsedMermaid;
+      if (today instanceof Error) return today;
+      const proposed = parseMermaidDiagram({
+        source: fence.sides.proposed,
+        path,
+        where: `${where}, Proposed side`,
+      });
+      if (proposed instanceof Error) return proposed;
+      fence.svg = { all, today, proposed };
     }
     const targets = new Set<string>();
     for (const link of fence.annotations) {
