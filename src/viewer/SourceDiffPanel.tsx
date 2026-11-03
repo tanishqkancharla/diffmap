@@ -7,7 +7,6 @@ import type {
   FileDiffMetadata,
 } from "@pierre/diffs";
 import {
-  ActivityIndicator,
   Badge,
   backgroundColor,
   border,
@@ -18,12 +17,10 @@ import {
   checkboxStyles,
   ChevronDown,
   flex,
+  LoadingScreen,
   motion,
-  radius,
-  shadow,
   shadowVars,
   spacing,
-  Text,
   text,
   useTheme,
 } from "maui";
@@ -164,7 +161,7 @@ export function SourceDiffPanel(props: {
   const links = useStyles(styles.links);
   const code = useStyles(styles.code);
   const summary = useStyles(styles.summary);
-  const codeWrap = useStyles(styles.codeWrap, styles.dimmed);
+  const codeWrap = useStyles(styles.codeWrap);
   const collapseIcon = useStyles(styles.collapseIcon);
   const fileHeaderClass = useStyles(styles.fileHeader);
   // A small button with the checkbox on its right; Maui's Checkbox puts its box first.
@@ -176,8 +173,8 @@ export function SourceDiffPanel(props: {
   const checkboxCheck = useStyles(checkboxStyles.check);
   const github = useGitHubPin();
   const gist = useGistPin();
+  const bodyClass = useStyles(styles.body);
   const loadingClass = useStyles(styles.loading);
-  const spinner = useStyles(styles.spinner);
   const reference = selection?.reference;
   const items = useMemo(() => {
     if (changes === undefined || changes instanceof Error) return [];
@@ -614,112 +611,109 @@ export function SourceDiffPanel(props: {
             </div>
           )}
       </div>
-      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Pierre's file headers are the click targets; this only catches their clicks. */}
-      <div
-        className={codeWrap}
-        data-loading={loading !== undefined}
-        data-cards={!showTitle}
-        // The last page stays visible while the next one loads, but it is no longer the one to act on.
-        inert={loading !== undefined}
-        onClick={onHeaderClick}
-      >
-        <CodeView
-          ref={viewer}
-          className={code}
-          items={commentedItems}
-          selectedLines={
-            dragSelection ?? lineComments.draftSelection ?? selectedLines
-          }
-          disableWorkerPool
-          options={{
-            ...options,
-            unsafeCSS:
-              options.unsafeCSS + sourceSelectionCss + panelBackgroundCss,
-            // Diffs sit as separate cards; a single file fills the panel.
-            layout: showTitle
-              ? { paddingTop: 0, paddingBottom: 0, gap: 0 }
-              : {
-                  paddingTop: CARD_GAP,
-                  paddingBottom: CARD_GAP,
-                  gap: CARD_GAP,
-                },
-            stickyHeaders: true,
-            itemMetrics: { diffHeaderHeight: FILE_HEADER_HEIGHT },
-            onTokenClick,
-            enableGutterUtility: true,
-            onGutterUtilityClick,
-            onLineSelectionStart: onDragSelection,
-            onLineSelectionChange: onDragSelection,
-            // The draft's lines take over once the drag ends.
-            onLineSelectionEnd: () => setDragSelection(undefined),
-          }}
-          renderAnnotation={(...[annotation]) => (
-            <LineComment id={annotation.metadata} />
-          )}
-          renderCustomHeader={(item) => {
-            const label =
-              item.type === "diff" ? fileStatus[item.fileDiff.type] : undefined;
-            const changed = changedFiles.get(item.id);
-            return (
-              <div className={fileHeaderClass}>
-                <span
-                  className={collapseIcon}
-                  data-collapse-path={item.id}
-                  data-collapsed={collapsedPaths.has(item.id)}
-                  aria-hidden="true"
-                >
-                  <ChevronDown size="sm" />
-                </span>
-                <FilePath
-                  path={
-                    item.type === "diff" ? item.fileDiff.name : item.file.name
-                  }
-                />
-                <span className="meta">
-                  {label !== undefined && (
-                    <Badge className="status" data-status={label}>
-                      {label}
-                    </Badge>
-                  )}
-                  {item.type === "diff" && renderDiffStat(item.fileDiff)}
-                  {changed !== undefined && (
-                    <Checkbox
-                      className={reviewedClass}
-                      data-reviewed
-                      isSelected={isReviewed(changed)}
-                      onChange={(value) => setFileReviewed(item.id, value)}
-                    >
-                      Reviewed
-                      <span className={checkboxBox}>
-                        <svg
-                          focusable="false"
-                          aria-hidden="true"
-                          className={checkboxCheck}
-                          viewBox="0 0 11 11"
-                        >
-                          <path d={CHECKMARK} />
-                        </svg>
-                      </span>
-                    </Checkbox>
-                  )}
-                </span>
-              </div>
-            );
-          }}
-        />
-      </div>
-      <div
-        className={loadingClass}
-        role="status"
-        data-loading={loading !== undefined}
-      >
-        {loading !== undefined && (
-          // Inline in the label, the spinner sits on the text's baseline at its size, so it lines up in any font.
-          <Text size="sm" color="lowContrast">
-            <ActivityIndicator className={spinner} />
-            {loading}
-          </Text>
-        )}
+      <div className={bodyClass}>
+        {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Pierre's file headers are the click targets; this only catches their clicks. */}
+        <div
+          className={codeWrap}
+          data-cards={!showTitle}
+          // The last page stays visible while the next one loads, but it is no longer the one to act on.
+          inert={loading !== undefined}
+          onClick={onHeaderClick}
+        >
+          <CodeView
+            ref={viewer}
+            className={code}
+            items={commentedItems}
+            selectedLines={
+              dragSelection ?? lineComments.draftSelection ?? selectedLines
+            }
+            disableWorkerPool
+            options={{
+              ...options,
+              unsafeCSS:
+                options.unsafeCSS + sourceSelectionCss + panelBackgroundCss,
+              // Diffs sit as separate cards; a single file fills the panel.
+              layout: showTitle
+                ? { paddingTop: 0, paddingBottom: 0, gap: 0 }
+                : {
+                    paddingTop: CARD_GAP,
+                    paddingBottom: CARD_GAP,
+                    gap: CARD_GAP,
+                  },
+              stickyHeaders: true,
+              itemMetrics: { diffHeaderHeight: FILE_HEADER_HEIGHT },
+              onTokenClick,
+              enableGutterUtility: true,
+              onGutterUtilityClick,
+              onLineSelectionStart: onDragSelection,
+              onLineSelectionChange: onDragSelection,
+              // The draft's lines take over once the drag ends.
+              onLineSelectionEnd: () => setDragSelection(undefined),
+            }}
+            renderAnnotation={(...[annotation]) => (
+              <LineComment id={annotation.metadata} />
+            )}
+            renderCustomHeader={(item) => {
+              const label =
+                item.type === "diff"
+                  ? fileStatus[item.fileDiff.type]
+                  : undefined;
+              const changed = changedFiles.get(item.id);
+              return (
+                <div className={fileHeaderClass}>
+                  <span
+                    className={collapseIcon}
+                    data-collapse-path={item.id}
+                    data-collapsed={collapsedPaths.has(item.id)}
+                    aria-hidden="true"
+                  >
+                    <ChevronDown size="sm" />
+                  </span>
+                  <FilePath
+                    path={
+                      item.type === "diff" ? item.fileDiff.name : item.file.name
+                    }
+                  />
+                  <span className="meta">
+                    {label !== undefined && (
+                      <Badge className="status" data-status={label}>
+                        {label}
+                      </Badge>
+                    )}
+                    {item.type === "diff" && renderDiffStat(item.fileDiff)}
+                    {changed !== undefined && (
+                      <Checkbox
+                        className={reviewedClass}
+                        data-reviewed
+                        isSelected={isReviewed(changed)}
+                        onChange={(value) => setFileReviewed(item.id, value)}
+                      >
+                        Reviewed
+                        <span className={checkboxBox}>
+                          <svg
+                            focusable="false"
+                            aria-hidden="true"
+                            className={checkboxCheck}
+                            viewBox="0 0 11 11"
+                          >
+                            <path d={CHECKMARK} />
+                          </svg>
+                        </span>
+                      </Checkbox>
+                    )}
+                  </span>
+                </div>
+              );
+            }}
+          />
+        </div>
+        <div
+          className={loadingClass}
+          data-loading={loading !== undefined}
+          data-cards={!showTitle}
+        >
+          {loading !== undefined && <LoadingScreen progressLabel={loading} />}
+        </div>
       </div>
     </aside>
   );
@@ -828,24 +822,26 @@ const styles = {
   dimmed: style(motion.standard("opacity"), {
     "&[data-loading='true']": { opacity: 0.4, transitionDelay: "150ms" },
   }),
-  loading: style(
-    radius.md,
-    shadow.medium,
-    spacing.padding({ x: 6, y: 3 }),
-    motion.standard("opacity"),
-    {
-      position: "absolute",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-      whiteSpace: "nowrap",
-      backgroundColor: backgroundColor.app,
-      pointerEvents: "none",
-      opacity: 0,
-      "&[data-loading='true']": { opacity: 1, transitionDelay: "150ms" },
-    },
-  ),
-  spinner: style({ marginRight: spacing.value(4) }),
+  // Holds the code and the loading screen that covers it.
+  body: style({
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    flex: "1 1 auto",
+    minWidth: 0,
+    minHeight: 0,
+  }),
+  // Covers the last page in the code area's own background; loads that finish within the delay never show it.
+  loading: style(motion.standard("opacity"), {
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    backgroundColor: backgroundColor.app,
+    "&[data-cards='true']": { backgroundColor: colors.gray[2] },
+    pointerEvents: "none",
+    opacity: 0,
+    "&[data-loading='true']": { opacity: 1, transitionDelay: "150ms" },
+  }),
   // With Pierre's bottom border, the header is FILE_HEADER_HEIGHT tall.
   fileHeader: style(
     flex({ direction: "row", alignItems: "center" }),
