@@ -188,6 +188,10 @@ test("parseViewerDocument reads commit references and changes fences", () => {
       "a1b2c3d",
       "src/store.ts",
       "  src/request.ts  ",
+      "",
+      "ignore:",
+      "package-lock.json",
+      "  src/generated.ts  ",
       "```",
       "",
       "```changes",
@@ -201,12 +205,16 @@ test("parseViewerDocument reads commit references and changes fences", () => {
   );
   assert.equal(document instanceof Error, false);
   if (document instanceof Error) return;
-  // Lines after the rev list files to review in order; a blank rev is uncommitted.
+  // Lines after the rev list files to review in order, then files to ignore after `ignore:`; a blank rev is uncommitted.
   assert.deepEqual(document.changeCards, [
-    { rev: "a1b2c3d..e4f5a6b", review: [] },
-    { rev: "working", review: [] },
-    { rev: "a1b2c3d", review: ["src/store.ts", "src/request.ts"] },
-    { rev: "working", review: ["src/store.ts"] },
+    { rev: "a1b2c3d..e4f5a6b", review: [], ignore: [] },
+    { rev: "working", review: [], ignore: [] },
+    {
+      rev: "a1b2c3d",
+      review: ["src/store.ts", "src/request.ts"],
+      ignore: ["package-lock.json", "src/generated.ts"],
+    },
+    { rev: "working", review: ["src/store.ts"], ignore: [] },
   ]);
   assert.deepEqual(document.references, [
     { kind: "file", rev: "a1b2c3d", path: "src/store.ts", start: 12, end: 30 },
@@ -224,6 +232,12 @@ test("parseViewerDocument reads commit references and changes fences", () => {
   );
   assert.match(
     String(parseViewerDocument("```changes\na1b2c3d\na.ts\na.ts\n```\n")),
+    /lists a\.ts twice/,
+  );
+  assert.match(
+    String(
+      parseViewerDocument("```changes\na1b2c3d\na.ts\nignore:\na.ts\n```\n"),
+    ),
     /lists a\.ts twice/,
   );
   // The removed patch fence fails instead of rendering as code.

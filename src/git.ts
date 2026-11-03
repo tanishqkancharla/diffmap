@@ -15,7 +15,7 @@ import {
   type Rev,
 } from "./changes.js";
 import { DiffmapGitError } from "./errors.js";
-import type { ViewerDocument } from "./parseViewer.js";
+import type { ChangeCard, ViewerDocument } from "./parseViewer.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -482,12 +482,12 @@ export async function readDocumentChanges(
   }
   for (const card of commitCards) {
     const files = loaded.get(card.rev)!.files;
-    const missing = card.review.find(
-      (reviewPath) => !files.some((file) => file.path === reviewPath),
+    const missing = [...card.review, ...card.ignore].find(
+      (listedPath) => !files.some((file) => file.path === listedPath),
     );
     if (missing !== undefined)
       return new DiffmapGitError({
-        reason: `changes ${card.rev} lists ${missing} to review, but it is not changed in ${card.rev}.`,
+        reason: `changes ${card.rev} lists ${missing}, but it is not changed in ${card.rev}.`,
       });
   }
   for (const reference of document.references) {
@@ -509,4 +509,27 @@ export async function readDocumentChanges(
       });
   }
   return loaded;
+}
+
+/**
+ * One warning per commit `changes` card that lists files but leaves some
+ * changed files off both its review list and its `ignore:` list.
+ */
+export function findUnlistedFiles(
+  changeCards: ChangeCard[],
+  changes: Map<Rev, Changes>,
+) {
+  return changeCards.flatMap((card) => {
+    const listed = [...card.review, ...card.ignore];
+    // An empty card shows every file to review, so none is hidden.
+    if (!isCommitRev(card.rev) || listed.length === 0) return [];
+    const unlisted = changes
+      .get(card.rev)!
+      .files.filter((file) => !listed.includes(file.path))
+      .map((file) => file.path);
+    if (unlisted.length === 0) return [];
+    return [
+      `changes ${card.rev} does not list ${unlisted.join(", ")}. Add each file a reviewer should read to the review list, and the rest after an ignore: line.`,
+    ];
+  });
 }

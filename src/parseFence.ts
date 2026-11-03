@@ -42,6 +42,8 @@ export type Fence =
       rev: Rev;
       /** Paths to review first, in order; other changed files fold away. */
       review: string[];
+      /** Paths after an `ignore:` line: changed files a reviewer can skip. */
+      ignore: string[];
       source: string;
     }
   | { kind: "file"; path: string; start: number; end: number; source: string }
@@ -95,13 +97,17 @@ export function parseFence(
   if (lang === "html") return { kind: "html", source: trimmed };
   if (lang === "callstack") return callStackFence(trimmed, highlights, title);
 
-  // The first line is the rev (blank for uncommitted); each later line is a path to review.
+  // The first line is the rev (blank for uncommitted); each later line is a path to review, or to ignore after an `ignore:` line.
   if (lang === "changes") {
-    const [rev = "", ...paths] = trimmed.split("\n").map((line) => line.trim());
+    const [rev = "", ...lines] = trimmed.split("\n").map((line) => line.trim());
+    const paths = lines.filter((line) => line.length > 0);
+    const split = paths.indexOf("ignore:");
+    const ignoreAt = split === -1 ? paths.length : split;
     return {
       kind: "changes",
       rev: rev.length === 0 ? WORKING : rev,
-      review: paths.filter((line) => line.length > 0),
+      review: paths.slice(0, ignoreAt),
+      ignore: paths.slice(ignoreAt + 1),
       source: trimmed,
     };
   }

@@ -35,7 +35,7 @@ import { pierreShell } from "./pierre.js";
  * "N other files" section.
  */
 export function ChangesCard(
-  props: { rev: Rev; review: string[] } & SourceNavigation,
+  props: { rev: Rev; review: string[]; ignore: string[] } & SourceNavigation,
 ) {
   const changes = useChanges(props.rev);
   const [showOther, setShowOther] = useState(false);
@@ -47,9 +47,10 @@ export function ChangesCard(
   const muted = useStyles(styles.muted);
   const range = useStyles(styles.range);
   const toggle = useStyles(styles.row, styles.toggle);
+  const empty = useStyles(styles.empty);
   const files =
     changes === undefined || changes instanceof Error ? [] : changes.files;
-  const { reviewed, other } = orderForReview(files, props.review);
+  const { reviewed, other } = orderForReview(files, props.review, props.ignore);
   const rowProps = {
     rev: props.rev,
     selectedAnnotation: props.selectedAnnotation,
@@ -86,6 +87,9 @@ export function ChangesCard(
       {reviewed.map((file) => (
         <FileRow key={file.path} file={file} {...rowProps} />
       ))}
+      {reviewed.length === 0 && other.length > 0 && (
+        <div className={empty}>No file changes marked as important</div>
+      )}
       {other.length > 0 && (
         <>
           <button
@@ -309,7 +313,7 @@ const styles = {
   // factor would also shave a fraction of a pixel off them, enough for an ellipsis.)
   filePath: style({
     display: "flex",
-    alignItems: "baseline",
+    alignItems: "center",
     gap: "6px",
     flex: "1 1 auto",
     minWidth: 0,
@@ -411,4 +415,11 @@ const styles = {
     "&:hover": { color: colors.gray[12] },
   }),
   muted: style({ color: colors.gray[11] }),
+  // Lines up with the file names: the row inset, a 16px icon, and the rows' 10px gap.
+  empty: style(text({ size: "sm", color: "lowContrast" }), {
+    display: "flex",
+    alignItems: "center",
+    minHeight: "32px",
+    paddingLeft: `${String(ROW_INSET + 16 + 10)}px`,
+  }),
 };

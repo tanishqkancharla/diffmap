@@ -142,11 +142,11 @@ function validateInput(record: RecordInput) {
 Before starting the next phase:
 
 1. Commit the code. If the phase took several commits, use `<base>..<head>` wherever these steps say SHA.
-2. Put that SHA in the phase's `changes` fence at the end of the phase. It renders the phase's summary card. Under the SHA, list the files a reviewer should read, one path per line, in the order to read them: usually the client-facing entry point first, then down the layers. Leave out files that need no thought, such as lockfiles, generated code, snapshots, fixtures, and mechanical renames; the card folds them under "N other files".
+2. Put that SHA in the phase's `changes` fence at the end of the phase. It renders the phase's summary card. Under the SHA, list the files a reviewer should read, one path per line, in the order to read them: usually the client-facing entry point first, then down the layers. Then add an `ignore:` line and list every other changed file under it: files that need no thought, such as lockfiles, generated code, snapshots, fixtures, and mechanical renames. The card folds them under "N other files". Every changed file goes in one list or the other; don't explain ignored files in the prose.
 3. Point every reference the phase changed at the commit: stack rows, `%% ref` directives, and prose.
 4. Update diagrams, call stacks, and pseudocode to match what was built, and mark the heading ✅.
 5. Commit the spec update separately; it names the code commit's SHA.
-6. Restart `serve`; it checks commit references at startup.
+6. Restart `serve`; it checks commit references at startup, and its `warnings` name changed files that a `changes` fence leaves off both lists. Add each one to a list.
 
 The example phase keeps its walkthrough, with references pointing at the commit, and ends with:
 
@@ -166,6 +166,9 @@ The example phase keeps its walkthrough, with references pointing at the commit,
 a1b2c3d
 src/request.ts
 src/validate.ts
+
+ignore:
+src/request.test.ts
 ```
 ````
 

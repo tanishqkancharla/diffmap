@@ -296,15 +296,22 @@ An empty body (or `working`) means uncommitted changes.
 
 Lines after the rev list the files to review, in order. The card shows those
 first and folds the rest under a dimmed **N other files** row that expands and
-collapses. Review opens the Diff panel in the same order. `serve` and `share`
-fail if a listed file is not changed in that commit. With no list, the card
+collapses. Review opens the Diff panel in the same order. With no list, the card
 shows every file.
+
+List files a reviewer can skip after an `ignore:` line. They fold away with the
+rest; with nothing to review, the card says no files are marked as important. When a commit's fence lists files, `serve` prints a warning naming each
+changed file that is in neither list, so no file is left out by accident.
+`serve` and `share` fail if a listed file is not changed in that commit.
 
 ````md
 ```changes
 a1b2c3d
 src/request.ts
 src/validate.ts
+
+ignore:
+package-lock.json
 ```
 ````
 

@@ -43,6 +43,7 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
       <ChangesCard
         rev={fence.rev}
         review={fence.review}
+        ignore={fence.ignore}
         selectedAnnotation={props.selectedAnnotation}
         onSelectAnnotation={props.onSelectAnnotation}
       />
