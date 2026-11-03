@@ -24,6 +24,8 @@ npx skills add tanishqkancharla/diffmap --skill generate-diffmap
 
 The skill keeps a spec in `specs/` that stays true to what is planned and what is already in the tree. diffmap is open source and MIT licensed. Specs are served locally by default, but you can choose to [share one as an unlisted gist](#share-a-spec-with-a-link-experimental) and open it on diffmap.dev.
 
+The skill is a short pointer: your agent loads the full instructions from `npx @tanishqkancharla/diffmap guide`, so they update with diffmap itself. When the skill file itself changes, update it with `npx skills update generate-diffmap`.
+
 ## See the main ideas
 
 Your agent picks the best diagram for each idea, and each part of a diagram links to its code. [diffmap.dev](https://diffmap.dev) walks through each one on an example pull request.
@@ -120,7 +122,7 @@ import {
 } from "@tanishqkancharla/diffmap";
 ```
 
-`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The generate-diffmap skill owns document shape; the viewer does not.
+`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The guide that `diffmap guide` prints owns document shape; the viewer does not.
 
 ## Fences
 

@@ -13,6 +13,7 @@
   },
   "files": [
     "bin.js",
+    "guide.md",
     "lib",
     "viewer-dist"
   ],

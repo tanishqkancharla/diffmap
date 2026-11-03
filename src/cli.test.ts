@@ -46,3 +46,10 @@ test("diffmap --version matches package.json", async () => {
   const printed = `${result.stdout}${result.stderr}`.trim();
   assert.equal(printed, pkg.version);
 });
+
+test("diffmap guide prints guide.md", async () => {
+  const guide = await fs.readFile(path.join(packageRoot, "guide.md"), "utf8");
+  const result = await runCli(["guide"]);
+  assert.equal(result.exitCode, 0, result.stderr);
+  assert.equal(result.stdout.trim(), guide.trim());
+});

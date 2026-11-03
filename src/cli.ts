@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { Cli, z } from "incur";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
 import { packageVersion } from "./packageVersion.js";
@@ -65,7 +66,7 @@ const cli = Cli.create("diffmap", {
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
-  hint: "`serve <spec.md>` runs the local viewer. `share <spec.md>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
+  hint: "`guide` prints how to write a spec. `serve <spec.md>` runs the local viewer. `share <spec.md>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
   examples: [
     {
       args: { file: "spec.md" },
@@ -121,6 +122,13 @@ const cli = Cli.create("diffmap", {
         });
       }
       return c.ok(shared);
+    },
+  })
+  .command("guide", {
+    description: "Print the instructions agents follow to write a spec",
+    output: z.string(),
+    run() {
+      return readFileSync(new URL("../guide.md", import.meta.url), "utf8");
     },
   })
   .command("list", {
