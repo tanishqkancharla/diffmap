@@ -6,7 +6,6 @@ import path from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 import {
-  changedFileItem,
   revWindow,
   windowLabel,
   windowRev,
@@ -14,6 +13,7 @@ import {
   type Delta,
   type DeltaWindow,
 } from "./changes.js";
+import { changedFileItem } from "./diffItem.js";
 import { listDeltas, readChanges, readDocumentChanges } from "./git.js";
 
 const execFileAsync = promisify(execFile);

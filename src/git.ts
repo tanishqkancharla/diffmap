@@ -1,4 +1,3 @@
-import { parseDiffFromFile } from "@pierre/diffs";
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -150,7 +149,7 @@ async function diffSides(root: string, base: Side, head: Side) {
       status: old === undefined ? "added" : "modified",
       ...(binary
         ? { additions: 0, deletions: 0, binary }
-        : { ...lineCounts(old, contents), binary }),
+        : { ...(await lineCounts(old, contents)), binary }),
       ...(binary ? {} : { contents: { old, new: contents } }),
     });
   }
@@ -158,8 +157,10 @@ async function diffSides(root: string, base: Side, head: Side) {
 }
 
 /** Lines added and removed between two versions, for files git does not diff itself. */
-function lineCounts(old: string | undefined, next: string) {
+async function lineCounts(old: string | undefined, next: string) {
   if (old === undefined) return { additions: countLines(next), deletions: 0 };
+  // Pierre was the heaviest import at `serve` startup; on the server only this rare case needs it.
+  const { parseDiffFromFile } = await import("@pierre/diffs");
   return parseDiffFromFile(
     { name: "old", contents: old },
     { name: "new", contents: next },

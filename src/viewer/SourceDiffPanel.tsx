@@ -32,12 +32,12 @@ import {
   type SourceReference,
 } from "../annotations.js";
 import {
-  changedFileItem,
   orderForReview,
   shortRev,
   type Changes,
   type Rev,
 } from "../changes.js";
+import { changedFileItem } from "../diffItem.js";
 import type { SourceDefinition } from "../definitions.js";
 import { useGistPin } from "../gist/pin.ts";
 import { useGitHubPin } from "../github/pin.ts";

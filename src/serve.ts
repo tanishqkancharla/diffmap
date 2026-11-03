@@ -10,7 +10,6 @@ import type { ViteDevServer } from "vite";
 import { DiffmapFileError, DiffmapServeError } from "./errors.js";
 import { extractTitle } from "./extractDocument.js";
 import { parseViewerDocument } from "./parseViewer.js";
-import { findDefinition, readSourceReference } from "./definitions.js";
 import { listDeltas, readChanges, readDocumentChanges } from "./git.js";
 import {
   registerRunningDiffmap,
@@ -612,6 +611,9 @@ async function handleDiffmapRequest(input: {
       parsed.pathname === "/__diffmap/source") &&
     input.method === "GET"
   ) {
+    // The TypeScript compiler loads with the first lookup instead of at startup.
+    const { findDefinition, readSourceReference } =
+      await import("./definitions.js");
     const definition =
       parsed.pathname === "/__diffmap/source"
         ? readSourceReference(input.workspaceRoot, parsed.searchParams)

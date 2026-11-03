@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parsePatchFiles } from "@pierre/diffs";
-import { changedFileItem } from "../changes.ts";
+import { changedFileItem } from "../diffItem.ts";
 import { githubChangedFiles, wrapGitHubPatch } from "./patch.ts";
 
 test("wrapGitHubPatch builds a unified diff Pierre can parse", () => {
