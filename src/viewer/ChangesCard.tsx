@@ -313,7 +313,7 @@ const styles = {
   // factor would also shave a fraction of a pixel off them, enough for an ellipsis.)
   filePath: style({
     display: "flex",
-    alignItems: "baseline",
+    alignItems: "center",
     gap: "6px",
     flex: "1 1 auto",
     minWidth: 0,

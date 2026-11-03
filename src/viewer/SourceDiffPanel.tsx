@@ -14,6 +14,8 @@ import {
   borderColor,
   colors,
   Button,
+  buttonStyles,
+  checkboxStyles,
   ChevronDown,
   flex,
   motion,
@@ -26,6 +28,7 @@ import {
   useTheme,
 } from "maui";
 import { style, useStyles } from "purse-styles";
+import { Checkbox } from "react-aria-components";
 import {
   referenceLabel,
   type SourceAnnotation,
@@ -58,6 +61,7 @@ import {
   pierreDiffOptions,
   sourceSelectionCss,
 } from "./pierre.js";
+import { useReviewedFiles } from "./reviewed.ts";
 import { sourcePanelPin } from "./sourceHeader.ts";
 import { useViewerMode } from "./viewerMode.ts";
 
@@ -163,6 +167,13 @@ export function SourceDiffPanel(props: {
   const codeWrap = useStyles(styles.codeWrap, styles.dimmed);
   const collapseIcon = useStyles(styles.collapseIcon);
   const fileHeaderClass = useStyles(styles.fileHeader);
+  // A small button with the checkbox on its right; Maui's Checkbox puts its box first.
+  const reviewedClass = useStyles(
+    buttonStyles.root({ size: "sm" }),
+    checkboxStyles.root,
+  );
+  const checkboxBox = useStyles(checkboxStyles.box);
+  const checkboxCheck = useStyles(checkboxStyles.check);
   const github = useGitHubPin();
   const gist = useGistPin();
   const loadingClass = useStyles(styles.loading);
@@ -215,15 +226,41 @@ export function SourceDiffPanel(props: {
     };
   }, [reference, file, resolvedFile]);
   const focusedPath = file?.path ?? reference?.path;
-  // Collapsed files reset when the rev or the selected reference changes, so a reference always shows its file.
+  // localStorage is per origin, so the path names the document, as for comments.
+  const { isReviewed, setReviewed } = useReviewedFiles(
+    `diffmap-reviewed:${window.location.pathname}`,
+  );
+  const changedFiles = useMemo(
+    () =>
+      new Map(
+        changes === undefined || changes instanceof Error
+          ? []
+          : changes.files.map((changed) => [changed.path, changed]),
+      ),
+    [changes],
+  );
+  // Reviewed files start collapsed, except the referenced one. `toggled` holds
+  // files the reader flipped from that; it resets when the rev or the selected
+  // reference changes, so a reference always shows its file.
   const [collapse, setCollapse] = useState<{
     rev: Rev;
     selection: SourceSelection | undefined;
-    paths: ReadonlySet<string>;
-  }>({ rev: page.rev, selection, paths: new Set() });
+    toggled: ReadonlySet<string>;
+  }>({ rev: page.rev, selection, toggled: new Set() });
   if (collapse.rev !== page.rev || collapse.selection !== selection) {
-    setCollapse({ rev: page.rev, selection, paths: new Set() });
+    setCollapse({ rev: page.rev, selection, toggled: new Set() });
   }
+  const collapsedPaths = useMemo(() => {
+    const paths = items.map((item) => item.id);
+    return new Set(
+      paths.filter((path) => {
+        const changed = changedFiles.get(path);
+        const byDefault =
+          changed !== undefined && isReviewed(changed) && path !== focusedPath;
+        return byDefault !== collapse.toggled.has(path);
+      }),
+    );
+  }, [items, changedFiles, isReviewed, focusedPath, collapse.toggled]);
   const rangeId = selectedLines?.id;
   const rangeStart = selectedLines?.range.start;
   const rangeEnd = selectedLines?.range.end;
@@ -249,7 +286,7 @@ export function SourceDiffPanel(props: {
                 start: rangeStart!,
                 end: rangeEnd!,
               }) ?? item);
-        const collapsed = collapse.paths.has(item.id);
+        const collapsed = collapsedPaths.has(item.id);
         // Pierre only rereads an item when its version changes.
         return {
           ...shown,
@@ -257,22 +294,40 @@ export function SourceDiffPanel(props: {
           version: (shown.version ?? 0) * 2 + (collapsed ? 1 : 0),
         };
       }),
-    [items, changes, collapse.paths, rangeId, rangeStart, rangeEnd, rangeSide],
+    [items, changes, collapsedPaths, rangeId, rangeStart, rangeEnd, rangeSide],
   );
   const toggleCollapsed = (path: string) => {
-    const paths = new Set(collapse.paths);
-    if (!paths.delete(path)) paths.add(path);
-    setCollapse({ ...collapse, paths });
+    const toggled = new Set(collapse.toggled);
+    if (!toggled.delete(path)) toggled.add(path);
+    setCollapse({ ...collapse, toggled });
+  };
+  // Marking a file reviewed collapses it, and unmarking expands it again.
+  const setFileReviewed = (path: string, value: boolean) => {
+    const changed = changedFiles.get(path);
+    if (changed === undefined) return;
+    setReviewed(changed, value);
+    const byDefault = value && path !== focusedPath;
+    const toggled = new Set(collapse.toggled);
+    if (byDefault === value) toggled.delete(path);
+    else toggled.add(path);
+    setCollapse({ ...collapse, toggled });
   };
   // File headers live in Pierre's shadow DOM; a click inside one names its file through the prefix slot.
   const onHeaderClick = (event: MouseEvent) => {
     if (file !== undefined) return;
-    const fileHeader = event.nativeEvent
-      .composedPath()
-      .find(
-        (target): target is Element =>
-          target instanceof Element && target.hasAttribute("data-diffs-header"),
-      );
+    const targets = event.nativeEvent.composedPath();
+    // The Reviewed checkbox handles its own clicks.
+    if (
+      targets.some(
+        (target) =>
+          target instanceof Element && target.hasAttribute("data-reviewed"),
+      )
+    )
+      return;
+    const fileHeader = targets.find(
+      (target): target is Element =>
+        target instanceof Element && target.hasAttribute("data-diffs-header"),
+    );
     const root = fileHeader?.getRootNode();
     if (!(root instanceof ShadowRoot)) return;
     const path = root.host
@@ -604,12 +659,13 @@ export function SourceDiffPanel(props: {
           renderCustomHeader={(item) => {
             const label =
               item.type === "diff" ? fileStatus[item.fileDiff.type] : undefined;
+            const changed = changedFiles.get(item.id);
             return (
               <div className={fileHeaderClass}>
                 <span
                   className={collapseIcon}
                   data-collapse-path={item.id}
-                  data-collapsed={collapse.paths.has(item.id)}
+                  data-collapsed={collapsedPaths.has(item.id)}
                   aria-hidden="true"
                 >
                   <ChevronDown size="sm" />
@@ -626,6 +682,26 @@ export function SourceDiffPanel(props: {
                     </Badge>
                   )}
                   {item.type === "diff" && renderDiffStat(item.fileDiff)}
+                  {changed !== undefined && (
+                    <Checkbox
+                      className={reviewedClass}
+                      data-reviewed
+                      isSelected={isReviewed(changed)}
+                      onChange={(value) => setFileReviewed(item.id, value)}
+                    >
+                      Reviewed
+                      <span className={checkboxBox}>
+                        <svg
+                          focusable="false"
+                          aria-hidden="true"
+                          className={checkboxCheck}
+                          viewBox="0 0 11 11"
+                        >
+                          <path d={CHECKMARK} />
+                        </svg>
+                      </span>
+                    </Checkbox>
+                  )}
                 </span>
               </div>
             );
@@ -648,6 +724,10 @@ export function SourceDiffPanel(props: {
     </aside>
   );
 }
+
+/** Maui Checkbox's checkmark. */
+const CHECKMARK =
+  "M3.788 9A.999.999 0 0 1 3 8.615l-2.288-3a1 1 0 1 1 1.576-1.23l1.5 1.991 3.924-4.991a1 1 0 1 1 1.576 1.23l-4.712 6A.999.999 0 0 1 3.788 9z";
 
 /** Space around and between file cards, in px. */
 const CARD_GAP = 12;
@@ -774,12 +854,22 @@ const styles = {
       gap: "8px",
       minHeight: `${String(FILE_HEADER_HEIGHT - 1)}px`,
       paddingInline: "12px",
-      // The badge's 12px label and the stat's 13px code font only line up on their baselines.
+      // Every item centers on the header's middle; the badge takes the header's text size.
       "& .meta": {
         display: "flex",
-        alignItems: "baseline",
+        alignItems: "center",
         gap: "8px",
         flexShrink: 0,
+      },
+      "& .status": { fontFamily: "inherit", fontSize: "inherit" },
+      // Under the header's class, these beat the small button's own text size and
+      // padding; the box sits as far from the right edge as from the top and bottom.
+      "& [data-reviewed]": {
+        font: "inherit",
+        fontWeight: 400,
+        color: colors.gray[12],
+        paddingInlineEnd: "5px",
+        cursor: "default",
       },
       "& .status[data-status='new']": {
         backgroundColor: colors.greenAlpha[3],

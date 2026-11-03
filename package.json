@@ -52,6 +52,7 @@
     "motion": "^13.4.0",
     "purse-styles": "^0.2.3",
     "react": "^19.2.8",
+    "react-aria-components": "^1.22.1",
     "react-dom": "^19.2.8",
     "tsx": "^4.23.13",
     "vite": "^8.2.2"
