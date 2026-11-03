@@ -1,7 +1,4 @@
-import ELK, {
-  type ElkExtendedEdge,
-  type ElkNode,
-} from "elkjs/lib/elk.bundled.js";
+import type { ELK, ElkExtendedEdge, ElkNode } from "elkjs/lib/elk.bundled.js";
 import {
   flattenServices,
   type Service,
@@ -87,7 +84,12 @@ export function linkId(from: string, to: string) {
   return from < to ? `${from}|${to}` : `${to}|${from}`;
 }
 
-const elk = new ELK();
+// ELK is over half the viewer's code and only `services` diagrams use it, so it loads with the first one.
+let elk: Promise<ELK> | undefined;
+function loadElk() {
+  elk ??= import("elkjs/lib/elk.bundled.js").then((m) => new m.default());
+  return elk;
+}
 
 function contains(service: Service, name: string): boolean {
   return service.children.some(
@@ -166,7 +168,7 @@ export async function layoutServices(input: {
       targets: [link.b],
     })),
   };
-  const result = await elk.layout(graph);
+  const result = await (await loadElk()).layout(graph);
 
   const boxes = new Map<string, Rect>();
   const visit = (nodes: ElkNode[] | undefined) => {
