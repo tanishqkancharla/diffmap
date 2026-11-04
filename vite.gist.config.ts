@@ -11,7 +11,8 @@ export function gistAppConfig(): UserConfig {
   return {
     root: gistRoot,
     cacheDir: path.join(packageRoot, "node_modules/.vite-gist"),
-    publicDir: false,
+    // Copied to the site root as-is, such as `/og.png` for link previews.
+    publicDir: path.join(gistRoot, "public"),
     optimizeDeps: {
       include: [
         "react",
