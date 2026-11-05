@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { MauiProvider, P } from "maui";
+import { Analytics } from "@vercel/analytics/react";
 import type { ViewerDocument } from "../parseViewer.js";
 import { ViewerApp } from "./ViewerApp.tsx";
 import { GistStatus } from "../gist/GistStatus.tsx";
@@ -57,6 +58,7 @@ createRoot(root).render(
           <ViewerApp document={viewerDocument} mode="local" />
         </MediaResolverContext.Provider>
       )}
+      <Analytics />
     </MauiProvider>
   </StrictMode>,
 );
