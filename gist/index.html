@@ -58,6 +58,24 @@
     <meta property="og:image:width" content="2400" />
     <meta property="og:image:height" content="1260" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- Vercel Web Analytics. Served from this domain once it is enabled for the project. -->
+    <script>
+      window.va =
+        window.va ||
+        function () {
+          (window.vaq = window.vaq || []).push(arguments);
+        };
+      // Secret gist IDs and file names stay out of analytics: every gist page reports as /g/[gist].
+      window.va("beforeSend", function (event) {
+        var url = new URL(event.url);
+        if (/^\/g(\/|$)/.test(url.pathname)) {
+          var empty = url.pathname.replace(/\/$/, "") === "/g" && !url.hash;
+          event.url = url.origin + (empty ? "/g" : "/g/[gist]");
+        }
+        return event;
+      });
+    </script>
+    <script defer src="/_vercel/insights/script.js" vite-ignore></script>
     <!-- A folded map: a green panel, a cream panel, and a red panel, like a diff. Dims slightly in dark mode. -->
     <link
       rel="icon"
