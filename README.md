@@ -506,6 +506,12 @@ renders as clickable inline code labeled with the file name and fragment
 (`store.ts#Store.save`) and opens the same source panel. References inside code spans and link text stay
 literal, so `` `[[path]]` `` shows the syntax itself.
 
+## Telemetry
+
+The CLI sends one anonymous event to [PostHog](https://posthog.com) each time you run a command. The event holds the command name (`serve`, `share`, `guide`, `list`, or `update`), the diffmap version, your OS and CPU architecture, the Node version, and a random ID stored in `~/.config/diffmap/telemetry-id`. It never includes file paths, spec contents, or anything from your repository. The viewer sends nothing.
+
+Turn it off with `DIFFMAP_TELEMETRY=0` or `DO_NOT_TRACK=1`. It is also off when `CI` is set.
+
 ## Feedback
 
 Found a bug, hit a confusing error, or want a feature? [Open an issue](https://github.com/tanishqkancharla/diffmap/issues/new) with what you did, what you expected, what happened, and your diffmap version (`diffmap --version`). Agents using the generate-diffmap skill do the same through `gh issue create`.

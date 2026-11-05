@@ -59,3 +59,8 @@ export class DiffmapUpdateError extends errore.createTaggedError({
   name: "DiffmapUpdateError",
   message: "diffmap update failed: $reason",
 }) {}
+
+export class DiffmapTelemetryError extends errore.createTaggedError({
+  name: "DiffmapTelemetryError",
+  message: "diffmap telemetry failed: $reason",
+}) {}

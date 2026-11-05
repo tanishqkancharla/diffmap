@@ -3,6 +3,7 @@ import { Cli, z } from "incur";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
 import { packageVersion } from "./packageVersion.js";
 import { listRunningDiffmaps } from "./registry.js";
+import { trackCommand } from "./telemetry.js";
 import {
   detectInstallMethod,
   fetchLatestVersion,
@@ -34,6 +35,7 @@ type ServeContext = {
 };
 
 async function* runServe(c: ServeContext) {
+  trackCommand("serve");
   // Loaded per command so `--version`, `list`, and `update` skip the server's dependencies.
   const { startServer } = await import("./serve.js");
   const started = await startServer({
@@ -109,6 +111,7 @@ const cli = Cli.create("diffmap", {
       },
     ],
     async run(c) {
+      trackCommand("share");
       const { shareMarkdownFile } = await import("./share.js");
       const shared = await shareMarkdownFile({
         filePath: resolveFromInvokeCwd(c.args.file),
@@ -128,6 +131,7 @@ const cli = Cli.create("diffmap", {
     description: "Print the instructions agents follow to write a spec",
     output: z.string(),
     run() {
+      trackCommand("guide");
       return readFileSync(new URL("../guide.md", import.meta.url), "utf8");
     },
   })
@@ -144,6 +148,7 @@ const cli = Cli.create("diffmap", {
       ),
     }),
     async run(c) {
+      trackCommand("list");
       const instances = await listRunningDiffmaps();
       if (instances instanceof Error) {
         return c.error({
@@ -165,6 +170,7 @@ const cli = Cli.create("diffmap", {
       command: z.string().optional(),
     }),
     async run(c) {
+      trackCommand("update");
       const result = await runUpdate({
         currentVersion: packageVersion,
         fetchLatestVersion,
