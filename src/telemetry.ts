@@ -11,6 +11,13 @@ import { packageVersion } from "./packageVersion.js";
 const posthogKey = "phc_wmzP7VyBQzTLwsSoGtyxNDvqHUDRpi7NofcTaYBW9pjv";
 const posthogUrl = "https://us.i.posthog.com/i/v0/e/";
 
+let pending: Promise<unknown> | undefined;
+
+/** Exits once the event is sent or times out, so a failing command still reports its run. */
+export function exitAfterTelemetry(code: number) {
+  void Promise.resolve(pending).then(() => process.exit(code));
+}
+
 /** Sends one anonymous `command_run` event without delaying the command. */
 export function trackCommand(command: string) {
   const env = process.env;
@@ -19,6 +26,7 @@ export function trackCommand(command: string) {
       env.DO_NOT_TRACK !== "" &&
       env.DO_NOT_TRACK !== "0") ||
     env.DIFFMAP_TELEMETRY === "0" ||
+    env.DIFFMAP_TELEMETRY === "false" ||
     env.DIFFMAP_DEV === "1" ||
     (env.CI !== undefined && env.CI !== "");
   if (optedOut) return;
@@ -32,6 +40,7 @@ export function trackCommand(command: string) {
     signal: AbortSignal.timeout(1000),
   });
   request.on("error", () => undefined);
+  pending = new Promise((resolve) => request.on("close", resolve));
   request.end(
     JSON.stringify({
       api_key: posthogKey,

@@ -3,7 +3,7 @@ import { Cli, z } from "incur";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
 import { packageVersion } from "./packageVersion.js";
 import { listRunningDiffmaps } from "./registry.js";
-import { trackCommand } from "./telemetry.js";
+import { exitAfterTelemetry, trackCommand } from "./telemetry.js";
 import {
   detectInstallMethod,
   fetchLatestVersion,
@@ -187,4 +187,6 @@ const cli = Cli.create("diffmap", {
     },
   });
 
-await cli.serve(resolveUpdateArgv(process.argv.slice(2)));
+await cli.serve(resolveUpdateArgv(process.argv.slice(2)), {
+  exit: exitAfterTelemetry,
+});
