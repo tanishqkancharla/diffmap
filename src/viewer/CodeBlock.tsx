@@ -12,7 +12,7 @@ import {
 import { style, useStyles } from "purse-styles";
 import { codeFontFamily } from "../codeFont.js";
 import { lineSymbolMatches, type CodeNote } from "../codeNotes.js";
-import { lineNoteDot, NoteText, NoteTokens, type Token } from "./notes.tsx";
+import { NoteText, NoteTokens, type Token } from "./notes.tsx";
 import { fenceTitle, pierreShell } from "./pierre.ts";
 
 /** A pseudocode fence with an optional title, highlighted lines, hover notes, and a copy button. */
@@ -44,7 +44,7 @@ export function CodeBlock(props: {
     >
       <NoteTokens
         tokens={lines[index] ?? []}
-        matches={lineSymbolMatches(sourceLines[index]!, props.notes)}
+        matches={lineSymbolMatches(sourceLines[index]!, props.notes, index + 1)}
       />
     </span>
   );
@@ -105,7 +105,7 @@ export function CodeBlock(props: {
 }
 
 /** Tokens per line from Pierre's highlighter; plain text until it loads or for unknown languages. */
-function useTokenLines(source: string, lang: string): Token[][] {
+export function useTokenLines(source: string, lang: string): Token[][] {
   const { resolvedTheme } = useTheme();
   const [highlighted, setHighlighted] = useState<{
     key: string;
@@ -189,12 +189,10 @@ const styles = {
     },
     "& .line-note": {
       display: "block",
-      position: "relative",
       outline: "none",
     },
-    "& .line-note::before": lineNoteDot,
-    "& .line-note:hover > .line:not([data-highlighted])": {
-      backgroundColor: colors.gray[3],
+    "& .line-note > .line": {
+      backgroundColor: colors.blue[3],
     },
     "& .line-note:focus-visible": {
       boxShadow: `inset 0 0 0 2px ${colors.blue[8]}`,

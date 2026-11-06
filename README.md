@@ -79,6 +79,18 @@ The server also stops after 24 hours without a page or source request.
 Loading or refreshing the page resets the timer; background health checks and
 the live-reload connection do not keep it alive.
 
+Check a spec without starting a server or publishing anything:
+
+```sh
+npx @tanishqkancharla/diffmap validate path/to/file.md
+```
+
+`validate` uses the viewer's parser to check Markdown, diagrams, and annotations.
+It exits 0 with `valid: true` on success and 1 with the parse error on failure.
+Use `--json` for machine-readable output. It does not resolve source files or
+Git commits. Run it after edits, including when reusing an already-running viewer.
+After updating diffmap itself, restart existing viewers so they use the new parser.
+
 List every running viewer, including viewers using custom ports:
 
 ```sh
@@ -153,16 +165,20 @@ function requestHandler(record: RecordInput) {
   if (error) return error;
   return existingService(record);
 }
-// [!note validateInput] Returns an error when `name` is blank, otherwise undefined.
+// [!note L2 validateInput] Returns an error when `name` is blank, otherwise undefined.
 // [!note L3] Early return, so storage never sees an invalid record.
 ```
 ````
 
-- `[!note L3]` or `[!note L3-L5]` notes a line range. Any other target is a
-  symbol, and the note covers every whole-word occurrence in the fence.
+- `[!note L3]` or `[!note L3-L5]` notes a line range, shown as a blue snippet highlight.
+- `[!note L3 save]` or `[!note L3-L5 save]` notes the first whole-word
+  occurrence of `save` on each specified line, shown with a dotted underline.
+- `[!note save]` applies fence-wide, matching the first whole-word occurrence
+  on each line. A scoped note takes precedence over a fence-wide note for the
+  same match. Matching is textual, not semantic symbol resolution.
 - Start note lines with `//`, `#`, or `--`. The viewer removes them, so line
   numbers count only the code above. Backticks in a note render as code.
-- A symbol that does not appear, overlapping line notes, or a line number
+- A symbol that does not appear within its scope, overlapping line notes, or a line number
   outside the fence is a parse error. A note line above other code stays code.
 
 Add `[Title]` after the language to show a title above the code, as in

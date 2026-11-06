@@ -16,6 +16,7 @@ import {
   buttonStyles,
   checkboxStyles,
   ChevronDown,
+  controlSize,
   flex,
   LoadingScreen,
   motion,
@@ -93,6 +94,7 @@ export function SourceDiffPanel(props: {
   onRevChange?: (rev: Rev) => void;
   selection: SourceSelection | undefined;
   onSelect: (selection: SourceSelection) => void;
+  onClose: () => void;
 }) {
   const { resolvedTheme } = useTheme();
   const mode = useViewerMode();
@@ -156,6 +158,7 @@ export function SourceDiffPanel(props: {
   const panel = useStyles(styles.panel);
   const header = useStyles(styles.header, styles.dimmed);
   const titleRow = useStyles(styles.titleRow);
+  const closeClass = useStyles(styles.close);
   const titleClass = useStyles(styles.title);
   const pinClass = useStyles(styles.pin);
   const links = useStyles(styles.links);
@@ -516,6 +519,15 @@ export function SourceDiffPanel(props: {
         data-diffmap-kind="source-header"
         data-loading={loading !== undefined}
       >
+        <Button
+          className={closeClass}
+          variant="quiet"
+          size="sm"
+          aria-label="Collapse diff"
+          onPress={props.onClose}
+        >
+          <ChevronDown size="sm" />
+        </Button>
         {!showTitle && props.onRevChange !== undefined && (
           <div className={titleRow}>
             <RangePicker rev={props.rev} onChange={props.onRevChange} />
@@ -775,8 +787,23 @@ const styles = {
       maxHeight: "35%",
       overflowY: "auto",
       flexShrink: 0,
+      position: "relative",
+      "@media (max-width: 900px)": {
+        paddingRight: `calc(${controlSize.smHeight} + 14px)`,
+        minHeight: `calc(${controlSize.smHeight} + 12px)`,
+      },
     },
   ),
+  close: style({
+    display: "none",
+    "@media (max-width: 900px)": {
+      display: "flex",
+      position: "absolute",
+      top: "6px",
+      right: "7px",
+      width: controlSize.smHeight,
+    },
+  }),
   // Pierre's file headers pad 16px; this header pads 7px.
   summary: style({ marginLeft: "auto", marginRight: "9px" }),
   titleRow: style(flex({ direction: "row", alignItems: "center" }), {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -52,4 +53,40 @@ test("diffmap guide prints guide.md", async () => {
   const result = await runCli(["guide"]);
   assert.equal(result.exitCode, 0, result.stderr);
   assert.equal(result.stdout.trim(), guide.trim());
+});
+
+test("diffmap validate checks specs without starting a server", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-validate-"));
+  const file = path.join(dir, "spec.md");
+  try {
+    await fs.writeFile(
+      file,
+      "```ts\nsave(record);\nsave(record);\n// [!note L2 save] Second line.\n```\n",
+    );
+    const valid = await runCli(["validate", file, "--json"]);
+    assert.equal(valid.exitCode, 0, valid.stderr);
+    assert.deepEqual(JSON.parse(valid.stdout), { file, valid: true });
+    for (const [source, message] of [
+      [
+        "```ts\nsave(record);\n// [!note L2 save] Out of range.\n```\n",
+        /outside the 1-line code fence/,
+      ],
+      ["```mermaid\nflwochart TD\n A --> B\n```\n", /Invalid mermaid header/],
+      [
+        '```services\nservice API\nstep "Send"\n  API -> Auth: hi\n```\n',
+        /Unknown service Auth/,
+      ],
+    ] as const) {
+      await fs.writeFile(file, source);
+      const invalid = await runCli(["validate", file]);
+      assert.equal(invalid.exitCode, 1, invalid.stdout + invalid.stderr);
+      assert.match(invalid.stdout + invalid.stderr, message);
+    }
+    await fs.unlink(file);
+    const missing = await runCli(["validate", file]);
+    assert.equal(missing.exitCode, 1);
+    assert.match(missing.stdout + missing.stderr, /could not read/);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
 });

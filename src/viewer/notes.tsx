@@ -111,15 +111,3 @@ const symbolNoteClass = style(focusRing(), {
   textUnderlineOffset: "3px",
   "&:hover": { backgroundColor: colors.blueAlpha[5] },
 });
-
-/** A dot in the left gutter of the first row a line note covers. */
-export const lineNoteDot = {
-  content: '""',
-  position: "absolute",
-  left: "4px",
-  top: "calc(0.5lh - 2.5px)",
-  width: "5px",
-  height: "5px",
-  borderRadius: "50%",
-  backgroundColor: colors.blue[9],
-} as const;

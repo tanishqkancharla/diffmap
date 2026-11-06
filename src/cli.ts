@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { Cli, z } from "incur";
+import { DiffmapFileError } from "./errors.js";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
 import { packageVersion } from "./packageVersion.js";
 import { listRunningDiffmaps } from "./registry.js";
@@ -68,7 +70,7 @@ const cli = Cli.create("diffmap", {
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
-  hint: "`guide` prints how to write a spec. `serve <spec.md>` runs the local viewer. `share <spec.md>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
+  hint: "`guide` prints how to write a spec. `validate <spec.md>` checks it without starting a server. `serve <spec.md>` runs the local viewer. `share <spec.md>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
   examples: [
     {
       args: { file: "spec.md" },
@@ -89,6 +91,25 @@ const cli = Cli.create("diffmap", {
       },
     ],
     run: runServe,
+  })
+  .command("validate", {
+    description:
+      "Check a spec's syntax, diagrams, and annotations without starting a server",
+    args: serveArgs,
+    output: z.object({ file: z.string(), valid: z.literal(true) }),
+    async run(c) {
+      trackCommand("validate");
+      const { parseViewerDocument } = await import("./parseViewer.js");
+      const file = resolveFromInvokeCwd(c.args.file);
+      const source = await readFile(file, "utf8").catch(
+        (cause) => new DiffmapFileError({ path: file, reason: "read", cause }),
+      );
+      const result =
+        source instanceof Error ? source : parseViewerDocument(source, file);
+      if (result instanceof Error)
+        return c.error({ code: "DIFFMAP", message: result.message });
+      return c.ok({ file, valid: true });
+    },
   })
   .command("share", {
     description:

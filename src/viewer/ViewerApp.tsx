@@ -212,6 +212,7 @@ export function ViewerApp(props: {
                   }
                   selection={selection}
                   onSelect={select}
+                  onClose={() => setShowDiffPanel(false)}
                 />
               )}
             </div>

@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
 import { renderMermaidSVG } from "beautiful-mermaid";
+import { callStackRow } from "./annotations.js";
+import { lineSymbolMatches } from "./codeNotes.js";
 import { DiffmapMermaidError, DiffmapServicesError } from "./errors.js";
 import { themeMermaidSvg } from "./mermaidTheme.js";
 import { parseViewerDocument } from "./parseViewer.js";
@@ -338,6 +340,71 @@ test("parseViewerDocument reads code highlights and trailing notes", () => {
       ),
     ),
     /"save" does not appear/,
+  );
+});
+
+test("symbol notes scope by line and match only the first whole-word occurrence", () => {
+  const source = "saveAll(record); save(record); save(record)";
+  for (const lang of ["ts", "callstack"]) {
+    const document = parseViewerDocument(
+      [
+        `\`\`\`${lang}`,
+        ...Array.from({ length: 5 }, () => source),
+        "# [!note save] Fence-wide save.",
+        "# [!note record] Fence-wide record.",
+        "# [!note L2 save] Second line only.",
+        "# [!note L3-L4 save] Third and fourth lines.",
+        "# [!note L2-L3] Snippet note.",
+        "```",
+        "",
+      ].join("\n"),
+    );
+    if (document instanceof Error) throw document;
+    const node = document.nodes[0];
+    assert.equal(node?.type, "view");
+    if (node?.type !== "view") return;
+    const fence = node.fence;
+    if (fence.kind !== "code" && fence.kind !== "callstack")
+      throw new Error("Expected a code or callstack fence");
+    const lines =
+      fence.kind === "code"
+        ? fence.source.split("\n")
+        : fence.lines.map((line) => callStackRow(line.text).description);
+    assert.deepEqual(fence.notes[2]?.target, {
+      kind: "symbol",
+      symbol: "save",
+      lines: { start: 2, end: 2 },
+    });
+    const expected = [
+      "Fence-wide save.",
+      "Second line only.",
+      "Third and fourth lines.",
+      "Third and fourth lines.",
+      "Fence-wide save.",
+    ];
+    for (const [index, line] of lines.entries()) {
+      const matches = lineSymbolMatches(line, fence.notes, index + 1);
+      assert.deepEqual(
+        matches.map(({ start, end, note }) => ({
+          start,
+          end,
+          text: note.text,
+        })),
+        [
+          { start: 8, end: 14, text: "Fence-wide record." },
+          { start: 17, end: 21, text: expected[index] },
+        ],
+      );
+    }
+  }
+  for (const target of ["L0 save", "L3 save", "L2-L1 save"])
+    assert.match(
+      codeFenceProblem(["save();", "skip();", `// [!note ${target}] Invalid.`]),
+      /outside the 2-line code fence/,
+    );
+  assert.match(
+    codeFenceProblem(["save();", "skip();", "// [!note L2 save] Wrong line."]),
+    /"save" does not appear.*L2-L2/,
   );
 });
 

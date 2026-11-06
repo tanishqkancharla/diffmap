@@ -9,10 +9,13 @@ A spec is one Markdown file at `specs/<short-kebab-case-name>.md` that shows the
 Run from the repo root:
 
 ```sh
+npx @tanishqkancharla/diffmap validate specs/<name>.md # check after writing or editing, even if already served
 npx @tanishqkancharla/diffmap list                   # reuse the URL if this file is already served
 npx @tanishqkancharla/diffmap serve specs/<name>.md
 npx @tanishqkancharla/diffmap share specs/<name>.md  # only when asked; prints https://diffmap.dev/g/<id>
 ```
+
+`validate` checks syntax, diagrams, and annotations without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating diffmap itself, restart existing viewers to load its new parser.
 
 Leave the server running and give the user the file path and URL. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the gist, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`, pinned to a commit.
 
@@ -39,7 +42,7 @@ Use `services` when the parts keep state, run at the same time, or fan out; use 
 
 **Call stacks.** Write rows as data flow, `result = function(inputs)`, with `return` rows where they matter. Mark rows `-` (original), `+` (change), or a space (unchanged); a diff compares the same function before and after. Nest calls with `├──` and `└──`. Link real functions with source references; an unlinked helper is pseudocode, not a promised API. Keep stacks to about a dozen rows, splitting deep flows into an overview and a stack per changed callee.
 
-**Code.** Keep fences short and on the point the paragraph makes; elide unchanged code with `// ...`. Highlight lines with `{2-3}` after the language (or rows with `{3-4}` after `callstack`), and explain with notes at the bottom instead of long comments: `// [!note symbol] text` for a name wherever it appears, `// [!note L3-L5] text` for lines counted from the top of the fence. Call stacks take the same notes with `#`.
+**Code.** Keep fences short and on the point the paragraph makes; elide unchanged code with `// ...`. Highlight lines with `{2-3}` after the language (or rows with `{3-4}` after `callstack`), and explain with notes at the bottom instead of long comments: `// [!note L3 symbol] text` or `// [!note L3-L5 symbol] text` for a name on specific lines, `// [!note symbol] text` for a fence-wide name, and `// [!note L3-L5] text` for a highlighted snippet. Symbol notes underline only the first whole-word match on each eligible line. Line numbers count from the top of the fence. Call stacks take the same notes with `#`.
 
 **Links.** Link existing source with [references](#source-references); write planned symbols as plain text.
 
