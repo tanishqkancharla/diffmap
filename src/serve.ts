@@ -188,6 +188,8 @@ export async function startServer(input: StartServerInput) {
       );
       return;
     }
+    // Only the viewer page runs script (sendIndex allows its own); a repo file served as a page, such as an SVG, runs none.
+    res.setHeader("content-security-policy", contentSecurityPolicy("'none'"));
     const url = req.url ?? "/";
     const requestUrl = new URL(url, "http://127.0.0.1");
     const pathname = requestUrl.pathname;
@@ -497,20 +499,34 @@ function sendIndex(
   title: string,
   reloadToken: string,
 ) {
+  const nonce = randomBytes(16).toString("base64");
   res.statusCode = 200;
   res.setHeader("content-type", "text/html");
   res.setHeader("cache-control", "no-cache");
+  // A spec's HTML is not trusted: only the viewer's own scripts carry the nonce, and 'strict-dynamic' extends it to the code they load, so inline handlers and injected scripts never run.
+  res.setHeader(
+    "content-security-policy",
+    contentSecurityPolicy(
+      `'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'`,
+    ),
+  );
   res.end(
     html
       .replaceAll(
         "<title>diffmap</title>",
         `<title>${escapeHtml(title)}</title>`,
       )
+      .replaceAll(/<(script|link rel="modulepreload")/g, `<$1 nonce="${nonce}"`)
       .replace(
         "</head>",
-        `<meta name="diffmap-reload-token" content="${reloadToken}" />\n  </head>`,
+        // Vite's preload helper reads the nonce from this tag for the modules it preloads.
+        `<meta name="diffmap-reload-token" content="${reloadToken}" />\n  <meta property="csp-nonce" nonce="${nonce}" />\n  </head>`,
       ),
   );
+}
+
+function contentSecurityPolicy(scriptSources: string) {
+  return `script-src ${scriptSources}; object-src 'none'; base-uri 'none'`;
 }
 
 /** A request's URL, or undefined for one the URL parser rejects, such as `//`. */

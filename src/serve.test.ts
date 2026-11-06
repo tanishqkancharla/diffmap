@@ -379,6 +379,40 @@ test(
 );
 
 test(
+  "startServer lets only the viewer's own scripts run",
+  { timeout: 30_000 },
+  async () => {
+    const server = assertStarted(
+      await startServer({ filePath: sampleSpec, workspaceRoot: packageRoot }),
+    );
+    try {
+      const response = await fetch(server.url);
+      const policy = response.headers.get("content-security-policy") ?? "";
+      const nonce = /script-src 'nonce-([^']+)'/.exec(policy)?.[1];
+      assert.ok(nonce !== undefined, policy);
+      // A spec's `onerror` handler or `<script>` has no nonce, so it never runs.
+      assert.doesNotMatch(policy, /unsafe-inline|'self'/);
+      const page = await response.text();
+      const tags = page.match(/<(script|link rel="modulepreload")[^>]*>/g);
+      assert.ok(tags !== null && tags.length > 1);
+      for (const tag of tags) assert.ok(tag.includes(`nonce="${nonce}"`), tag);
+      // Any other response opened as a page, such as an SVG from the repo, runs no script at all.
+      const media = await fetch(
+        `${server.url}/__diffmap/media?path=media/after.png`,
+      );
+      assert.equal(media.status, 200);
+      assert.match(
+        media.headers.get("content-security-policy") ?? "",
+        /script-src 'none'/,
+      );
+    } finally {
+      await server.shutdown();
+      await waitForClosed(server);
+    }
+  },
+);
+
+test(
   "startServer tells the page to reload when the spec changes",
   { timeout: 30_000 },
   async () => {
