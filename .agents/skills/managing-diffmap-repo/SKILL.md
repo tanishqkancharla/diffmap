@@ -41,4 +41,4 @@ It should not have shown a `changes` fence with an `ignore:` line or the `warnin
 
 ## Issue replies
 
-Thank the reporter for something specific in the report. Say what changed for them and the version it ships in. A merged version bump is staged on npm, not live, until a maintainer approves it, so write "will be in 0.9.0", not "is out in 0.9.0". Don't mention parts of the issue this release doesn't address.
+Thank the reporter for something specific in the report. Say what changed for them and the version it ships in, and link the commit that fixes it (`https://github.com/tanishqkancharla/diffmap/commit/<sha>`), so push it before replying. A merged version bump is staged on npm, not live, until a maintainer approves it, so write "will be in 0.9.0", not "is out in 0.9.0". Don't mention parts of the issue this release doesn't address.
