@@ -85,20 +85,22 @@ export function CodeBlock(props: {
       </pre>
       <Button
         className={copyClassName}
-        variant="quiet"
         data-copy=""
         data-copied={copied || undefined}
         size="sm"
-        aria-label={copied ? "Copied" : "Copy code"}
         onPress={() => {
           // oxlint-disable-next-line typescript/no-floating-promises -- Press handlers cannot await; the icon only changes once the write succeeds.
           void navigator.clipboard.writeText(props.source).then(
-            () => setCopied(true),
+            () => {
+              setCopied(true);
+              trackCopy(props.lang);
+            },
             (cause) => console.warn("diffmap copy failed", cause),
           );
         }}
       >
         {copied ? <Check size="sm" /> : <Copy size="sm" />}
+        {copied ? "Copied" : "Copy"}
       </Button>
     </figure>
   );
@@ -152,9 +154,9 @@ const styles = {
       borderRadius: 0,
       backgroundColor: "transparent",
     },
-    // Room for the copy button, which sits in the title row.
-    "& > figcaption": { paddingRight: "40px" },
-    "&:hover > [data-copy], &:focus-within > [data-copy]": { opacity: 1 },
+    // Room for the copy button: in the title row, or beside the first line without a title.
+    "& > figcaption": { paddingRight: "88px" },
+    "& > pre:first-child": { paddingRight: "88px" },
     "&[data-wrap] > pre > code": { display: "block" },
     "&[data-wrap] .line": { whiteSpace: "pre-wrap", overflowWrap: "anywhere" },
   }),
@@ -164,9 +166,6 @@ const styles = {
     position: "absolute",
     top: "6px",
     right: "6px",
-    opacity: 0,
-    "&[data-copied]": { opacity: 1 },
-    "@media (hover: none)": { opacity: 1 },
   }),
   block: style({
     fontFamily: codeFontFamily,
@@ -199,3 +198,21 @@ const styles = {
     },
   }),
 };
+
+declare global {
+  interface Window {
+    /** Vercel Web Analytics, which only diffmap.dev loads. */
+    va?: (
+      command: "event",
+      event: { name: string; data: Record<string, string> },
+    ) => void;
+  }
+}
+
+/**
+ * Counts copies on diffmap.dev as a Vercel custom event. Only the fence's
+ * language is sent, never the copied text, since gists can hold private code.
+ */
+function trackCopy(lang: string) {
+  window.va?.("event", { name: "Copy code", data: { lang } });
+}
