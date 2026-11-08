@@ -6,7 +6,7 @@ import {
   useState,
   type RefObject,
 } from "react";
-import { buttonStyles, colors, Message, shadowVars } from "maui";
+import { buttonStyles, colors, Message, shadow, shadowVars } from "maui";
 import { style, useStyles } from "purse-styles";
 import { CommentCard } from "./CommentCard.tsx";
 import {
@@ -77,7 +77,7 @@ export function PageComments(props: {
   const layer = useStyles(styles.layer);
   const slot = useStyles(styles.slot);
   const addButton = useStyles(
-    buttonStyles.root({ variant: "default", size: "sm" }),
+    buttonStyles.root({ variant: "default" }),
     styles.add,
   );
   const addLabel = useStyles(buttonStyles.label);
@@ -339,21 +339,15 @@ export function PageComments(props: {
             type="button"
             className={addButton}
             data-comment-add=""
-            style={
-              wide
-                ? {
-                    top: selection.box.top,
-                    left: layout.contentRight + MARGIN_GAP,
-                  }
-                : {
-                    top: selection.box.bottom + STACK_GAP,
-                    left: clamp(
-                      selection.box.left,
-                      layout.contentLeft,
-                      layout.contentRight - 110,
-                    ),
-                  }
-            }
+            // Above the selection's first line, so it never covers the text being read.
+            style={{
+              top: selection.box.top - STACK_GAP,
+              left: clamp(
+                selection.box.left,
+                layout.contentLeft,
+                layout.contentRight - 120,
+              ),
+            }}
             // Keep the selection; the click reads it.
             onMouseDown={(event) => event.preventDefault()}
             onClick={startComment}
@@ -483,8 +477,10 @@ const styles = {
       boxShadow: shadowVars.strong,
     },
   }),
-  add: style({
+  // Floats over the line above the selection, so it takes an elevation shadow instead of the control edge.
+  add: style(shadow.medium, {
     position: "absolute",
+    transform: "translateY(-100%)",
     pointerEvents: "auto",
     zIndex: 2,
   }),
