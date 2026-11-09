@@ -150,6 +150,7 @@ export const styles = {
       marginInline: "auto",
       paddingInline: "24px",
       height: "52px",
+      gap: "16px",
     },
   ),
   brand: style(
@@ -157,7 +158,9 @@ export const styles = {
     text({ size: "md", fontWeight: 600, color: "highContrast" }),
     { textDecoration: "none" },
   ),
-  navLinks: style(flex({ direction: "row", alignItems: "center", gap: 12 })),
+  navLinks: style(flex({ direction: "row", alignItems: "center", gap: 12 }), {
+    "@media (max-width: 480px)": { gap: "16px" },
+  }),
   navLink: style(
     flex({ direction: "row", alignItems: "center", gap: 2 }),
     text({ size: "sm", color: "lowContrast" }),

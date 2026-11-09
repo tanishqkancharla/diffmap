@@ -76,6 +76,14 @@
       });
     </script>
     <script defer src="/_vercel/insights/script.js" vite-ignore></script>
+    <!-- The prompt and code use this font; fetched with the CSS, not after it, so code does not re-wrap once it arrives. -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="../node_modules/@fontsource/commit-mono/files/commit-mono-latin-400-normal.woff2"
+    />
     <!-- A folded map: a green panel, a cream panel, and a red panel, like a diff. Dims slightly in dark mode. -->
     <link
       rel="icon"

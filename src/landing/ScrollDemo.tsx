@@ -112,10 +112,40 @@ type Layout = {
 };
 
 /**
- * A browser window running a real spec. While the window is pinned, page
- * scroll drives the spec's own scroll; once the spec ends, the page moves on.
+ * Touch screens scroll the page off the main thread, so a spec scrolled from
+ * page scroll events lags behind the finger. There the spec scrolls natively
+ * under the finger instead, and the page moves on once it ends.
  */
-export function ScrollDemo(props: { document: ViewerDocument }) {
+const touch = window.matchMedia("(pointer: coarse)").matches;
+
+/**
+ * A browser window running a real spec, or an empty window holding its
+ * place while the spec loads. With a mouse or trackpad, page scroll drives
+ * the spec's own scroll while the window is pinned; once the spec ends, the
+ * page moves on.
+ */
+export function ScrollDemo(props: { document: ViewerDocument | undefined }) {
+  if (props.document === undefined) return <EmptyFrame />;
+  return <LoadedDemo document={props.document} />;
+}
+
+function EmptyFrame() {
+  const stageClass = useStyles(styles.stage);
+  const frameClass = useStyles(styles.frame);
+  return (
+    <section aria-label="Example spec">
+      <div className={stageClass}>
+        <div className={frameClass}>
+          <BrowserBar url={DEMO_URL} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const DEMO_URL = "diffmap.dev/acme/api/pull/42/specs/sessions-in-postgres.md";
+
+function LoadedDemo(props: { document: ViewerDocument }) {
   const track = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -129,15 +159,24 @@ export function ScrollDemo(props: { document: ViewerDocument }) {
     [props.document],
   );
 
+  // The viewer names the tab after its spec; this page keeps its own. Runs after the viewer's own effect.
+  useEffect(() => {
+    document.title = "diffmap";
+  }, []);
+
   useEffect(() => {
     const article = frame.current!.querySelector("article")!;
     let frameRequest = 0;
+    let lastLayout = "";
 
     const update = () => {
       frameRequest = 0;
-      const max = article.scrollHeight - article.clientHeight;
-      const pinnedFor = NAV_HEIGHT - track.current!.getBoundingClientRect().top;
-      article.scrollTop = Math.min(Math.max(pinnedFor, 0), max);
+      if (!touch) {
+        const max = article.scrollHeight - article.clientHeight;
+        const pinnedFor =
+          NAV_HEIGHT - track.current!.getBoundingClientRect().top;
+        article.scrollTop = Math.min(Math.max(pinnedFor, 0), max);
+      }
 
       const stageRect = stage.current!.getBoundingClientRect();
       const frameRect = frame.current!.getBoundingClientRect();
@@ -168,23 +207,28 @@ export function ScrollDemo(props: { document: ViewerDocument }) {
           ),
         ),
       );
-      setLayout({
+      const next: Layout = {
         frameLeft: frameRect.left - stageRect.left,
         frameRight: frameRect.right - stageRect.left,
         width: stageRect.width,
         height: stageRect.height,
         placements: measured.map((part, index) => ({
           visible: shown.has(index),
-          x: part.x,
-          y: part.y,
+          x: Math.round(part.x),
+          y: Math.round(part.y),
         })),
-      });
+      };
+      // Most scroll frames move nothing the callouts draw, so skip their re-render.
+      const key = JSON.stringify(next);
+      if (key === lastLayout) return;
+      lastLayout = key;
+      setLayout(next);
     };
     const schedule = () => {
       if (frameRequest === 0) frameRequest = requestAnimationFrame(update);
     };
     const measure = () => {
-      setRange(article.scrollHeight - article.clientHeight);
+      if (!touch) setRange(article.scrollHeight - article.clientHeight);
       schedule();
     };
 
@@ -193,11 +237,13 @@ export function ScrollDemo(props: { document: ViewerDocument }) {
     observer.observe(article);
     for (const child of article.children) observer.observe(child);
     window.addEventListener("scroll", schedule, { passive: true });
+    article.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", measure);
     measure();
     return () => {
       observer.disconnect();
       window.removeEventListener("scroll", schedule);
+      article.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", measure);
       cancelAnimationFrame(frameRequest);
     };
@@ -220,8 +266,10 @@ export function ScrollDemo(props: { document: ViewerDocument }) {
     >
       <div ref={stage} className={stageClass}>
         <div ref={frame} className={frameClass}>
-          <BrowserBar url="diffmap.dev/acme/api/pull/42/specs/sessions-in-postgres.md" />
-          <div className={viewerClass}>{viewer}</div>
+          <BrowserBar url={DEMO_URL} />
+          <div className={viewerClass} data-touch={touch}>
+            {viewer}
+          </div>
           {layout !== undefined && !gutters && (
             <InlineCaption layout={layout} />
           )}
@@ -385,6 +433,8 @@ const styles = {
     "& > div": { height: "100%" },
     // Page scroll drives the article, so the wheel must not scroll it on its own.
     "& article": { overflowY: "hidden" },
+    // On touch screens the finger scrolls it, and the page takes over at its ends.
+    "&[data-touch='true'] article": { overflowY: "auto" },
   }),
   bar: style({
     display: "grid",

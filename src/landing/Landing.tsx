@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { LoadingScreen, P, flex } from "maui";
+import { P, flex } from "maui";
 import { style, useStyles } from "purse-styles";
 import { fetchGitHubChanges } from "../github/fetchRepo.ts";
 import { GistStatus } from "../gist/GistStatus.tsx";
@@ -39,7 +38,6 @@ export function Landing() {
   const demo = useDemo();
   const comments = useCommentStore("diffmap-comments:landing");
 
-  if (demo === undefined) return <LoadingScreen />;
   if (demo instanceof Error)
     return (
       <GistStatus title="Could not parse the demo">
@@ -47,6 +45,7 @@ export function Landing() {
       </GistStatus>
     );
 
+  // The page draws before the demo is ready; the demo's window holds its place.
   return (
     <ViewerModeContext.Provider value="host">
       <CommentsContext.Provider value={comments}>
@@ -64,7 +63,7 @@ export function Landing() {
  * The product is the hero: a big headline, one prompt to copy, then a
  * browser window whose spec you scroll through, with callouts beside it.
  */
-function LandingPage(props: { demo: ViewerDocument }) {
+function LandingPage(props: { demo: ViewerDocument | undefined }) {
   const page = useStyles(shared.page);
   const container = useStyles(shared.container);
   const heroBand = useStyles(styles.heroBand);
@@ -72,10 +71,6 @@ function LandingPage(props: { demo: ViewerDocument }) {
   const lede = useStyles(shared.lede, styles.ledeWidth);
   const cta = useStyles(styles.cta);
   const ctaLabel = useStyles(shared.label);
-  // The demo's viewer names the tab after its spec; this page keeps its own.
-  useEffect(() => {
-    document.title = "diffmap";
-  }, []);
 
   return (
     <div className={page} id="top">
