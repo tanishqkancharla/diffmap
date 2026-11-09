@@ -504,7 +504,7 @@ test(
         // Save the way many editors do: write a new file and rename it over the spec.
         await fs.writeFile(`${file}.tmp`, "# Edited spec\n");
         await fs.rename(`${file}.tmp`, file);
-        assert.equal(await message, "change");
+        assert.equal(await message, path.basename(file));
         const document = (await (
           await fetch(`${server.url}/__diffmap/document`)
         ).json()) as { viewerDocument?: unknown };
@@ -515,5 +515,77 @@ test(
         await waitForClosed(server);
       }
     });
+  },
+);
+
+test(
+  "startServer serves each page of a book and names what changed",
+  { timeout: 30_000 },
+  async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-book-"));
+    await Promise.all([
+      fs.writeFile(path.join(dir, "README.md"), "# Sessions\n"),
+      fs.writeFile(path.join(dir, "10-cleanup.md"), "# Phase 10: Cleanup\n"),
+      fs.writeFile(path.join(dir, "2-write.md"), "# Phase 2: Write\n"),
+    ]);
+    const server = assertStarted(
+      await startServer({ filePath: dir, workspaceRoot: packageRoot }),
+    );
+    const socket = new WebSocket(
+      `${server.url.replace("http", "ws")}/__diffmap/events`,
+    );
+    const nextMessage = () =>
+      new Promise<unknown>((resolve) => {
+        socket.addEventListener("message", (event) => resolve(event.data), {
+          once: true,
+        });
+      });
+    try {
+      await new Promise((resolve, reject) => {
+        socket.addEventListener("open", resolve, { once: true });
+        socket.addEventListener("error", reject, { once: true });
+      });
+      const book = (await (
+        await fetch(`${server.url}/__diffmap/book`)
+      ).json()) as { title: string; pages: { slug: string }[] };
+      assert.equal(book.title, "Sessions");
+      assert.deepEqual(
+        book.pages.map((page) => page.slug),
+        ["", "write", "cleanup"],
+      );
+      const page = (await (
+        await fetch(`${server.url}/__diffmap/document?page=cleanup`)
+      ).json()) as { page: { file: string }; viewerDocument: unknown };
+      assert.equal(page.page.file, "10-cleanup.md");
+      assert.match(JSON.stringify(page.viewerDocument), /Phase 10: Cleanup/);
+      const markdown = await fetch(`${server.url}/write`, {
+        headers: { accept: "text/markdown" },
+      });
+      assert.equal(await markdown.text(), "# Phase 2: Write\n");
+      const missing = await fetch(`${server.url}/nope`, {
+        headers: { accept: "text/markdown" },
+      });
+      assert.equal(missing.status, 404);
+
+      // An edit inside one page names that page, so only its tabs reload.
+      let message = nextMessage();
+      await fs.writeFile(
+        path.join(dir, "2-write.md"),
+        "# Phase 2: Write\n\nMore.\n",
+      );
+      assert.equal(await message, "2-write.md");
+      // A new page or a new title changes the page list, which every tab shows.
+      message = nextMessage();
+      await fs.writeFile(path.join(dir, "3-read.md"), "# Phase 3: Read\n");
+      assert.equal(await message, "book");
+      message = nextMessage();
+      await fs.writeFile(path.join(dir, "2-write.md"), "# Phase 2: Writes\n");
+      assert.equal(await message, "book");
+    } finally {
+      socket.close();
+      await server.shutdown();
+      await waitForClosed(server);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   },
 );

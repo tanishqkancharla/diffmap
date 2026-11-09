@@ -16,10 +16,10 @@ Events never include file paths, spec contents, comment text, copied text, error
 
 ## CLI events
 
-| Event          | When                          | Properties                                                                                                                                                                     |
-| -------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `command_run`  | Any command runs              | `command`: `serve`, `validate`, `share`, `guide`, `list`, or `update`                                                                                                          |
-| `serve_result` | `serve` has started or failed | `ok`; on failure, `error`: the error's type, such as `DiffmapFileError`; on success, `references` and `fence_<kind>` (such as `fence_mermaid`): how many of each the spec uses |
+| Event          | When                          | Properties                                                                                                                                                                                                               |
+| -------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `command_run`  | Any command runs              | `command`: `serve`, `validate`, `share`, `guide`, `list`, or `update`                                                                                                                                                    |
+| `serve_result` | `serve` has started or failed | `ok`; on failure, `error`: the error's type, such as `DiffmapFileError`; on success, `pages`: how many pages the spec has, and `references` and `fence_<kind>` (such as `fence_mermaid`): how many of each its pages use |
 
 ## Viewer events
 

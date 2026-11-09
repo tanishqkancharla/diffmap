@@ -8,14 +8,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ViteDevServer } from "vite";
 import { DiffmapFileError, DiffmapServeError } from "./errors.js";
-import { extractTitle } from "./extractDocument.js";
+import { findPage, isMarkdownFile, type BookPage } from "./book.js";
 import { parseViewerDocument, type ViewerDocument } from "./parseViewer.js";
+import { parseBook, readBook } from "./readBook.js";
 import {
   findUnlistedFiles,
   listDeltas,
   readChanges,
   readDocumentChanges,
 } from "./git.js";
+import type { Changes, Rev } from "./changes.js";
 import {
   registerRunningDiffmap,
   unregisterRunningDiffmap,
@@ -26,8 +28,8 @@ export type DiffmapServer = {
   filePath: string;
   /** Changed files a commit's `changes` card leaves unlisted, one line per card. */
   warnings: string[];
-  /** The spec as it was parsed at startup. */
-  document: ViewerDocument;
+  /** Every page of the spec as it was parsed at startup. */
+  documents: ViewerDocument[];
   shutdown: () => Promise<void>;
   closed: Promise<void>;
 };
@@ -58,6 +60,7 @@ export type ViewerEvent = {
 }[keyof ViewerEventSchema];
 
 export type StartServerInput = {
+  /** A spec file, or a book directory of pages. */
   filePath: string;
   workspaceRoot: string;
   port?: number;
@@ -71,7 +74,22 @@ const viewerDist = path.join(packageRoot, "viewer-dist");
 
 function noop() {}
 
-const RELOAD_FRAME = Buffer.from([0x81, 6, ...Buffer.from("change")]);
+/** A WebSocket text frame. The reload socket sends the changed page's file name, or `book` when the list of pages changed. */
+function textFrame(text: string) {
+  const payload = Buffer.from(text);
+  const header =
+    payload.length < 126
+      ? Buffer.from([0x81, payload.length])
+      : Buffer.from([0x81, 126, payload.length >> 8, payload.length & 0xff]);
+  return Buffer.concat([header, payload]);
+}
+
+/** What the page list shows, to tell an edit inside a page from a change to the list. */
+function bookOutline(pages: BookPage[]) {
+  return JSON.stringify(
+    pages.map((page) => [page.file, page.slug, page.title]),
+  );
+}
 
 function createClosedBarrier() {
   let resolveFn = noop;
@@ -90,23 +108,21 @@ export async function startServer(input: StartServerInput) {
   const filePath = path.resolve(input.filePath);
   const workspaceRoot = path.resolve(input.workspaceRoot);
   const port = input.port ?? 0;
-  const source = await fs.readFile(filePath, "utf8").catch(
-    (cause) =>
-      new DiffmapFileError({
-        path: filePath,
-        reason: "read",
-        cause,
-      }),
-  );
-  if (source instanceof Error) return source;
-
-  const parsed = parseViewerDocument(source, filePath);
+  const read = await readBook(filePath);
+  if (read instanceof Error) return read;
+  const parsed = parseBook(read);
   if (parsed instanceof Error) return parsed;
-  const changes = await readDocumentChanges(workspaceRoot, parsed);
-  if (changes instanceof Error) return changes;
-  const warnings = findUnlistedFiles(parsed.changeCards, changes);
+  const changes = new Map<Rev, Changes>();
+  const warnings: string[] = [];
+  for (const page of parsed) {
+    const pageChanges = await readDocumentChanges(workspaceRoot, page.document);
+    if (pageChanges instanceof Error) return pageChanges;
+    for (const [rev, value] of pageChanges) changes.set(rev, value);
+    warnings.push(...findUnlistedFiles(page.document.changeCards, changes));
+  }
+  const bookDir = read.dir;
 
-  const title = extractTitle(source);
+  const title = read.book.title;
   // DIFFMAP_DEV serves the viewer from source through Vite, with hot reload, for working on diffmap itself.
   const dev = process.env.DIFFMAP_DEV === "1";
   if (!dev && !(await isFile(path.join(viewerDist, "index.html")))) {
@@ -120,24 +136,53 @@ export async function startServer(input: StartServerInput) {
   const closedBarrier = createClosedBarrier();
   let shuttingDown = false;
   let inactivityTimer: ReturnType<typeof setTimeout> | undefined;
-  const mediaRoots = [workspaceRoot, path.dirname(filePath)];
-  // Parsing draws every Mermaid diagram, so page loads reuse it until the spec changes, as Vite cached its module.
-  const documentCache = {
-    source,
-    body: JSON.stringify({ viewerDocument: parsed }),
-  };
+  const mediaRoots = [workspaceRoot, bookDir];
+  // Parsing draws every Mermaid diagram, so page loads reuse it until the page changes, as Vite cached its module.
+  const documentCache: DocumentCache = new Map(
+    parsed.map((page) => [
+      page.file,
+      { source: page.source, body: documentBody(page, page.document) },
+    ]),
+  );
   const reloadClients = new Set<Duplex>();
   // As with Vite's HMR token, only a page this server sent can open the reload socket from a browser.
   const reloadToken = randomBytes(16).toString("base64url");
   let reloadTimer: ReturnType<typeof setTimeout> | undefined;
   let watcher: FSWatcher | undefined;
+  let outline = bookOutline(read.book.pages);
+  const changedPages = new Set<string>();
+  const sendReload = async () => {
+    const files = [...changedPages];
+    changedPages.clear();
+    let messages = files;
+    if (read.directory) {
+      const next = await readBook(filePath);
+      const nextOutline =
+        next instanceof Error ? next.message : bookOutline(next.book.pages);
+      if (nextOutline !== outline) {
+        outline = nextOutline;
+        messages = ["book"];
+      }
+    }
+    for (const message of messages) {
+      for (const client of reloadClients) client.write(textFrame(message));
+    }
+  };
   try {
     // Watch the directory: editors often save by replacing the file, which ends a watch on the file itself.
-    watcher = watch(path.dirname(filePath), (_event, name) => {
-      if (name !== path.basename(filePath)) return;
+    watcher = watch(bookDir, (_event, name) => {
+      if (
+        name === null ||
+        (read.directory
+          ? !isMarkdownFile(name)
+          : name !== path.basename(filePath))
+      )
+        return;
+      changedPages.add(name);
       clearTimeout(reloadTimer);
       reloadTimer = setTimeout(() => {
-        for (const client of reloadClients) client.write(RELOAD_FRAME);
+        // oxlint-disable-next-line typescript/no-floating-promises -- Timer callbacks cannot await; sendReload handles its own errors.
+        void sendReload();
       }, 50);
     });
     watcher.on("error", noop);
@@ -226,6 +271,7 @@ export async function startServer(input: StartServerInput) {
     if (
       req.method === "GET" &&
       (pathname === "/" ||
+        pathname === "/__diffmap/document" ||
         pathname === "/__diffmap/file" ||
         pathname === "/__diffmap/definition" ||
         pathname === "/__diffmap/source" ||
@@ -236,14 +282,23 @@ export async function startServer(input: StartServerInput) {
     }
     if (
       req.method === "GET" &&
-      pathname === "/" &&
+      !pathname.startsWith("/__diffmap") &&
       acceptsMarkdown(req.headers.accept)
     ) {
-      await serveMarkdown({ filePath, res });
+      await serveMarkdown({ filePath, page: pageSegment(pathname), res });
+      return;
+    }
+    if (req.method === "GET" && pathname === "/__diffmap/book") {
+      await serveBook({ filePath, res });
       return;
     }
     if (req.method === "GET" && pathname === "/__diffmap/document") {
-      await serveDocument({ filePath, cache: documentCache, res });
+      await serveDocument({
+        filePath,
+        page: requestUrl.searchParams.get("page") ?? "",
+        cache: documentCache,
+        res,
+      });
       return;
     }
     if (req.method === "POST" && pathname === "/__diffmap/telemetry") {
@@ -258,7 +313,7 @@ export async function startServer(input: StartServerInput) {
     }
     if (get && pathname === "/__diffmap/media") {
       const resolved = path.resolve(
-        path.dirname(filePath),
+        bookDir,
         requestUrl.searchParams.get("path") ?? "",
       );
       if (!isServableMedia(resolved, mediaRoots)) {
@@ -391,7 +446,7 @@ export async function startServer(input: StartServerInput) {
     url,
     filePath,
     warnings,
-    document: parsed,
+    documents: parsed.map((page) => page.document),
     shutdown,
     closed: closedBarrier.closed,
   };
@@ -616,33 +671,78 @@ function escapeHtml(value: string) {
     .replaceAll('"', "&quot;");
 }
 
+type DocumentCache = Map<string, { source: string; body: string }>;
+
+/** A page's document, or its parse error. Both name the page, so the viewer knows which file to reload on. */
+function documentBody(page: BookPage, document: unknown) {
+  return JSON.stringify({
+    page: { file: page.file, slug: page.slug, title: page.title },
+    ...(document instanceof Error
+      ? { parseError: document.message }
+      : { viewerDocument: document }),
+  });
+}
+
+/** The page a request path names: `/` is the cover, `/<slug>` a page. */
+function pageSegment(pathname: string) {
+  try {
+    return decodeURIComponent(pathname).replace(/^\/+|\/+$/g, "");
+  } catch {
+    return pathname;
+  }
+}
+
+async function readPage(filePath: string, segment: string) {
+  const read = await readBook(filePath);
+  if (read instanceof Error) return read;
+  const page = findPage(read.book, segment);
+  if (page === undefined) {
+    return new DiffmapServeError({
+      reason: `this book has no page "${segment}"`,
+    });
+  }
+  return page;
+}
+
+async function serveBook(input: { filePath: string; res: DiffmapResponse }) {
+  const read = await readBook(input.filePath);
+  sendJson(
+    input.res,
+    JSON.stringify(
+      read instanceof Error
+        ? { error: read.message }
+        : {
+            title: read.book.title,
+            pages: read.book.pages.map((page) => ({
+              file: page.file,
+              slug: page.slug,
+              title: page.title,
+            })),
+          },
+    ),
+  );
+}
+
 async function serveDocument(input: {
   filePath: string;
-  cache: { source: string; body: string };
+  page: string;
+  cache: DocumentCache;
   res: DiffmapResponse;
 }) {
-  const source = await fs.readFile(input.filePath, "utf8").catch(
-    (cause) =>
-      new DiffmapFileError({
-        path: input.filePath,
-        reason: "read",
-        cause,
-      }),
-  );
-  if (source instanceof Error) {
-    sendJson(input.res, JSON.stringify({ parseError: source.message }));
+  const page = await readPage(input.filePath, input.page);
+  if (page instanceof Error) {
+    sendJson(input.res, JSON.stringify({ parseError: page.message }));
     return;
   }
-  if (source !== input.cache.source) {
-    const document = parseViewerDocument(source, input.filePath);
-    input.cache.source = source;
-    input.cache.body = JSON.stringify(
-      document instanceof Error
-        ? { parseError: document.message }
-        : { viewerDocument: document },
-    );
+  let cached = input.cache.get(page.file);
+  if (cached?.source !== page.source) {
+    cached = {
+      source: page.source,
+      body: documentBody(page, parseViewerDocument(page.source, page.path)),
+    };
+    input.cache.set(page.file, cached);
   }
-  sendJson(input.res, input.cache.body);
+  sendJson(input.res, cached.body);
 }
 
 function sendJson(res: DiffmapResponse, body: string) {
@@ -669,26 +769,20 @@ function acceptsMarkdown(accept: string | undefined) {
 
 async function serveMarkdown(input: {
   filePath: string;
+  page: string;
   res: DiffmapResponse;
 }) {
-  const source = await fs.readFile(input.filePath, "utf8").catch(
-    (cause) =>
-      new DiffmapFileError({
-        path: input.filePath,
-        reason: "read",
-        cause,
-      }),
-  );
-  if (source instanceof Error) {
-    input.res.statusCode = 500;
+  const page = await readPage(input.filePath, input.page);
+  if (page instanceof Error) {
+    input.res.statusCode = page instanceof DiffmapServeError ? 404 : 500;
     input.res.setHeader("content-type", "text/plain; charset=utf-8");
-    input.res.end(source.message);
+    input.res.end(page.message);
     return;
   }
   input.res.statusCode = 200;
   input.res.setHeader("content-type", "text/markdown; charset=utf-8");
   input.res.setHeader("vary", "Accept");
-  input.res.end(source);
+  input.res.end(page.source);
 }
 
 async function handleDiffmapRequest(input: {
@@ -763,10 +857,8 @@ async function handleDiffmapRequest(input: {
     return;
   }
   if (parsed.pathname === "/__diffmap/meta" && input.method === "GET") {
-    const source = await fs
-      .readFile(input.filePath, "utf8")
-      .catch(() => undefined);
-    const title = source === undefined ? input.title : extractTitle(source);
+    const read = await readBook(input.filePath);
+    const title = read instanceof Error ? input.title : read.book.title;
     input.res.statusCode = 200;
     input.res.setHeader("content-type", "application/json; charset=utf-8");
     input.res.end(

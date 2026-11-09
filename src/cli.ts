@@ -67,14 +67,20 @@ async function* runServe(c: ServeContext) {
       message: started.message,
     });
   }
-  // How many of each fence kind the spec uses (a kind it never uses is left out), to see which parts of the guide agents follow.
+  // How many of each fence kind the spec uses across its pages (a kind it never uses is left out), to see which parts of the guide agents follow.
   const contents: Record<string, number> = {
-    references: started.document.references.length,
+    pages: started.documents.length,
+    references: started.documents.reduce(
+      (sum, document) => sum + document.references.length,
+      0,
+    ),
   };
   const { collectFences } = await import("./parseViewer.js");
-  for (const fence of collectFences(started.document.nodes))
-    contents[`fence_${fence.kind}`] =
-      (contents[`fence_${fence.kind}`] ?? 0) + 1;
+  for (const document of started.documents) {
+    for (const fence of collectFences(document.nodes))
+      contents[`fence_${fence.kind}`] =
+        (contents[`fence_${fence.kind}`] ?? 0) + 1;
+  }
   track("serve_result", { ok: true, ...contents });
   const output = {
     url: started.url,

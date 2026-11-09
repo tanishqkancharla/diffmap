@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { MauiProvider, P } from "maui";
+import type { BookPage } from "../book.js";
 import type { ViewerDocument } from "../parseViewer.js";
 import { ViewerApp } from "./ViewerApp.tsx";
 import { GistStatus } from "../gist/GistStatus.tsx";
@@ -12,9 +13,21 @@ const root = document.getElementById("root");
 if (root === null) throw new Error("diffmap root element is missing");
 
 // SAFETY: `serve` answers with this shape from parseViewerDocument.
-const { viewerDocument, parseError } = (await fetch("/__diffmap/document").then(
-  (response) => response.json(),
-)) as { viewerDocument?: ViewerDocument; parseError?: string };
+const { page, viewerDocument, parseError } = (await fetch(
+  `/__diffmap/document?${new URLSearchParams({ page: pageSegment() })}`,
+).then((response) => response.json())) as {
+  page?: BookPage;
+  viewerDocument?: ViewerDocument;
+  parseError?: string;
+};
+// A link to a page's file, such as /02-write-through.md, settles on the page's own URL, which names its comments.
+if (page !== undefined && window.location.pathname !== pageHref(page)) {
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${pageHref(page)}${window.location.hash}`,
+  );
+}
 
 enableViewerTelemetry();
 trackViewerEvent({ event: "viewer_opened" });
@@ -22,15 +35,25 @@ trackViewerEvent({ event: "viewer_opened" });
 if (viewerDocument === undefined)
   trackViewerEvent({ event: "viewer_error", kind: "document" });
 
-// `serve` sends a message whenever the spec file changes.
+/** The page the URL names: `/` is the cover, `/<slug>` a page. */
+function pageSegment() {
+  return decodeURIComponent(window.location.pathname).replace(/^\/+|\/+$/g, "");
+}
+
+function pageHref(target: BookPage) {
+  return `/${encodeURIComponent(target.slug)}`;
+}
+
+// `serve` names each page file that changes, or sends `book` when the list of pages changed.
 const reloadToken =
   document.querySelector<HTMLMetaElement>('meta[name="diffmap-reload-token"]')
     ?.content ?? "";
 const reloadSocket = new WebSocket(
   `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/__diffmap/events?${new URLSearchParams({ token: reloadToken })}`,
 );
-reloadSocket.addEventListener("message", () => {
-  window.location.reload();
+reloadSocket.addEventListener("message", (event) => {
+  if (event.data === "book" || event.data === page?.file)
+    window.location.reload();
 });
 // Like Vite's client: once the server goes away, reload when one answers on this port again.
 let reloadSocketOpened = false;
