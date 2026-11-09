@@ -1,6 +1,6 @@
 # Living spec
 
-A spec is one Markdown file at `specs/<short-kebab-case-name>.md` that shows the current system, the plan, and the work done. Update it as the plan changes and work lands. For a walkthrough of an existing pull request, use its spec if it has one; otherwise write under `.diffmap/`. Check the repo's paths and symbols before writing.
+A spec is a book: a directory at `.diffmap/specs/<short-kebab-case-name>/` that shows the current system, the plan, and the work done, one page per phase. Update it as the plan changes and work lands. For a walkthrough of an existing pull request, use its spec if it has one; otherwise write one in the same place. Commit specs with the code; `.diffmap/` is not ignored. Check the repo's paths and symbols before writing.
 
 **Settle scope first.** Read the relevant code before writing. When the design, scope, or phase split is unclear, check with the user before writing much: offer the options and your pick.
 
@@ -9,21 +9,36 @@ A spec is one Markdown file at `specs/<short-kebab-case-name>.md` that shows the
 Run from the repo root:
 
 ```sh
-npx @tanishqkancharla/diffmap validate specs/<name>.md # check after writing or editing, even if already served
-npx @tanishqkancharla/diffmap list                   # reuse the URL if this file is already served
-npx @tanishqkancharla/diffmap serve specs/<name>.md
-npx @tanishqkancharla/diffmap share specs/<name>.md  # only when asked; prints https://diffmap.dev/g/<id>
+npx @tanishqkancharla/diffmap validate .diffmap/specs/<name>/ # check after writing or editing, even if already served
+npx @tanishqkancharla/diffmap list                            # reuse the URL if this book is already served
+npx @tanishqkancharla/diffmap serve .diffmap/specs/<name>/
+npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/    # only when asked; prints https://diffmap.dev/g/<id>
 ```
 
-`validate` checks syntax, diagrams, and annotations without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating diffmap itself, restart existing viewers to load its new parser.
+`validate` checks every page's syntax, diagrams, and annotations, and the book's page names, without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating diffmap itself, restart existing viewers to load its new parser.
 
-Leave the server running and give the user the file path and URL. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the gist, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`, pinned to a commit.
+Leave the server running and give the user the directory and URL. It reloads a page when you edit it, and the page list when you add, remove, or retitle a page. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the gist, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>/`, pinned to a commit.
 
 ## Shape
 
-Write for someone who needs to understand the change quickly. Start from what changes for the person using it, such as a screen, command, API call, or error, then work back toward the implementation as far as the reader needs. A spec usually has a problem overview, a solution overview, goals and non-goals, phases, and **References**; let the content decide what each needs.
+Write for someone who needs to understand the change quickly. Start from what changes for the person using it, such as a screen, command, API call, or error, then work back toward the implementation as far as the reader needs.
 
-**Phases.** Keep each small enough to commit alone. Headings are plain when planned, ⏳ in progress, and ✅ done. Open each with a short **Today** and **Proposed** from the client's view, then explain it however suits the change: a new flow might want a diagram and a call stack, a refactor a call stack diff, a dependency bump a sentence or two. Match the length to the change, and say each thing once, where it belongs. A spec explains the change; it is not a task tracker. End each phase with its `changes` fence, after the walkthrough and before the next phase or section, not right after Today and Proposed; leave it empty until the phase is committed.
+**Pages.** The reader sees one page at a time, with a list of pages beside it and a link to the next page below it.
+
+```text
+.diffmap/specs/<name>/
+  README.md                 cover: problem overview, solution overview, goals, non-goals, References
+  01-<phase-slug>.md        one page per phase, in order
+  02-<phase-slug>.md
+  media/<phase-slug>/       screenshots and recordings for that page
+```
+
+- `README.md` is the cover; its first heading is the book's title. Let the content decide what each section needs, and don't repeat the cover on other pages.
+- Every other page is `NN-<slug>.md`, numbered from `01` with two digits. The number sets the page's place in the book; the slug is its URL, so renumbering keeps links and comments. To insert a page, `git mv` the pages after it to new numbers. `validate` rejects a Markdown file without a number.
+- Each page is readable on its own by someone who read the cover and skimmed the pages before it. Open it with a sentence or two that says what earlier pages built that it relies on, linked, as in "[Phase 1](01-sessions-table.md) added the `sessions` table." Then say what this page changes. Define a term on the page that introduces it, and link back to that page when a later page uses it.
+- Link between pages with relative links to the file, as in `[Phase 2](02-write-through.md#tests)`. They open in diffmap and on GitHub.
+
+**Phases.** Keep each small enough to commit alone. A phase's page starts with its title as the page's first heading: plain when planned, ⏳ in progress, and ✅ done, so the page list shows progress. After its opening context, give a short **Today** and **Proposed** from the client's view, then explain it however suits the change: a new flow might want a diagram and a call stack, a refactor a call stack diff, a dependency bump a sentence or two. Match the length to the change, and say each thing once, where it belongs. A spec explains the change; it is not a task tracker. End each phase's page with its `changes` fence, after the walkthrough, not right after Today and Proposed; leave it empty until the phase is committed. The page's Diff button opens that commit.
 
 **Visuals.** Diagrams, call stacks, and code often explain a change better than paragraphs, so reach for one when prose gets long. Add one only when it shows the reader something they need, not to fill a slot.
 
@@ -50,8 +65,8 @@ Use `services` when the parts keep state, run at the same time, or fan out; use 
 
 ```md
 :::gallery side-by-side
-![Today](media/<spec-name>/save-today.png)
-![Proposed](media/<spec-name>/save-proposed.png)
+![Today](media/<phase-slug>/save-today.png)
+![Proposed](media/<phase-slug>/save-proposed.png)
 :::
 ```
 
@@ -61,10 +76,12 @@ Follow Orwell's six rules from "Politics and the English Language" in all prose,
 
 ## Example phase
 
-This example uses illustrative files and a commit SHA, not Diffmap source paths. Its change crosses a few layers, so it uses several views; a smaller phase needs fewer.
+This example page, `02-validate-request-input.md`, uses illustrative files and a commit SHA, not Diffmap source paths. Its change crosses a few layers, so it uses several views; a smaller phase needs fewer.
 
 ````md
-### ⏳ Phase 1: Validate request input
+# ⏳ Phase 2: Validate request input
+
+[Phase 1](01-record-errors.md) gave every response an `error` field. This phase fills it when a record is invalid.
 
 **Today**
 
@@ -72,7 +89,7 @@ The handler passes records straight to the service. A client that sends an empty
 
 **Proposed**
 
-A client that sends an empty name gets an error naming the `name` field, so they can fix the request right away. Bulk import in Phase 2 needs every saved record to be valid, so this check comes first.
+A client that sends an empty name gets an error naming the `name` field, so they can fix the request right away. Bulk import in [Phase 3](03-bulk-import.md) needs every saved record to be valid, so this check comes first.
 
 From the client's side, the same empty-name request now fails at once:
 
@@ -142,7 +159,7 @@ Before starting the next phase:
 1. Commit the code. If the phase took several commits, use `<base>..<head>` wherever these steps say SHA.
 2. Put that SHA in the phase's `changes` fence at the end of the phase. It renders the phase's summary card. Under the SHA, list the files a reviewer should read, one path per line, in the order to read them: usually the client-facing entry point first, then down the layers. Then add an `ignore:` line and list every other changed file under it: files that need no thought, such as lockfiles, generated code, snapshots, fixtures, and mechanical renames. The card folds them under "N other files". Every changed file goes in one list or the other; don't explain ignored files in the prose.
 3. Point every reference the phase changed at the commit: stack rows, `%% ref` directives, and prose.
-4. Update diagrams, call stacks, and pseudocode to match what was built, and mark the heading ✅.
+4. Update diagrams, call stacks, and pseudocode to match what was built, and mark the page's title ✅.
 5. Commit the spec update separately; it names the code commit's SHA.
 6. Restart `serve`; it checks commit references at startup, and its `warnings` name changed files that a `changes` fence leaves off both lists. Add each one to a list.
 
@@ -179,10 +196,10 @@ When a phase changes a UI, capture the running app with the browser automation y
 - Show Today beside Proposed when the comparison is the point, in a `side-by-side` gallery. Capture Today from the unchanged code, such as the base commit in a worktree, not from a mockup. Use `grid` to scan several states or variants, and `carousel` to step through the stages of a flow.
 - Keep only captures that help the reader decide something. Leave out intermediate attempts; when a fix changes the UI, replace the capture so only the final one remains.
 - Crop screenshots to the part that changed, keep text readable, and leave out secrets and personal data.
-- Save captures under `specs/media/<spec-name>/` and link them relative to the spec. Prefer `.mp4` for recordings, since every browser plays it. Commit them with the spec so the pull request viewer shows them; ask the user before committing more than a few megabytes.
+- Save captures under `media/<phase-slug>/` in the book and link them relative to the page, as in `media/write-through/save.png`. Prefer `.mp4` for recordings, since every browser plays it. Commit them with the spec so the pull request viewer shows them; ask the user before committing more than a few megabytes.
 - Above each capture, say in a sentence what to look for. Readers comment by highlighting that sentence or a gallery label, and **Copy comments** brings their notes back to you.
 - A capture shows what happened; it does not prove the behavior. Say which checks you ran.
-- `share` fails on local media. To share a spec with captures, link them by https URL, or open the spec on its pull request.
+- `share` fails on local media. To share a book with captures, link them by https URL, or open the book on its pull request.
 
 ## Source references
 

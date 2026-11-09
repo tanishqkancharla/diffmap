@@ -22,7 +22,7 @@ If you like the result, install the skill:
 npx skills add tanishqkancharla/diffmap --skill generate-diffmap
 ```
 
-The skill keeps a spec in `specs/` that stays true to what is planned and what is already in the tree. diffmap is open source and MIT licensed. Specs are served locally by default, but you can choose to [share one as an unlisted gist](#share-a-spec-with-a-link-experimental) and open it on diffmap.dev.
+The skill keeps a spec in `.diffmap/specs/<name>/` that stays true to what is planned and what is already in the tree. diffmap is open source and MIT licensed. Specs are served locally by default, but you can choose to [share one as an unlisted gist](#share-a-spec-with-a-link-experimental) and open it on diffmap.dev.
 
 The skill is a short pointer: your agent loads the full instructions from `npx @tanishqkancharla/diffmap guide`, so they update with diffmap itself. When the skill file itself changes, update it with `npx skills update generate-diffmap`.
 
@@ -44,7 +44,7 @@ A Mermaid or service diagram can show a change in one picture: red parts exist o
 
 ### Phases and commits
 
-The agent writes the plan in phases, each small enough to be one commit. When a phase is done, the spec shows a card for its commit with the files to review, most important first. Click a file to open its diff. Every link in the phase then points at that commit, so it keeps showing the code from that commit after the file changes.
+A spec is a book: a directory with a cover page and one page per phase. The agent writes the plan in phases, each small enough to be one commit. When a phase is done, the spec shows a card for its commit with the files to review, most important first. Click a file to open its diff. Every link in the phase then points at that commit, so it keeps showing the code from that commit after the file changes.
 
 ![A finished phase's commit card, with a file opening in the Diff panel](media/phase-commits.webp)
 
@@ -63,10 +63,10 @@ agent. ⌘/Ctrl-Enter saves a comment and Escape cancels it.
 ## Run the viewer
 
 ```sh
-npx @tanishqkancharla/diffmap serve path/to/file.md
+npx @tanishqkancharla/diffmap serve .diffmap/specs/<name>/
 ```
 
-Bare `npx @tanishqkancharla/diffmap path/to/file.md` is the same as `serve`.
+Bare `npx @tanishqkancharla/diffmap .diffmap/specs/<name>/` is the same as `serve`. `serve` also takes a single Markdown file, which it shows as a book with one page.
 
 Options:
 
@@ -82,11 +82,12 @@ the live-reload connection do not keep it alive.
 Check a spec without starting a server or publishing anything:
 
 ```sh
-npx @tanishqkancharla/diffmap validate path/to/file.md
+npx @tanishqkancharla/diffmap validate .diffmap/specs/<name>/
 ```
 
-`validate` uses the viewer's parser to check Markdown, diagrams, and annotations.
-It exits 0 with `valid: true` on success and 1 with the parse error on failure.
+`validate` uses the viewer's parser to check every page's Markdown, diagrams, and
+annotations, and the book's page names. It exits 0 with `valid: true` and the
+pages in order on success, and 1 with the error, naming the page, on failure.
 Use `--json` for machine-readable output. It does not resolve source files or
 Git commits. Run it after edits, including when reusing an already-running viewer.
 After updating diffmap itself, restart existing viewers so they use the new parser.
@@ -105,12 +106,43 @@ diffmap update
 
 If you are already on the latest version, it says so and exits. Otherwise it runs the global install for the package manager that installed diffmap (`npm install --global`, `pnpm add --global`, or `bun add --global`) and prints the old and new versions. Under `npx`, or when it cannot tell how diffmap was installed, it prints the command to run instead of installing anything.
 
-Request the page with `Accept: text/markdown` to read the current source file
-instead of the rendered HTML. Use the URL printed by `serve`:
+Request a page with `Accept: text/markdown` to read its current source file
+instead of the rendered HTML. Use the URL printed by `serve`, with the page's
+slug for any page but the cover:
 
 ```sh
-curl -H 'Accept: text/markdown' http://127.0.0.1:<port>/
+curl -H 'Accept: text/markdown' http://127.0.0.1:<port>/write-through
 ```
+
+## Books
+
+A spec is a directory of Markdown pages:
+
+```text
+.diffmap/specs/sessions-in-postgres/
+  README.md               the cover, at /
+  01-sessions-table.md    at /sessions-table
+  02-write-through.md     at /write-through
+  media/                  images and videos the pages show
+```
+
+- `README.md` is the cover. Its first `#` heading is the book's title.
+- Every other `.md` or `.mdx` file needs a number prefix, which sets its place:
+  `2-` comes before `10-`. The rest of the name, the slug, is the page's URL,
+  so renumbering pages keeps their links and comments. Two pages cannot share a
+  slug, and `validate` and `serve` reject a page without a number.
+- The viewer shows one page at a time, with the book's pages and the current
+  page's headings in the left gutter, and links to the previous and next page
+  at the bottom. A page's first heading is its title in that list.
+- A relative link to a page file, such as `[Phase 2](02-write-through.md#tests)`,
+  opens that page, in diffmap and on GitHub.
+- Each page keeps its own comments and Diff panel, which opens the page's first
+  `changes` card. **Copy comments** copies the comments from every page,
+  under each page's title.
+- `serve` reloads a page when its file changes, and every page when you add,
+  remove, or retitle one.
+
+Run `npx @tanishqkancharla/diffmap fixtures/book` for an example.
 
 ## Share a spec with a link (experimental)
 

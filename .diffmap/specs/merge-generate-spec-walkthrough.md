@@ -1,6 +1,6 @@
 # Merge generate-spec and code-walkthrough
 
-This records the earlier merge. The current skill is [generate-diffmap](../skills/generate-diffmap/SKILL.md), which covers both specs and code walkthroughs.
+This records the earlier merge. The current skill is [generate-diffmap](../../skills/generate-diffmap/SKILL.md), which covers both specs and code walkthroughs.
 
 ## Problem overview
 
@@ -185,7 +185,7 @@ With the fixture in place, `npm run format`, `lint`, `typecheck`, and `test` all
 
 ## References
 
-- [`skills/generate-diffmap/SKILL.md`](../skills/generate-diffmap/SKILL.md) — Living spec. Same file for plan and what landed.
+- [`skills/generate-diffmap/SKILL.md`](../../skills/generate-diffmap/SKILL.md) — Living spec. Same file for plan and what landed.
 - `skills/code-walkthrough/SKILL.md` — Same body, `name: code-walkthrough`.
 - [`README.md`](../README.md) — One install line; `serve` / `share` / list.
 - [`src/cli.ts`](../src/cli.ts) — `diffmap serve`, `share`, `list`.

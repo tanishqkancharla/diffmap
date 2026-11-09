@@ -98,11 +98,11 @@ const cli = Cli.create("diffmap", {
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
-  hint: "`guide` prints how to write a spec. `validate <spec.md>` checks it without starting a server. `serve <spec.md>` runs the local viewer. `share <spec.md>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
+  hint: "`guide` prints how to write a spec. A spec is a book directory of pages, such as `.diffmap/specs/<name>/`, or one Markdown file. `validate <spec>` checks it without starting a server. `serve <spec>` runs the local viewer. `share <spec>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
   examples: [
     {
-      args: { file: "spec.md" },
-      description: "Same as `diffmap serve spec.md`",
+      args: { file: ".diffmap/specs/sessions/" },
+      description: "Same as `diffmap serve .diffmap/specs/sessions/`",
     },
   ],
   run: runServe,
@@ -114,7 +114,7 @@ const cli = Cli.create("diffmap", {
     output: serveOutput,
     examples: [
       {
-        args: { file: "spec.md" },
+        args: { file: ".diffmap/specs/sessions/" },
         description: "Open the local viewer",
       },
     ],
