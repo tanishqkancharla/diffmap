@@ -147,9 +147,7 @@ const cli = Cli.create("diffmap", {
   .command("share", {
     description:
       "Publish an unlisted gist and print https://diffmap.dev/g/<id>",
-    args: z.object({
-      file: z.string().describe("Path to the markdown file"),
-    }),
+    args: serveArgs,
     options: z.object({
       public: z.boolean().optional().describe("Create a public gist"),
     }),
@@ -160,7 +158,7 @@ const cli = Cli.create("diffmap", {
     }),
     examples: [
       {
-        args: { file: "spec.md" },
+        args: { file: ".diffmap/specs/sessions/" },
         description: "Unlisted gist → https://diffmap.dev/g/<id>",
       },
     ],

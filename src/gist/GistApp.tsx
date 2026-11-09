@@ -3,14 +3,18 @@ import { Button, Link, P } from "maui";
 import { style, useStyles } from "purse-styles";
 import { init } from "md4x/standalone";
 import { parseViewerDocument } from "../parseViewer.ts";
-import type { ViewerDocument } from "../parseViewer.ts";
 import { WORKING } from "../changes.ts";
 import {
   ChangesLoaderContext,
   type ChangesLoader,
 } from "../viewer/changesSource.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
-import { loadGistMarkdown, type GistDocument } from "./fetchGist.ts";
+import type { BookPage } from "../book.ts";
+import {
+  chooseGistFile,
+  loadGistMarkdown,
+  type GistDocument,
+} from "./fetchGist.ts";
 import { GistPinContext } from "./pin.ts";
 import { Landing } from "../landing/Landing.tsx";
 import { HostFilesContext } from "../host/files.ts";
@@ -33,28 +37,14 @@ type GistView =
   | { kind: "not-found"; gistId: string }
   | { kind: "forbidden"; gistId: string }
   | { kind: "no-markdown"; gistId: string; htmlUrl: string }
-  | {
-      kind: "missing-file";
-      gistId: string;
-      htmlUrl: string;
-      files: { name: string }[];
-      file: string;
-    }
   | { kind: "error"; gistId: string; message: string }
-  | { kind: "parse-error"; gistId: string; htmlUrl: string; message: string }
-  | {
-      kind: "ready";
-      gist: GistDocument;
-      file: string;
-      document: ViewerDocument;
-      loadChanges: ChangesLoader;
-    };
+  | { kind: "ready"; gist: GistDocument; loadChanges: ChangesLoader };
 
 export function GistApp() {
   const [route, setRoute] = useState(readRoute);
-  const gistKey =
-    route.kind === "gist" ? `${route.gistId}:${route.file ?? ""}` : undefined;
-  const [loaded, setLoaded] = useState<{ key: string; view: GistView }>();
+  const gistId = route.kind === "gist" ? route.gistId : undefined;
+  // A gist loads once; moving between its files or pages only changes the route.
+  const [loaded, setLoaded] = useState<{ gistId: string; view: GistView }>();
 
   useEffect(() => {
     const onPop = () => setRoute(readRoute());
@@ -63,20 +53,17 @@ export function GistApp() {
   }, []);
 
   useEffect(() => {
-    if (route.kind !== "gist") return;
-    const gistId = route.gistId;
-    const file = route.file;
-    const key = `${gistId}:${file ?? ""}`;
+    if (gistId === undefined) return;
     const abort = new AbortController();
     // oxlint-disable-next-line typescript/no-floating-promises -- The effect owns this load; abort on cleanup.
-    void loadView(gistId, file, abort.signal).then(
+    void loadView(gistId, abort.signal).then(
       (next) => {
-        if (!abort.signal.aborted) setLoaded({ key, view: next });
+        if (!abort.signal.aborted) setLoaded({ gistId, view: next });
       },
       (cause: unknown) => {
         if (abort.signal.aborted) return;
         setLoaded({
-          key,
+          gistId,
           view: {
             kind: "error",
             gistId,
@@ -89,7 +76,7 @@ export function GistApp() {
       },
     );
     return () => abort.abort();
-  }, [route]);
+  }, [gistId]);
 
   if (route.kind === "home") return <Landing />;
   if (route.kind === "invalid") {
@@ -103,7 +90,8 @@ export function GistApp() {
     );
   }
 
-  if (loaded === undefined || loaded.key !== gistKey) return <GistLoading />;
+  if (route.kind !== "gist" || loaded === undefined || loaded.gistId !== gistId)
+    return <GistLoading />;
   const view = loaded.view;
   if (view.kind === "not-found") {
     return (
@@ -131,16 +119,6 @@ export function GistApp() {
       </GistStatus>
     );
   }
-  if (view.kind === "missing-file") {
-    return (
-      <GistStatus title="File not found" gistUrl={view.htmlUrl}>
-        <P>
-          <code>{view.file}</code> is not a markdown file in this gist.
-        </P>
-        <FileLinks gistId={view.gistId} files={view.files} />
-      </GistStatus>
-    );
-  }
   if (view.kind === "error") {
     return (
       <GistStatus title="Failed to load" gistId={view.gistId}>
@@ -148,42 +126,105 @@ export function GistApp() {
       </GistStatus>
     );
   }
-  if (view.kind === "parse-error") {
+  return (
+    <GistPage
+      gist={view.gist}
+      loadChanges={view.loadChanges}
+      file={route.file}
+      onRoute={(next, hash) => {
+        window.history.pushState({}, "", `${next}${hash}`);
+        setRoute(parseGistPath(next));
+      }}
+    />
+  );
+}
+
+/** One file of a loaded gist, or one page when the gist is a book. */
+function GistPage(props: {
+  gist: GistDocument;
+  loadChanges: ChangesLoader;
+  file: string | undefined;
+  onRoute: (path: string, hash: string) => void;
+}) {
+  const gist = props.gist;
+  const chosen = chooseGistFile(gist, props.file);
+  // Parsing runs only when the route or the gist changes; the viewer keeps its own state.
+  const document =
+    chosen === undefined
+      ? undefined
+      : parseViewerDocument(chosen.content, chosen.name);
+  const pageHref = (page: BookPage) =>
+    gistPath(gist.id, page.slug === "" ? undefined : page.slug);
+  const canonical =
+    chosen?.page === undefined ? undefined : pageHref(chosen.page);
+  // A link to a page's file, such as /g/<id>/02-write-through.md, settles on the page's own URL.
+  useEffect(() => {
+    if (canonical !== undefined && window.location.pathname !== canonical) {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${canonical}${window.location.hash}`,
+      );
+    }
+  }, [canonical]);
+
+  if (chosen === undefined || document === undefined) {
     return (
-      <GistStatus
-        title="Could not parse this walkthrough"
-        gistUrl={view.htmlUrl}
-      >
-        <P>{view.message}</P>
+      <GistStatus title="File not found" gistUrl={gist.htmlUrl}>
+        <P>
+          <code>{props.file}</code> is not a markdown file in this gist.
+        </P>
+        <FileLinks gistId={gist.id} files={gist.files} />
       </GistStatus>
     );
   }
-
+  if (document instanceof Error) {
+    return (
+      <GistStatus
+        title="Could not parse this walkthrough"
+        gistUrl={gist.htmlUrl}
+      >
+        <P>{document.message}</P>
+      </GistStatus>
+    );
+  }
+  const book = gist.book;
+  const multiPage =
+    book !== undefined && chosen.page !== undefined && book.pages.length > 1;
   return (
     <GistPinContext.Provider
       value={{
-        gistId: view.gist.id,
-        file: view.file,
-        htmlUrl: view.gist.htmlUrl,
+        gistId: gist.id,
+        file: chosen.name,
+        htmlUrl: gist.htmlUrl,
       }}
     >
-      <HostFilesContext.Provider value={view.gist.sourceFiles}>
-        <ChangesLoaderContext.Provider value={view.loadChanges}>
+      <HostFilesContext.Provider value={gist.sourceFiles}>
+        <ChangesLoaderContext.Provider value={props.loadChanges}>
           <ViewerApp
-            key={`${view.gist.id}:${view.file}`}
-            document={view.document}
+            key={`${gist.id}:${chosen.name}`}
+            document={document}
             mode="gist"
+            book={
+              multiPage
+                ? {
+                    title: book.title,
+                    pages: book.pages,
+                    current: chosen.page,
+                    href: pageHref,
+                    navigate: (page, hash) =>
+                      props.onRoute(pageHref(page), hash),
+                  }
+                : undefined
+            }
             headerActions={
               <GistHeader
-                gistId={view.gist.id}
-                htmlUrl={view.gist.htmlUrl}
-                files={view.gist.files}
-                current={view.file}
-                onSelect={(file) => {
-                  const next = gistPath(view.gist.id, file);
-                  window.history.pushState({}, "", next);
-                  setRoute(parseGistPath(next));
-                }}
+                gistId={gist.id}
+                htmlUrl={gist.htmlUrl}
+                // A book moves between its pages from the page list instead.
+                files={multiPage ? [] : gist.files}
+                current={chosen.name}
+                onSelect={(file) => props.onRoute(gistPath(gist.id, file), "")}
               />
             }
           />
@@ -195,11 +236,10 @@ export function GistApp() {
 
 async function loadView(
   gistId: string,
-  file: string | undefined,
   signal: AbortSignal,
 ): Promise<GistView> {
   await readyGistParser();
-  const loaded = await loadGistMarkdown(gistId, file, signal);
+  const loaded = await loadGistMarkdown(gistId, signal);
   if (loaded.status === "not-found") return { kind: "not-found", gistId };
   if (loaded.status === "forbidden") return { kind: "forbidden", gistId };
   if (loaded.status === "error") {
@@ -208,33 +248,10 @@ async function loadView(
   if (loaded.status === "no-markdown") {
     return { kind: "no-markdown", gistId, htmlUrl: loaded.htmlUrl };
   }
-  if (loaded.status === "missing-file") {
-    return {
-      kind: "missing-file",
-      gistId,
-      htmlUrl: loaded.htmlUrl,
-      files: loaded.files,
-      file: file ?? "",
-    };
-  }
-  const parsed = parseViewerDocument(
-    loaded.gist.chosen.content,
-    loaded.gist.chosen.name,
-  );
-  if (parsed instanceof Error) {
-    return {
-      kind: "parse-error",
-      gistId,
-      htmlUrl: loaded.gist.htmlUrl,
-      message: parsed.message,
-    };
-  }
   const snapshot = loaded.gist.changes;
   return {
     kind: "ready",
     gist: loaded.gist,
-    file: loaded.gist.chosen.name,
-    document: parsed,
     loadChanges: (rev) =>
       Promise.resolve(
         snapshot[rev] ??

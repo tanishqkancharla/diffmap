@@ -149,10 +149,10 @@ Run `npx @tanishqkancharla/diffmap fixtures/book` for an example.
 Share an unlisted gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
 
 ```sh
-npx @tanishqkancharla/diffmap share path/to.md
+npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/
 ```
 
-Hosted viewer: `https://diffmap.dev/g/<gistId>` (optional `/<file.md>`; `#heading` is the table of contents). The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
+A book's pages share one gist. Hosted viewer: `https://diffmap.dev/g/<gistId>` for the cover, `/<slug>` after it for a page (or `/<file.md>` for a file in a gist that is not a book; `#heading` is the table of contents). The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
 
 A spec committed to a GitHub pull request also opens at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`.
 

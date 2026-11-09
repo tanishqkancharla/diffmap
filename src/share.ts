@@ -3,19 +3,23 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { DiffmapFileError, DiffmapShareError } from "./errors.js";
-import { extractTitle } from "./extractDocument.js";
+import { DiffmapShareError } from "./errors.js";
 import { extractGistId, gistViewerUrl } from "./gist/route.ts";
-import { GIST_CHANGES_FILE, GIST_FILES_FILE } from "./changes.js";
+import {
+  GIST_CHANGES_FILE,
+  GIST_FILES_FILE,
+  type Changes,
+  type Rev,
+} from "./changes.js";
 import { readSourceReference } from "./definitions.js";
 import { readChanges, readDocumentChanges } from "./git.js";
 import { isLocalMedia } from "./media.js";
 import {
   collectFences,
   collectMedia,
-  parseViewerDocument,
   type ViewerDocument,
 } from "./parseViewer.js";
+import { parseBook, readBook } from "./readBook.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -31,45 +35,47 @@ export async function shareMarkdownFile(input: {
   isPublic: boolean;
 }) {
   const filePath = path.resolve(input.filePath);
-  const source = await fs.readFile(filePath, "utf8").catch(
-    (cause) =>
-      new DiffmapFileError({
-        path: filePath,
-        reason: "read",
-        cause,
-      }),
-  );
-  if (source instanceof Error) return source;
-
-  const parsed = parseViewerDocument(source, filePath);
-  if (parsed instanceof Error) return parsed;
-  // A gist holds only text files, so the hosted viewer has no local media to load.
-  const localMedia = collectMedia(parsed.nodes).filter(isLocalMedia);
-  if (localMedia.length > 0) {
-    return new DiffmapShareError({
-      reason: `a shared gist cannot show local images or videos (${localMedia.join(", ")}). Link them by https URL, or view the spec with serve`,
-    });
+  const read = await readBook(filePath);
+  if (read instanceof Error) return read;
+  // A book's pages share one flat gist, as they share one directory.
+  const pages = parseBook(read);
+  if (pages instanceof Error) return pages;
+  const changes = new Map<Rev, Changes>();
+  const files: Record<string, string> = {};
+  for (const page of pages) {
+    // A gist holds only text files, so the hosted viewer has no local media to load.
+    const localMedia = collectMedia(page.document.nodes).filter(isLocalMedia);
+    if (localMedia.length > 0) {
+      return new DiffmapShareError({
+        reason: `a shared gist cannot show local images or videos (${localMedia.join(", ")}${read.directory ? ` in ${page.file}` : ""}). Link them by https URL, or view the spec with serve`,
+      });
+    }
+    // The hosted viewer has no git, so the gist carries a snapshot of each commit.
+    const pageChanges = await readDocumentChanges(
+      input.workspaceRoot,
+      page.document,
+    );
+    if (pageChanges instanceof Error) return pageChanges;
+    for (const [rev, value] of pageChanges) changes.set(rev, value);
+    // An uncommitted changes card shows the tree as it is when you share.
+    for (const { rev } of page.document.changeCards) {
+      if (changes.has(rev)) continue;
+      const loaded = await readChanges(input.workspaceRoot, rev);
+      if (loaded instanceof Error) return loaded;
+      changes.set(rev, loaded);
+    }
+    // It has no files either, so excerpts and references without a commit read these.
+    const pageFiles = readDocumentFiles(input.workspaceRoot, page.document);
+    if (pageFiles instanceof Error) return pageFiles;
+    Object.assign(files, pageFiles);
   }
-  // The hosted viewer has no git, so the gist carries a snapshot of each commit.
-  const changes = await readDocumentChanges(input.workspaceRoot, parsed);
-  if (changes instanceof Error) return changes;
-  // An uncommitted changes card shows the tree as it is when you share.
-  for (const { rev } of parsed.changeCards) {
-    if (changes.has(rev)) continue;
-    const loaded = await readChanges(input.workspaceRoot, rev);
-    if (loaded instanceof Error) return loaded;
-    changes.set(rev, loaded);
-  }
-  // It has no files either, so excerpts and references without a commit read these.
-  const files = readDocumentFiles(input.workspaceRoot, parsed);
-  if (files instanceof Error) return files;
 
   const auth = await runGh(["auth", "status"]);
   if (auth instanceof DiffmapShareError) return auth;
 
   const args = ["gist", "create"];
   if (input.isPublic) args.push("--public");
-  args.push("--desc", extractTitle(source), filePath);
+  args.push("--desc", read.book.title, ...pages.map((page) => page.path));
   const snapshots = [
     { name: GIST_CHANGES_FILE, value: Object.fromEntries(changes) },
     { name: GIST_FILES_FILE, value: files },

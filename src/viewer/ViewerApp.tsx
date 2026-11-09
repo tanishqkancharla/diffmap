@@ -111,7 +111,10 @@ export function ViewerApp(props: {
   );
   const contentRef = useRef<HTMLDivElement>(null);
   // localStorage is per origin, so the path names the page: a gist file, a GitHub spec, or a local server's page.
-  const comments = useCommentStore(commentsKey(window.location.pathname));
+  // A book page uses its own URL, which Copy comments reads back for every page.
+  const comments = useCommentStore(
+    commentsKey(book?.href(book.current) ?? window.location.pathname),
+  );
   const closed = useStyles(styles.closed);
   const closedCopy = useStyles(styles.closedCopy);
   const stage = useStyles(styles.stage);

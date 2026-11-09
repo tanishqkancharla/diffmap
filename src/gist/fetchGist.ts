@@ -4,6 +4,7 @@ import {
   type Changes,
   type Rev,
 } from "../changes.ts";
+import { findPage, makeBook, type Book, type BookPage } from "../book.ts";
 import type { HostFiles } from "../host/files.ts";
 import { githubGistUrl, markdownFileNames, pickMarkdownFile } from "./route.ts";
 
@@ -16,7 +17,8 @@ export type GistDocument = {
   id: string;
   htmlUrl: string;
   files: GistMarkdownFile[];
-  chosen: GistMarkdownFile;
+  /** The pages, when the gist's Markdown files form a book: a README.md and numbered pages. */
+  book: Book<BookPage & { source: string }> | undefined;
   /** Snapshot `diffmap share` saved for each commit and changes card the spec references. */
   changes: Record<Rev, Changes>;
   /** Files excerpts and references without a commit read, as they were when shared. */
@@ -28,7 +30,6 @@ export type GistLoadResult =
   | { status: "not-found" }
   | { status: "forbidden" }
   | { status: "no-markdown"; htmlUrl: string }
-  | { status: "missing-file"; htmlUrl: string; files: GistMarkdownFile[] }
   | { status: "error"; message: string };
 
 type GistApiFile = {
@@ -44,9 +45,9 @@ type GistApiResponse = {
   files?: Record<string, GistApiFile>;
 };
 
+/** Every Markdown file in a gist, and the snapshots `diffmap share` saved beside them. */
 export async function loadGistMarkdown(
   gistId: string,
-  fileName: string | undefined,
   signal?: AbortSignal,
 ): Promise<GistLoadResult> {
   const response = await fetch(`https://api.github.com/gists/${gistId}`, {
@@ -97,15 +98,6 @@ export async function loadGistMarkdown(
   }
   if (files.length === 0) return { status: "no-markdown", htmlUrl };
 
-  const chosenName = pickMarkdownFile(
-    files.map((file) => file.name),
-    fileName,
-  );
-  const chosen = files.find((file) => file.name === chosenName);
-  if (chosen === undefined) {
-    return { status: "missing-file", htmlUrl, files };
-  }
-
   // SAFETY: diffmap share writes this file from readDocumentChanges.
   const changes = (await readSnapshot(apiFiles, GIST_CHANGES_FILE, signal)) as
     | Record<Rev, Changes>
@@ -129,7 +121,7 @@ export async function loadGistMarkdown(
       id: typeof payload.id === "string" ? payload.id : gistId,
       htmlUrl,
       files,
-      chosen,
+      book: gistBook(gistId, files),
       changes,
       sourceFiles,
     },
@@ -172,4 +164,31 @@ async function readGistFile(file: GistApiFile, signal?: AbortSignal) {
     return new Error(`Could not fetch gist file "${name}".`);
   }
   return raw.text();
+}
+
+function gistBook(gistId: string, files: GistMarkdownFile[]) {
+  const book = makeBook(
+    gistId,
+    files.map((file) => ({ file: file.name, source: file.content })),
+  );
+  return book instanceof Error ? undefined : book;
+}
+
+/** The file a gist URL names: a book's page by slug or file name, or another gist's file by name. */
+export function chooseGistFile(
+  gist: GistDocument,
+  requested: string | undefined,
+) {
+  if (gist.book !== undefined) {
+    const page = findPage(gist.book, requested);
+    return page === undefined
+      ? undefined
+      : { name: page.file, content: page.source, page };
+  }
+  const name = pickMarkdownFile(
+    gist.files.map((file) => file.name),
+    requested,
+  );
+  const file = gist.files.find((candidate) => candidate.name === name);
+  return file === undefined ? undefined : { ...file, page: undefined };
 }
