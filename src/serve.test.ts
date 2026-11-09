@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 import { DiffmapServeError } from "./errors.js";
-import { startServer, type DiffmapServer } from "./serve.js";
+import { startServer, type DiffmapServer, type ViewerEvent } from "./serve.js";
 
 const execFileAsync = promisify(execFile);
 const srcDir = fileURLToPath(new URL(".", import.meta.url));
@@ -405,6 +405,48 @@ test(
         media.headers.get("content-security-policy") ?? "",
         /script-src 'none'/,
       );
+    } finally {
+      await server.shutdown();
+      await waitForClosed(server);
+    }
+  },
+);
+
+test(
+  "startServer passes on only known viewer events posted as JSON",
+  { timeout: 30_000 },
+  async () => {
+    const events: ViewerEvent[] = [];
+    const server = assertStarted(
+      await startServer({
+        filePath: sampleSpec,
+        workspaceRoot: packageRoot,
+        onViewerEvent: (event) => events.push(event),
+      }),
+    );
+    try {
+      const post = (contentType: string, body: string) =>
+        fetch(`${server.url}/__diffmap/telemetry`, {
+          method: "POST",
+          headers: { "content-type": contentType },
+          body,
+        });
+      const json = (value: unknown) =>
+        post("application/json", JSON.stringify(value));
+      // Unlisted properties are dropped, so the page cannot send anything from the spec.
+      await json({ event: "comment_added", target: "lines", body: "secret" });
+      await json({ event: "code_copied" });
+      // A cross-site form can post text/plain without a CORS preflight, so it must not count.
+      await post("text/plain", JSON.stringify({ event: "code_copied" }));
+      await json({ event: "/etc/passwd" });
+      await json({ event: "comment_added", target: "/etc/passwd" });
+      await json({ event: "comment_added" });
+      await json({ event: "toString" });
+      await post("application/json", "null");
+      assert.deepEqual(events, [
+        { event: "comment_added", target: "lines" },
+        { event: "code_copied" },
+      ]);
     } finally {
       await server.shutdown();
       await waitForClosed(server);

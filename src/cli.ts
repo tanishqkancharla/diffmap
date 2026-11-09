@@ -5,7 +5,7 @@ import { DiffmapFileError } from "./errors.js";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
 import { packageVersion } from "./packageVersion.js";
 import { listRunningDiffmaps } from "./registry.js";
-import { exitAfterTelemetry, trackCommand } from "./telemetry.js";
+import { exitAfterTelemetry, track, trackCommand } from "./telemetry.js";
 import {
   detectInstallMethod,
   fetchLatestVersion,
@@ -40,6 +40,8 @@ async function* runServe(c: ServeContext) {
   trackCommand("serve");
   // Loaded per command so `--version`, `list`, and `update` skip the server's dependencies.
   const { startServer } = await import("./serve.js");
+  let readyAt = Date.now();
+  let opened = false;
   const started = await startServer({
     filePath: resolveFromInvokeCwd(c.args.file),
     workspaceRoot:
@@ -47,13 +49,33 @@ async function* runServe(c: ServeContext) {
         ? resolveFromInvokeCwd(".")
         : resolveFromInvokeCwd(c.options.root),
     port: c.options.port,
+    onViewerEvent({ event, ...properties }) {
+      if (event !== "viewer_opened") return track(event, properties);
+      // Live reloads load the page again; only the first load says this spec was seen.
+      if (opened) return;
+      opened = true;
+      track(event, {
+        seconds_after_serve: Math.round((Date.now() - readyAt) / 1000),
+      });
+    },
   });
+  readyAt = Date.now();
   if (started instanceof Error) {
+    track("serve_result", { ok: false, error: started.name });
     return c.error({
       code: "DIFFMAP",
       message: started.message,
     });
   }
+  // How many of each fence kind the spec uses (a kind it never uses is left out), to see which parts of the guide agents follow.
+  const contents: Record<string, number> = {
+    references: started.document.references.length,
+  };
+  const { collectFences } = await import("./parseViewer.js");
+  for (const fence of collectFences(started.document.nodes))
+    contents[`fence_${fence.kind}`] =
+      (contents[`fence_${fence.kind}`] ?? 0) + 1;
+  track("serve_result", { ok: true, ...contents });
   const output = {
     url: started.url,
     file: started.filePath,

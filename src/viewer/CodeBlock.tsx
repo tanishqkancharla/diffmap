@@ -14,6 +14,7 @@ import { codeFontFamily } from "../codeFont.js";
 import { lineSymbolMatches, type CodeNote } from "../codeNotes.js";
 import { NoteText, NoteTokens, type Token } from "./notes.tsx";
 import { fenceTitle, pierreShell } from "./pierre.ts";
+import { trackViewerEvent } from "./telemetry.ts";
 
 /** A pseudocode fence with an optional title, highlighted lines, hover notes, and a copy button. */
 export function CodeBlock(props: {
@@ -94,6 +95,7 @@ export function CodeBlock(props: {
             () => {
               setCopied(true);
               trackCopy(props.lang);
+              trackViewerEvent({ event: "code_copied" });
             },
             (cause) => console.warn("diffmap copy failed", cause),
           );

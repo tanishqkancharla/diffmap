@@ -5,6 +5,7 @@ import type { ViewerDocument } from "../parseViewer.js";
 import { ViewerApp } from "./ViewerApp.tsx";
 import { GistStatus } from "../gist/GistStatus.tsx";
 import { localMediaUrl, MediaResolverContext } from "./Media.tsx";
+import { enableViewerTelemetry, trackViewerEvent } from "./telemetry.ts";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -14,6 +15,12 @@ if (root === null) throw new Error("diffmap root element is missing");
 const { viewerDocument, parseError } = (await fetch("/__diffmap/document").then(
   (response) => response.json(),
 )) as { viewerDocument?: ViewerDocument; parseError?: string };
+
+enableViewerTelemetry();
+trackViewerEvent({ event: "viewer_opened" });
+// The spec stopped parsing after an edit, so the page shows the error instead.
+if (viewerDocument === undefined)
+  trackViewerEvent({ event: "viewer_error", kind: "document" });
 
 // `serve` sends a message whenever the spec file changes.
 const reloadToken =

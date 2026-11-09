@@ -6,6 +6,7 @@ import { useGitHubPin } from "../github/pin.ts";
 import { fetchPinnedBlob, findSymbolLineRange } from "../github/fetchRepo.ts";
 import { useHostFiles } from "../host/files.ts";
 import { useViewerMode } from "./viewerMode.ts";
+import { trackViewerEvent } from "./telemetry.ts";
 
 export async function requestSource(
   endpoint: "source" | "definition",
@@ -102,6 +103,9 @@ export function useSourceReference(reference: SourceReference | undefined) {
     if (reference.end !== undefined) params.set("end", String(reference.end));
     // oxlint-disable-next-line typescript/no-floating-promises -- The effect owns its asynchronous source result.
     void requestSource("source", params).then((result) => {
+      // A reference the spec names but the workspace does not have.
+      if (result instanceof Error)
+        trackViewerEvent({ event: "viewer_error", kind: "source" });
       if (active) setResolution({ reference, result });
     });
     return () => {
