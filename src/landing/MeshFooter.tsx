@@ -1,20 +1,19 @@
 import { colors, flex, text } from "maui";
 import { style, useStyles } from "purse-styles";
-import type { Fence as FenceModel } from "../parseFence.ts";
 import { Mesh, footerBlobs, glassCode } from "./Mesh.tsx";
 import {
+  BranchPrompt,
   DOCS_URL,
   GITHUB_URL,
   Logo,
   PROMPT_WIDTH,
-  SpecFence,
 } from "./shared.tsx";
 
 /**
  * The page's last word: a diff's two colors as a grainy mesh gradient
  * around the tagline, red flowing up to the left and green down to the right.
  */
-export function MeshFooter(props: { prompt: FenceModel }) {
+export function MeshFooter() {
   const root = useStyles(styles.root);
   const content = useStyles(styles.content);
   const brand = useStyles(styles.brand);
@@ -37,7 +36,7 @@ export function MeshFooter(props: { prompt: FenceModel }) {
         </a>
         <p className={tagline}>Review the design, not the line diff.</p>
         <div className={prompt}>
-          <SpecFence fence={props.prompt} />
+          <BranchPrompt />
         </div>
         <div className={meta}>
           <a href={GITHUB_URL}>GitHub</a>
