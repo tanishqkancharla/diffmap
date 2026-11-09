@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,6 +10,7 @@ import {
   text,
 } from "maui";
 import { useReducedMotion } from "motion/react";
+import { createPortal } from "react-dom";
 import { style, useStyles } from "purse-styles";
 import type { ViewerDocument } from "../parseViewer.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
@@ -29,6 +30,12 @@ const TITLE_CENTER = 10;
 const CORNER = 6;
 /** The text fades in, then the line draws from it to the part, then the dot lands. */
 const DRAW_MS = 520;
+/** On touch: the column in the window's 16px margin, left of the spec, where lines run up to their part. */
+const LINE_X = 4;
+/** On touch: the caption's height at the screen's bottom edge, which parts must clear to count as on screen. */
+const CAPTION_SPACE = 96;
+/** On touch: the corner where a line turns from the margin toward its part. */
+const ELBOW_RADIUS = 6;
 
 type Callout = {
   /** The part of the spec it explains, found inside the demo's article. */
@@ -101,13 +108,20 @@ const callouts: Callout[] = [
   },
 ];
 
-/** `x` is the target's near edge: its left edge for a left callout, its right edge for a right one. */
-type Placement = { visible: boolean; x: number; y: number };
+/**
+ * `x` is the target's near edge: its left edge for a left callout, its right
+ * edge for a right one. On touch, `x`, `y`, and `span` are the part's left
+ * edge, top, and height inside the spec's article, which scrolling does not
+ * change.
+ */
+type Placement = { visible: boolean; x: number; y: number; span: number };
 type Layout = {
   frameLeft: number;
   frameRight: number;
   width: number;
   height: number;
+  /** On touch: how far below the screen's top edge the window's sticky bars end. */
+  barsBottom: number;
   placements: Placement[];
 };
 
@@ -153,6 +167,8 @@ function LoadedDemo(props: { document: ViewerDocument }) {
   // How far the spec scrolls; the section is that much taller than the window.
   const [range, setRange] = useState(0);
   const [layout, setLayout] = useState<Layout>();
+  // On touch, lines are drawn inside the article, under the spec's sticky title bar.
+  const [articleElement, setArticleElement] = useState<HTMLElement>();
 
   // Built once, so callout updates on every scroll do not re-render the viewer.
   const viewer = useMemo(
@@ -167,6 +183,7 @@ function LoadedDemo(props: { document: ViewerDocument }) {
 
   useEffect(() => {
     const article = frame.current!.querySelector("article")!;
+    setArticleElement(article);
     let frameRequest = 0;
     let lastLayout = "";
 
@@ -187,20 +204,34 @@ function LoadedDemo(props: { document: ViewerDocument }) {
         ? {
             top: frame.current!.querySelector("header")!.getBoundingClientRect()
               .bottom,
-            bottom: Math.min(articleRect.bottom, window.innerHeight),
+            bottom: Math.min(
+              articleRect.bottom,
+              window.innerHeight - CAPTION_SPACE,
+            ),
           }
         : articleRect;
       const measured = callouts.map((callout) => {
         const target = article.querySelector(callout.selector);
-        if (target === null) return { onScreen: false, x: 0, y: 0 };
+        if (target === null) return { onScreen: false, x: 0, y: 0, span: 0 };
         const rect = target.getBoundingClientRect();
+        const onScreen =
+          rect.top < view.bottom - 40 && rect.bottom > view.top + 40;
+        // The line is drawn in the window, so it moves with the part as the page scrolls.
+        if (touch)
+          return {
+            onScreen,
+            x: Math.round(rect.left - articleRect.left),
+            y: Math.round(rect.top - articleRect.top),
+            span: Math.round(rect.height),
+          };
         // Small targets such as a link take the line at their middle; cards near their top.
         const anchor = Math.min(
           Math.max(rect.top + Math.min(rect.height / 2, 18), view.top + 28),
           view.bottom - 28,
         );
         return {
-          onScreen: rect.top < view.bottom - 40 && rect.bottom > view.top + 40,
+          onScreen,
+          span: 0,
           x:
             (callout.side === "left"
               ? rect.left - TARGET_GAP
@@ -221,10 +252,16 @@ function LoadedDemo(props: { document: ViewerDocument }) {
         frameRight: frameRect.right - stageRect.left,
         width: stageRect.width,
         height: stageRect.height,
+        barsBottom: touch
+          ? NAV_HEIGHT +
+            CHROME_HEIGHT +
+            frame.current!.querySelector("header")!.offsetHeight
+          : 0,
         placements: measured.map((part, index) => ({
           visible: shown.has(index),
           x: Math.round(part.x),
           y: Math.round(part.y),
+          span: part.span,
         })),
       };
       // Most scroll frames move nothing the callouts draw, so skip their re-render.
@@ -280,6 +317,11 @@ function LoadedDemo(props: { document: ViewerDocument }) {
           <div className={viewerClass} data-touch={touch}>
             {viewer}
           </div>
+          {layout !== undefined &&
+            !gutters &&
+            articleElement !== undefined &&
+            touch &&
+            createPortal(<TouchLine layout={layout} />, articleElement)}
           {layout !== undefined &&
             !gutters && (
               // On touch, held at the screen's bottom edge while the window passes.
@@ -407,6 +449,72 @@ function elbow(
 }
 
 /** Narrow windows have no room beside the frame, so the current callout floats at its bottom. */
+/**
+ * On touch, a line from the part straight down into the caption. It hangs
+ * from the part inside the window, so it scrolls with the part on its own;
+ * the caption covers its lower end. On a tall part scrolled past its top,
+ * the dot sticks below the window's bars until the part's bottom passes.
+ */
+function TouchLine(props: { layout: Layout }) {
+  const index = props.layout.placements.findLastIndex(
+    (placement) => placement.visible,
+  );
+  const callout = callouts[index];
+  if (callout === undefined) return undefined;
+  return (
+    <DrawnLine
+      key={callout.selector}
+      placement={props.layout.placements[index]!}
+      stickAt={props.layout.barsBottom + 12}
+    />
+  );
+}
+
+function DrawnLine(props: { placement: Placement; stickAt: number }) {
+  const root = useStyles(styles.touchLine);
+  const pin = useStyles(styles.touchPin);
+  const dot = useRef<HTMLElement>(null);
+  const turn = useRef<HTMLElement>(null);
+  const line = useRef<HTMLElement>(null);
+  const reduceMotion = useReducedMotion();
+  // The dot lands on the part's border, then the line turns out of it and drops into the caption.
+  useLayoutEffect(() => {
+    if (reduceMotion === true) return;
+    dot.current!.animate([{ scale: 0 }, { scale: 1 }], {
+      duration: 240,
+      easing: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+      fill: "backwards",
+    });
+    turn.current!.animate(
+      [{ clipPath: "inset(0 0 0 100%)" }, { clipPath: "inset(0)" }],
+      { duration: 140, delay: 120, easing: "ease-in", fill: "backwards" },
+    );
+    line.current!.animate([{ scale: "1 0" }, { scale: "1 1" }], {
+      duration: DRAW_MS * 1.4,
+      delay: 260,
+      easing: "cubic-bezier(0.65, 0, 0.35, 1)",
+      fill: "backwards",
+    });
+  }, [reduceMotion]);
+  const { x, y, span } = props.placement;
+  // From the line's column in the margin to the part's left border, turning on a rounded corner.
+  const run = Math.max(x - LINE_X, 0);
+  const corner = Math.min(ELBOW_RADIUS, run);
+  // Small targets such as a link take the dot at their middle; cards near their top.
+  return (
+    <div className={root} style={{ top: y, height: span }} aria-hidden>
+      <div
+        className={pin}
+        style={{ top: props.stickAt, marginTop: Math.min(span / 2, 18) }}
+      >
+        <i ref={line} style={{ top: corner }} />
+        <i ref={turn} style={{ width: run, height: corner }} />
+        <i ref={dot} style={{ left: run }} />
+      </div>
+    </div>
+  );
+}
+
 function InlineCaption(props: { layout: Layout }) {
   const root = useStyles(styles.inline);
   const title = useStyles(styles.calloutTitle);
@@ -478,6 +586,7 @@ const styles = {
       gridTemplateRows: "auto",
     },
     "&[data-touch='true'] article": {
+      position: "relative",
       overflowY: "visible",
       containerType: "normal",
     },
@@ -489,7 +598,62 @@ const styles = {
     },
   }),
   // Zero height, so holding the caption adds no space at the window's end.
-  dock: style({ position: "sticky", bottom: 0, height: 0, zIndex: 3 }),
+  dock: style({
+    position: "sticky",
+    bottom: 0,
+    height: 0,
+    zIndex: 3,
+    // Across the window's bottom edge, so it covers the lower end of its line.
+    "& > div": {
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderRadius: "10px 10px 0 0",
+      padding: "12px 16px 14px",
+    },
+  }),
+  // Spans its part, so the sticky dot inside it is released with the part's bottom.
+  touchLine: style({
+    position: "absolute",
+    left: `${LINE_X}px`,
+    width: 0,
+    pointerEvents: "none",
+    zIndex: 1,
+  }),
+  touchPin: style({
+    position: "sticky",
+    height: 0,
+    // A screen tall, so it always reaches the caption below.
+    "& > i:nth-child(1)": {
+      position: "absolute",
+      left: "-0.625px",
+      width: "1.25px",
+      height: "100svh",
+      backgroundColor: colors.blue[8],
+      transformOrigin: "top",
+    },
+    // The turn: the top and left borders of a box with one rounded corner.
+    "& > i:nth-child(2)": {
+      position: "absolute",
+      left: "-0.625px",
+      top: "-0.625px",
+      boxSizing: "content-box",
+      borderTop: `1.25px solid ${colors.blue[8]}`,
+      borderLeft: `1.25px solid ${colors.blue[8]}`,
+      borderTopLeftRadius: `${ELBOW_RADIUS}px`,
+    },
+    // Set into the part's border, ringed in page color so it reads over the border line.
+    "& > i:nth-child(3)": {
+      position: "absolute",
+      top: "-3.5px",
+      width: "7px",
+      height: "7px",
+      marginLeft: "-3.5px",
+      borderRadius: "50%",
+      backgroundColor: colors.blue[9],
+      boxShadow: `0 0 0 2px ${backgroundColor.app}`,
+    },
+  }),
   bar: style({
     display: "grid",
     gridTemplateColumns: "1fr minmax(0, auto) 1fr",
