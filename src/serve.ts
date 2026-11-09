@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import type { ViteDevServer } from "vite";
 import { DiffmapFileError, DiffmapServeError } from "./errors.js";
 import { extractTitle } from "./extractDocument.js";
-import { parseViewerDocument } from "./parseViewer.js";
+import { parseViewerDocument, type ViewerDocument } from "./parseViewer.js";
 import {
   findUnlistedFiles,
   listDeltas,
@@ -26,14 +26,43 @@ export type DiffmapServer = {
   filePath: string;
   /** Changed files a commit's `changes` card leaves unlisted, one line per card. */
   warnings: string[];
+  /** The spec as it was parsed at startup. */
+  document: ViewerDocument;
   shutdown: () => Promise<void>;
   closed: Promise<void>;
 };
+
+/** What the local viewer may report to `/__diffmap/telemetry`, with each property's allowed values; nothing from the spec. */
+const viewerEventSchema = {
+  viewer_opened: {},
+  viewer_engaged: { trigger: ["time", "scroll"] },
+  comment_added: { target: ["text", "lines"] },
+  comments_copied: {},
+  code_copied: {},
+  diff_opened: {},
+  reference_opened: {},
+  file_reviewed: {},
+  range_changed: {},
+  diagram_used: { action: ["play", "fullscreen"] },
+  viewer_error: { kind: ["document", "source", "excerpt", "changes"] },
+  server_closed: {},
+} as const satisfies Record<string, Record<string, readonly string[]>>;
+
+type ViewerEventSchema = typeof viewerEventSchema;
+export type ViewerEvent = {
+  [E in keyof ViewerEventSchema]: { event: E } & {
+    -readonly [
+      P in keyof ViewerEventSchema[E]
+    ]: ViewerEventSchema[E][P] extends readonly (infer V)[] ? V : never;
+  };
+}[keyof ViewerEventSchema];
 
 export type StartServerInput = {
   filePath: string;
   workspaceRoot: string;
   port?: number;
+  /** Called for each event the viewer page reports; the CLI forwards them to telemetry. */
+  onViewerEvent?: (event: ViewerEvent) => void;
 };
 
 const packageRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -217,6 +246,16 @@ export async function startServer(input: StartServerInput) {
       await serveDocument({ filePath, cache: documentCache, res });
       return;
     }
+    if (req.method === "POST" && pathname === "/__diffmap/telemetry") {
+      // A JSON body needs a CORS preflight, which this server never grants, so only the viewer page can post here.
+      const event = req.headers["content-type"]?.startsWith("application/json")
+        ? await readViewerEvent(req)
+        : undefined;
+      if (event !== undefined) input.onViewerEvent?.(event);
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
     if (get && pathname === "/__diffmap/media") {
       const resolved = path.resolve(
         path.dirname(filePath),
@@ -352,9 +391,40 @@ export async function startServer(input: StartServerInput) {
     url,
     filePath,
     warnings,
+    document: parsed,
     shutdown,
     closed: closedBarrier.closed,
   };
+}
+
+/** The event in a `{ "event": …, …properties }` body, or undefined unless it matches viewerEventSchema. */
+async function readViewerEvent(req: http.IncomingMessage) {
+  let body = "";
+  for await (const chunk of req) {
+    body += String(chunk);
+    if (body.length > 1_000) return undefined;
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+  if (typeof value !== "object" || value === null) return undefined;
+  const { event, ...sent } = value as Record<string, unknown>;
+  if (typeof event !== "string" || !Object.hasOwn(viewerEventSchema, event))
+    return undefined;
+  const allowed: Record<string, readonly string[]> =
+    viewerEventSchema[event as keyof ViewerEventSchema];
+  const properties: Record<string, string> = {};
+  for (const [name, values] of Object.entries(allowed)) {
+    const sentValue = sent[name];
+    if (typeof sentValue !== "string" || !values.includes(sentValue))
+      return undefined;
+    properties[name] = sentValue;
+  }
+  // SAFETY: the event is a schema key, and each of its properties holds one of the schema's values.
+  return { event, ...properties } as ViewerEvent;
 }
 
 function isAllowedHost(host: string | undefined) {

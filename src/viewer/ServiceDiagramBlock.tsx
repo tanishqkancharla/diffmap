@@ -20,6 +20,7 @@ import { style, useStyles } from "purse-styles";
 import type { SourceNavigation } from "../annotations.js";
 import { fenceTitle, pierreShell } from "./pierre.js";
 import { ServiceStage, TRAVEL_MS } from "./ServiceStage.tsx";
+import { trackViewerEvent } from "./telemetry.ts";
 import {
   serviceStateAt,
   type ServiceDiagram,
@@ -127,6 +128,7 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
     if (playing) return setPlaying(false);
     if (step >= last) goTo(0, false);
     setPlaying(true);
+    trackViewerEvent({ event: "diagram_used", action: "play" });
   };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "ArrowLeft") {

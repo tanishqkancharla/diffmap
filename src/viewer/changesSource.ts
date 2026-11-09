@@ -8,6 +8,7 @@ import {
   type Rev,
 } from "../changes.js";
 import { DiffmapDefinitionError } from "../errors.js";
+import { trackViewerEvent } from "./telemetry.ts";
 
 /** Where a viewer reads changes: the local server, GitHub, or a gist snapshot. */
 export type ChangesLoader = (rev: Rev) => Promise<Changes | Error>;
@@ -35,6 +36,10 @@ export const loadLocalChanges: ChangesLoader = (rev) => {
           cause,
         }),
     );
+  void request.then((changes) => {
+    if (changes instanceof Error)
+      trackViewerEvent({ event: "viewer_error", kind: "changes" });
+  });
   if (isCommitRev(rev)) localCache.set(rev, request);
   return request;
 };

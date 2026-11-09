@@ -524,7 +524,7 @@ literal, so `` `[[path]]` `` shows the syntax itself.
 
 ## Telemetry
 
-The CLI sends one anonymous event to [PostHog](https://posthog.com) each time you run a command. The event holds the command name (`serve`, `share`, `guide`, `list`, or `update`), the diffmap version, your OS and CPU architecture, the Node version, and a random ID stored in `~/.config/diffmap/telemetry-id`. It never includes file paths, spec contents, or anything from your repository. The viewer sends nothing.
+The CLI sends anonymous usage events to [PostHog](https://posthog.com): which commands run, whether `serve` started, which coding agent ran it, and which features of the local viewer get used. Events never include file paths, spec contents, comments, or anything else from your repository. [TELEMETRY.md](TELEMETRY.md) lists every event and field.
 
 Turn it off with `DIFFMAP_TELEMETRY=0` (or `false`) or `DO_NOT_TRACK=1`. It is also off when `CI` is set.
 

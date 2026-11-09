@@ -29,6 +29,7 @@ import {
   TOC_SIDE_MARGIN_PX,
 } from "./TableOfContents.tsx";
 import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
+import { trackEngagement, trackViewerEvent } from "./telemetry.ts";
 
 type ViewerMeta = {
   title: string;
@@ -106,6 +107,17 @@ export function ViewerApp(props: {
   useEffect(() => {
     document.title = title;
   }, [title]);
+  // Covers both the Diff button and an annotation click, which also opens the panel.
+  useEffect(() => {
+    if (diffPanelOpen) trackViewerEvent({ event: "diff_opened" });
+  }, [diffPanelOpen]);
+  useEffect(
+    () =>
+      articleRef.current === null
+        ? undefined
+        : trackEngagement(articleRef.current),
+    [],
+  );
 
   useEffect(() => {
     const id = decodeURIComponent(window.location.hash.replace(/^#/, ""));
@@ -157,6 +169,7 @@ export function ViewerApp(props: {
               {props.mode === "local" && (
                 <CloseServerButton
                   onClick={() => {
+                    trackViewerEvent({ event: "server_closed" });
                     setShutDown(true);
                     // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
                     void closeViewer();
@@ -178,6 +191,7 @@ export function ViewerApp(props: {
                       document={viewerDocument}
                       selectedAnnotation={selection?.annotation}
                       onSelectAnnotation={(line) => {
+                        trackViewerEvent({ event: "reference_opened" });
                         setShowDiffPanel(true);
                         select({
                           annotation: line,
@@ -204,6 +218,7 @@ export function ViewerApp(props: {
                   onRevChange={
                     local
                       ? (rev) => {
+                          trackViewerEvent({ event: "range_changed" });
                           // A focused reference's lines belong to its own rev.
                           setSelection(undefined);
                           setPanelRev(rev);

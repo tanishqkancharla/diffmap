@@ -9,6 +9,7 @@ import {
 } from "./lineComments.tsx";
 import { pierreFileOptions, pierreShell } from "./pierre.ts";
 import { useViewerMode } from "./viewerMode.ts";
+import { trackViewerEvent } from "./telemetry.ts";
 import { useGitHubPin } from "../github/pin.ts";
 import { useHostFiles } from "../host/files.ts";
 import { fetchPinnedBlob } from "../github/fetchRepo.ts";
@@ -106,7 +107,10 @@ function useFileExcerpt(input: { path: string; start: number; end: number }) {
     });
     void fetch(`/__diffmap/file?${params.toString()}`)
       .then((response) => {
-        if (!response.ok) return undefined;
+        if (!response.ok) {
+          trackViewerEvent({ event: "viewer_error", kind: "excerpt" });
+          return undefined;
+        }
         return response.json();
       })
       .then((value) => {
@@ -115,6 +119,7 @@ function useFileExcerpt(input: { path: string; start: number; end: number }) {
         setExcerpt(value as FileExcerptPayload);
       })
       .catch((cause) => {
+        trackViewerEvent({ event: "viewer_error", kind: "excerpt" });
         console.warn("diffmap file excerpt failed", cause);
       });
   }, [input.path, input.start, input.end, mode, pin, hostFiles]);

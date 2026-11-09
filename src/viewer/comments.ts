@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { trackViewerEvent } from "./telemetry.ts";
 
 /** Text the reader highlighted on the page, found again by its quote and surroundings. */
 export type TextAnchor = {
@@ -94,6 +95,7 @@ export function useCommentStore(key: string): CommentStore {
         setComments((current) => [...current, { id, body, anchor: draft }]);
         setDraft(undefined);
         setActiveId(id);
+        trackViewerEvent({ event: "comment_added", target: draft.kind });
       },
       update: (id, body) =>
         setComments((current) =>

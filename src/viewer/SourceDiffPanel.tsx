@@ -61,6 +61,7 @@ import {
 } from "./pierre.js";
 import { useReviewedFiles } from "./reviewed.ts";
 import { sourcePanelPin } from "./sourceHeader.ts";
+import { trackViewerEvent } from "./telemetry.ts";
 import { useViewerMode } from "./viewerMode.ts";
 
 export type SourceSelection = {
@@ -306,6 +307,7 @@ export function SourceDiffPanel(props: {
     const changed = changedFiles.get(path);
     if (changed === undefined) return;
     setReviewed(changed, value);
+    if (value) trackViewerEvent({ event: "file_reviewed" });
     const byDefault = value && path !== focusedPath;
     const toggled = new Set(collapse.toggled);
     if (byDefault === value) toggled.delete(path);

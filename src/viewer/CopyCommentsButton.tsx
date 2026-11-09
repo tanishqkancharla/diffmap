@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button, buttonStyles, Check, colors, Copy } from "maui";
 import { style, useStyles } from "purse-styles";
 import { formatComments, useComments } from "./comments.ts";
+import { trackViewerEvent } from "./telemetry.ts";
 
 /** Copies every comment as Markdown to paste to an agent. Hidden until there is one. */
 export function CopyCommentsButton(props: {
@@ -27,7 +28,10 @@ export function CopyCommentsButton(props: {
         });
         // oxlint-disable-next-line typescript/no-floating-promises -- Press handlers cannot await; the label only changes once the write succeeds.
         void navigator.clipboard.writeText(markdown).then(
-          () => setCopied(true),
+          () => {
+            setCopied(true);
+            trackViewerEvent({ event: "comments_copied" });
+          },
           (cause) => console.warn("diffmap copy failed", cause),
         );
       }}

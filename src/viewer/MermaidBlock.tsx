@@ -18,6 +18,7 @@ import type { SourceNavigation } from "../annotations.js";
 import { markDiagramChanges } from "./diagramDiff.js";
 import { linkDiagram } from "./diagramLinks.js";
 import { fenceTitle, pierreShell } from "./pierre.js";
+import { trackViewerEvent } from "./telemetry.ts";
 
 type MermaidProps = {
   svg: NonNullable<Extract<Fence, { kind: "mermaid" }>["svg"]>;
@@ -44,7 +45,10 @@ export function MermaidBlock(props: MermaidProps) {
         size="sm"
         variant="quiet"
         aria-label="Full screen"
-        onClick={() => setFullscreen(true)}
+        onClick={() => {
+          setFullscreen(true);
+          trackViewerEvent({ event: "diagram_used", action: "fullscreen" });
+        }}
       >
         <Maximize size="xs" />
       </Button>
