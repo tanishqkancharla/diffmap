@@ -66,6 +66,11 @@ export function useComments() {
   return store;
 }
 
+/** The localStorage key for one page's comments, by its URL path. */
+export function commentsKey(pathname: string) {
+  return `diffmap-comments:${pathname}`;
+}
+
 /** Comments for one page, saved in localStorage under `key`. */
 export function useCommentStore(key: string): CommentStore {
   const [comments, setComments] = useState(() => loadComments(key));
@@ -113,7 +118,7 @@ export function useCommentStore(key: string): CommentStore {
   );
 }
 
-function loadComments(key: string): ReviewComment[] {
+export function loadComments(key: string): ReviewComment[] {
   try {
     const saved = localStorage.getItem(key);
     if (saved === null) return [];
@@ -124,34 +129,50 @@ function loadComments(key: string): ReviewComment[] {
   }
 }
 
-/** Every comment as a Markdown list to paste to an agent. */
+/** Every comment as a Markdown list to paste to an agent; a book's comments go under each page's title. */
 export function formatComments(input: {
   title: string;
   /** The document's file path or URL. */
   source: string | undefined;
   comments: ReviewComment[];
+  /** Every page of a book with its comments, in book order. */
+  pages?: { title: string; comments: ReviewComment[] }[];
 }): string {
   const heading =
     input.source === undefined
       ? `Review comments on "${input.title}":`
       : `Review comments on "${input.title}" (${input.source}):`;
-  const items = input.comments.map((comment, index) => {
-    const marker = `${String(index + 1)}. `;
-    const indent = " ".repeat(marker.length);
-    const block = [
-      anchorLocation(comment.anchor),
-      ...anchorQuote(comment.anchor),
-      "",
-      ...comment.body.trim().split("\n"),
-    ];
-    return block
-      .map((line, i) => {
-        if (i === 0) return marker + line;
-        return line === "" ? "" : indent + line;
-      })
-      .join("\n");
-  });
-  return [heading, ...items].join("\n\n") + "\n";
+  const groups = input.pages ?? [
+    { title: undefined, comments: input.comments },
+  ];
+  const blocks: string[] = [heading];
+  let number = 0;
+  for (const group of groups) {
+    if (group.comments.length === 0) continue;
+    if (group.title !== undefined) blocks.push(`## ${group.title}`);
+    for (const comment of group.comments) {
+      number += 1;
+      blocks.push(formatComment(comment, number));
+    }
+  }
+  return blocks.join("\n\n") + "\n";
+}
+
+function formatComment(comment: ReviewComment, number: number) {
+  const marker = `${String(number)}. `;
+  const indent = " ".repeat(marker.length);
+  const block = [
+    anchorLocation(comment.anchor),
+    ...anchorQuote(comment.anchor),
+    "",
+    ...comment.body.trim().split("\n"),
+  ];
+  return block
+    .map((line, i) => {
+      if (i === 0) return marker + line;
+      return line === "" ? "" : indent + line;
+    })
+    .join("\n");
 }
 
 function anchorLocation(anchor: CommentAnchor) {

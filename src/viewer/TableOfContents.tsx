@@ -3,6 +3,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type MouseEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -20,9 +21,18 @@ import {
   text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
+import type { BookPage } from "../book.js";
 import type { ViewerHeading } from "../parseViewer.js";
+import {
+  isMultiPage,
+  navigateOnClick,
+  useBook,
+  type BookNav,
+} from "./bookNav.tsx";
 
-type TocItem = ViewerHeading & { children: TocItem[] };
+/** A heading on this page, or in a book, a page with the current page's headings under it. */
+type TocEntryData = ViewerHeading & { page?: BookPage; currentPage?: boolean };
+type TocItem = TocEntryData & { children: TocItem[] };
 
 const TOC_LINE_MAX_PX = 12;
 const TOC_LINE_MIN_PX = 3;
@@ -56,8 +66,34 @@ export const TOC_SIDE_MARGIN_PX = 48;
  */
 const TOC_DOCKED_MIN_GUTTER_PX = 220;
 
-export function hasTableOfContents(headings: ViewerHeading[]) {
-  return tocHeadings(headings).length > 0;
+export function hasTableOfContents(
+  headings: ViewerHeading[],
+  book: BookNav | undefined,
+) {
+  return tocHeadings(headings).length > 0 || isMultiPage(book);
+}
+
+function tocEntries(
+  headings: ViewerHeading[],
+  book: BookNav | undefined,
+): TocEntryData[] {
+  const onPage = tocHeadings(headings);
+  if (!isMultiPage(book)) return onPage;
+  return book.pages.flatMap((page) => [
+    {
+      id: `diffmap-page:${page.slug}`,
+      text: page.title,
+      level: 1 as const,
+      page,
+      currentPage: page === book.current,
+    },
+    ...(page === book.current
+      ? onPage.map((heading) => ({
+          ...heading,
+          level: Math.max(heading.level, 2) as ViewerHeading["level"],
+        }))
+      : []),
+  ]);
 }
 
 export function tocLineWidth(level: number, shallowestLevel: number) {
@@ -72,7 +108,8 @@ export function TableOfContents(props: {
   drawerOpen: boolean;
   onDrawerOpenChange: (open: boolean) => void;
 }) {
-  const headings = tocHeadings(props.headings);
+  const book = useBook();
+  const headings = tocEntries(props.headings, book);
   const items = nestHeadings(headings);
   const { activeId, setActiveId } = useActiveHeading(
     props.headings,
@@ -87,12 +124,25 @@ export function TableOfContents(props: {
 
   if (items.length === 0) return undefined;
 
+  // The current page's entry returns to its top; another page's opens that page.
+  const openPage = (event: MouseEvent, page: BookPage) => {
+    if (book === undefined) return;
+    if (page !== book.current) {
+      navigateOnClick(event, book, page);
+      return;
+    }
+    event.preventDefault();
+    props.articleRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const list = (
     <TocList
       items={items}
       className={listClass}
       activeId={activeId}
       onSelect={setActiveId}
+      onPage={openPage}
+      pageHref={book?.href}
     />
   );
 
@@ -130,6 +180,11 @@ export function TableOfContents(props: {
               setActiveId(id);
               props.onDrawerOpenChange(false);
             }}
+            onPage={(event, page) => {
+              openPage(event, page);
+              props.onDrawerOpenChange(false);
+            }}
+            pageHref={book?.href}
           />
         </nav>
       </Drawer>
@@ -139,7 +194,7 @@ export function TableOfContents(props: {
 
 /** Heading lines that open the list in a floating card on hover. */
 function TocRail(props: {
-  headings: ViewerHeading[];
+  headings: TocEntryData[];
   activeId: string | undefined;
   children: ReactNode;
 }) {
@@ -209,7 +264,11 @@ function TocRail(props: {
           className={lineClass}
           data-diffmap-kind="toc-line"
           data-level={heading.level}
-          data-current={props.activeId === heading.id ? "true" : "false"}
+          data-current={
+            props.activeId === heading.id || heading.currentPage === true
+              ? "true"
+              : "false"
+          }
           style={{ width: tocLineWidth(heading.level, shallowest) }}
         />
       ))}
@@ -235,60 +294,60 @@ function TocRail(props: {
   );
 }
 
-function TocList(props: {
-  items: TocItem[];
+type TocListProps = {
   className: string;
   activeId: string | undefined;
   onSelect: (id: string) => void;
-}) {
+  onPage: (event: MouseEvent, page: BookPage) => void;
+  pageHref: ((page: BookPage) => string) | undefined;
+};
+
+function TocList(props: TocListProps & { items: TocItem[] }) {
   return (
     <ol className={props.className}>
       {props.items.map((item) => (
-        <TocEntry
-          key={item.id}
-          item={item}
-          listClass={props.className}
-          activeId={props.activeId}
-          onSelect={props.onSelect}
-        />
+        <TocEntry key={item.id} {...props} item={item} />
       ))}
     </ol>
   );
 }
 
-function TocEntry(props: {
-  item: TocItem;
-  listClass: string;
-  activeId: string | undefined;
-  onSelect: (id: string) => void;
-}) {
+function TocEntry(props: TocListProps & { item: TocItem }) {
   const itemClass = useStyles(styles.item);
   const linkClass = useStyles(styles.link);
   const current = props.activeId === props.item.id;
+  const page = props.item.page;
   return (
     <li className={itemClass}>
-      <a
-        className={linkClass}
-        href={`#${props.item.id}`}
-        aria-current={current ? "location" : undefined}
-        onClick={(event) => {
-          const heading = document.getElementById(props.item.id);
-          if (!heading) return;
-          event.preventDefault();
-          props.onSelect(props.item.id);
-          heading.scrollIntoView({ behavior: "smooth", block: "start" });
-          history.pushState({}, "", `#${props.item.id}`);
-        }}
-      >
-        {props.item.text}
-      </a>
+      {page !== undefined && props.pageHref !== undefined ? (
+        <a
+          className={linkClass}
+          href={props.pageHref(page)}
+          data-diffmap-kind="toc-page"
+          aria-current={props.item.currentPage === true ? "page" : undefined}
+          onClick={(event) => props.onPage(event, page)}
+        >
+          {props.item.text}
+        </a>
+      ) : (
+        <a
+          className={linkClass}
+          href={`#${props.item.id}`}
+          aria-current={current ? "location" : undefined}
+          onClick={(event) => {
+            const heading = document.getElementById(props.item.id);
+            if (!heading) return;
+            event.preventDefault();
+            props.onSelect(props.item.id);
+            heading.scrollIntoView({ behavior: "smooth", block: "start" });
+            history.pushState({}, "", `#${props.item.id}`);
+          }}
+        >
+          {props.item.text}
+        </a>
+      )}
       {props.item.children.length > 0 && (
-        <TocList
-          items={props.item.children}
-          className={props.listClass}
-          activeId={props.activeId}
-          onSelect={props.onSelect}
-        />
+        <TocList {...props} items={props.item.children} />
       )}
     </li>
   );
@@ -300,7 +359,7 @@ function tocHeadings(headings: ViewerHeading[]) {
   return headings;
 }
 
-function nestHeadings(headings: ViewerHeading[]): TocItem[] {
+function nestHeadings(headings: TocEntryData[]): TocItem[] {
   const items: TocItem[] = [];
   const stack: TocItem[] = [];
   for (const heading of headings) {
@@ -509,6 +568,13 @@ const styles = {
       },
       "&[aria-current='location']:hover": {
         backgroundColor: colors.accent[4],
+      },
+      "&[data-diffmap-kind='toc-page']": {
+        color: colors.gray[12],
+        fontWeight: 500,
+      },
+      "&[aria-current='page']": {
+        backgroundColor: colors.gray[3],
       },
     },
   ),

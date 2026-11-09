@@ -22,6 +22,7 @@ import type {
   ViewerNode,
 } from "../parseViewer.js";
 import type { SourceAnnotation, SourceNavigation } from "../annotations.js";
+import { DocumentLink } from "./bookNav.tsx";
 import { Fence } from "./Fence.tsx";
 import { HtmlPlaceholder } from "./HtmlPlaceholder.tsx";
 import { Gallery, Media, MediaCard } from "./Media.tsx";
@@ -131,6 +132,19 @@ function renderElement(
       >
         {children}
       </Code>
+    );
+  }
+  if (node.tag === "a") {
+    return (
+      <DocumentLink
+        key={key}
+        href={node.attrs.href}
+        title={node.attrs.title}
+        className={node.attrs.className}
+        id={node.attrs.id}
+      >
+        {children}
+      </DocumentLink>
     );
   }
   if (voidTags.has(node.tag)) {

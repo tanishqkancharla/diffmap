@@ -80,3 +80,59 @@ test("copied comments name file lines, quote the text, and keep code fences inta
 `,
   );
 });
+
+function textComment(id: string, section: string) {
+  return {
+    id,
+    body: `Comment ${id}.`,
+    anchor: {
+      kind: "text" as const,
+      quote: "x",
+      prefix: "",
+      suffix: "",
+      offset: 0,
+      display: "x",
+      section,
+    },
+  };
+}
+
+test("a book's comments go under each page's title and keep counting", () => {
+  const markdown = formatComments({
+    title: "Sessions",
+    source: ".diffmap/specs/sessions",
+    comments: [],
+    pages: [
+      { title: "Sessions", comments: [textComment("a", "Goals")] },
+      { title: "Phase 1: Table", comments: [] },
+      {
+        title: "Phase 2: Write",
+        comments: [textComment("b", "Today"), textComment("c", "Proposed")],
+      },
+    ],
+  });
+  assert.equal(
+    markdown,
+    `Review comments on "Sessions" (.diffmap/specs/sessions):
+
+## Sessions
+
+1. In "Goals":
+   > x
+
+   Comment a.
+
+## Phase 2: Write
+
+2. In "Today":
+   > x
+
+   Comment b.
+
+3. In "Proposed":
+   > x
+
+   Comment c.
+`,
+  );
+});

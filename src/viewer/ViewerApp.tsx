@@ -18,7 +18,13 @@ import type { ViewerDocument } from "../parseViewer.js";
 import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
-import { CommentsContext, useCommentStore } from "./comments.ts";
+import {
+  BookContext,
+  BookPager,
+  isMultiPage,
+  type BookNav,
+} from "./bookNav.tsx";
+import { commentsKey, CommentsContext, useCommentStore } from "./comments.ts";
 import { CopyCommentsButton } from "./CopyCommentsButton.tsx";
 import { commentHighlightStyle, PageComments } from "./PageComments.tsx";
 import { DiffButton } from "./DiffButton.tsx";
@@ -44,6 +50,8 @@ export function ViewerApp(props: {
   headerActions?: ReactNode;
   /** Changes the Diff button opens before any reference is selected, such as a pull request. */
   defaultRev?: Rev;
+  /** The book this page belongs to. Its host remounts the viewer for each page. */
+  book?: BookNav;
 }) {
   const viewerDocument = props.document;
   const meta = useViewerMeta(props.mode === "local");
@@ -79,8 +87,15 @@ export function ViewerApp(props: {
     props.title ??
     viewerDocument.headings.find((heading) => heading.level === 1)?.text ??
     "diffmap";
-  const title =
-    props.mode === "local" && meta !== undefined ? meta.title : parsedTitle;
+  const book = props.book;
+  const title = isMultiPage(book)
+    ? book.title
+    : props.mode === "local" && meta !== undefined
+      ? meta.title
+      : parsedTitle;
+  const tabTitle = isMultiPage(book)
+    ? `${book.current.title} · ${book.title}`
+    : title;
   const shell = useStyles(styles.shell);
   const header = useStyles(styles.header);
   const heading = useStyles(styles.heading);
@@ -88,25 +103,24 @@ export function ViewerApp(props: {
   const actions = useStyles(styles.actions);
   const article = useStyles(styles.article);
   const prose = useStyles(styles.prose);
+  const column = useStyles(styles.column);
   const content = useStyles(
     proseHtml("md"),
     styles.content,
     commentHighlightStyle,
   );
   const contentRef = useRef<HTMLDivElement>(null);
-  // localStorage is per origin, so the path names the document: a gist file, a GitHub spec, or a local server's only page.
-  const comments = useCommentStore(
-    `diffmap-comments:${window.location.pathname}`,
-  );
+  // localStorage is per origin, so the path names the page: a gist file, a GitHub spec, or a local server's page.
+  const comments = useCommentStore(commentsKey(window.location.pathname));
   const closed = useStyles(styles.closed);
   const closedCopy = useStyles(styles.closedCopy);
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
-  const hasToc = hasTableOfContents(viewerDocument.headings);
+  const hasToc = hasTableOfContents(viewerDocument.headings, book);
   const [tocDrawerOpen, setTocDrawerOpen] = useState(false);
   useEffect(() => {
-    document.title = title;
-  }, [title]);
+    document.title = tabTitle;
+  }, [tabTitle]);
   // Covers both the Diff button and an annotation click, which also opens the panel.
   useEffect(() => {
     if (diffPanelOpen) trackViewerEvent({ event: "diff_opened" });
@@ -138,102 +152,110 @@ export function ViewerApp(props: {
 
   return (
     <ViewerModeContext.Provider value={props.mode}>
-      <CommentsContext.Provider value={comments}>
-        <div className={shell}>
-          <header className={header}>
-            <div className={heading}>
-              {hasToc && (
-                <TocButton
-                  expanded={tocDrawerOpen}
-                  onClick={() => setTocDrawerOpen(true)}
-                />
-              )}
-              <div className={titleClass}>{title}</div>
-            </div>
-            <div className={actions}>
-              <CopyCommentsButton
-                title={title}
-                source={
-                  local
-                    ? meta?.file
-                    : `${window.location.origin}${window.location.pathname}`
-                }
-              />
-              {hasSourceDiffs && (
-                <DiffButton
-                  pressed={showDiffPanel}
-                  onClick={() => setShowDiffPanel((open) => !open)}
-                />
-              )}
-              {props.headerActions}
-              {props.mode === "local" && (
-                <CloseServerButton
-                  onClick={() => {
-                    trackViewerEvent({ event: "server_closed" });
-                    setShutDown(true);
-                    // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
-                    void closeViewer();
-                  }}
-                />
-              )}
-            </div>
-          </header>
-          <div className={stage}>
-            <div className={body} data-has-source-diffs={diffPanelOpen}>
-              <article ref={articleRef} className={article}>
-                <div className={prose} data-has-toc={hasToc ? "true" : "false"}>
-                  <div
-                    ref={contentRef}
-                    className={content}
-                    data-diffmap-kind="page"
-                  >
-                    <ComarkView
-                      document={viewerDocument}
-                      selectedAnnotation={selection?.annotation}
-                      onSelectAnnotation={(line) => {
-                        trackViewerEvent({ event: "reference_opened" });
-                        setShowDiffPanel(true);
-                        select({
-                          annotation: line,
-                          reference: line.references[0]!,
-                        });
-                      }}
-                    />
-                  </div>
-                  <PageComments contentRef={contentRef} />
-                  {hasToc && (
-                    <TableOfContents
-                      headings={viewerDocument.headings}
-                      articleRef={articleRef}
-                      drawerOpen={tocDrawerOpen}
-                      onDrawerOpenChange={setTocDrawerOpen}
-                    />
-                  )}
-                </div>
-              </article>
-              {diffPanelOpen && (
-                <SourceDiffPanel
-                  rev={panelRev}
-                  review={panelReview}
-                  onRevChange={
+      <BookContext.Provider value={book}>
+        <CommentsContext.Provider value={comments}>
+          <div className={shell}>
+            <header className={header}>
+              <div className={heading}>
+                {hasToc && (
+                  <TocButton
+                    expanded={tocDrawerOpen}
+                    onClick={() => setTocDrawerOpen(true)}
+                  />
+                )}
+                <div className={titleClass}>{title}</div>
+              </div>
+              <div className={actions}>
+                <CopyCommentsButton
+                  title={title}
+                  source={
                     local
-                      ? (rev) => {
-                          trackViewerEvent({ event: "range_changed" });
-                          // A focused reference's lines belong to its own rev.
-                          setSelection(undefined);
-                          setPanelRev(rev);
-                        }
-                      : undefined
+                      ? meta?.file
+                      : `${window.location.origin}${window.location.pathname}`
                   }
-                  selection={selection}
-                  onSelect={select}
-                  onClose={() => setShowDiffPanel(false)}
                 />
-              )}
+                {hasSourceDiffs && (
+                  <DiffButton
+                    pressed={showDiffPanel}
+                    onClick={() => setShowDiffPanel((open) => !open)}
+                  />
+                )}
+                {props.headerActions}
+                {props.mode === "local" && (
+                  <CloseServerButton
+                    onClick={() => {
+                      trackViewerEvent({ event: "server_closed" });
+                      setShutDown(true);
+                      // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
+                      void closeViewer();
+                    }}
+                  />
+                )}
+              </div>
+            </header>
+            <div className={stage}>
+              <div className={body} data-has-source-diffs={diffPanelOpen}>
+                <article ref={articleRef} className={article}>
+                  <div
+                    className={prose}
+                    data-has-toc={hasToc ? "true" : "false"}
+                  >
+                    <div className={column}>
+                      <div
+                        ref={contentRef}
+                        className={content}
+                        data-diffmap-kind="page"
+                      >
+                        <ComarkView
+                          document={viewerDocument}
+                          selectedAnnotation={selection?.annotation}
+                          onSelectAnnotation={(line) => {
+                            trackViewerEvent({ event: "reference_opened" });
+                            setShowDiffPanel(true);
+                            select({
+                              annotation: line,
+                              reference: line.references[0]!,
+                            });
+                          }}
+                        />
+                      </div>
+                      <BookPager />
+                    </div>
+                    <PageComments contentRef={contentRef} />
+                    {hasToc && (
+                      <TableOfContents
+                        headings={viewerDocument.headings}
+                        articleRef={articleRef}
+                        drawerOpen={tocDrawerOpen}
+                        onDrawerOpenChange={setTocDrawerOpen}
+                      />
+                    )}
+                  </div>
+                </article>
+                {diffPanelOpen && (
+                  <SourceDiffPanel
+                    rev={panelRev}
+                    review={panelReview}
+                    onRevChange={
+                      local
+                        ? (rev) => {
+                            trackViewerEvent({ event: "range_changed" });
+                            // A focused reference's lines belong to its own rev.
+                            setSelection(undefined);
+                            setPanelRev(rev);
+                          }
+                        : undefined
+                    }
+                    selection={selection}
+                    onSelect={select}
+                    onClose={() => setShowDiffPanel(false)}
+                  />
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </CommentsContext.Provider>
+        </CommentsContext.Provider>
+      </BookContext.Provider>
     </ViewerModeContext.Provider>
   );
 }
@@ -346,9 +368,13 @@ const styles = {
       "--diffmap-toc-columns": "0 minmax(0, 1fr) 0",
     },
   }),
-  content: style({
+  // The prose column: the page, then its links to the previous and next pages.
+  column: style({
     gridColumn: "2 / 3",
     gridRow: "1",
+    minWidth: 0,
+  }),
+  content: style({
     width: "100%",
     maxWidth: "none",
     minWidth: 0,
