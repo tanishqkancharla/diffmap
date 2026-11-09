@@ -4,6 +4,13 @@
  * fetch `ref=main` / latest for spec markdown, [[path]] targets, excerpts, or
  * hunks. Private repos are out of scope (GitHub 404).
  */
+import {
+  isMarkdownFile,
+  isPageFileName,
+  makeBook,
+  type Book,
+  type BookPage,
+} from "../book.ts";
 import { WORKING, type Changes, type Rev } from "../changes.ts";
 import { githubChangedFiles, type GitHubFile } from "./patch.ts";
 
@@ -12,12 +19,17 @@ const GITHUB_JSON = {
   Accept: "application/vnd.github+json",
 };
 
+export type PinnedBook = Book<BookPage & { source: string }>;
+
 export type PinnedSpec = {
   owner: string;
   repo: string;
   sha: string;
+  /** The page shown: a spec file, or a page of a book. */
   path: string;
   content: string;
+  /** The book the page belongs to, and its directory. */
+  book?: { dir: string; book: PinnedBook };
   htmlUrl: string;
   pullNumber?: number;
   pullUrl?: string;
@@ -51,6 +63,7 @@ type CompareApi = {
 };
 
 type ContentsApi = {
+  name?: string;
   type?: string;
   encoding?: string;
   content?: string;
@@ -91,31 +104,129 @@ export async function loadPinnedSpec(input: {
         : `${resolved.baseSha}..${sha}`;
   }
 
-  const blob = await fetchPinnedBlob(
-    { owner: input.owner, repo: input.repo, sha },
-    input.path,
-    input.signal,
-  );
-  if (blob instanceof Error) {
-    if (blob.message === "not-found") return { status: "not-found" };
-    if (blob.message === "forbidden") return { status: "forbidden" };
-    return { status: "error", message: blob.message };
+  const pin = { owner: input.owner, repo: input.repo, sha };
+  const page = await loadPinnedPage(pin, input.path, input.signal);
+  if (page instanceof Error) {
+    if (page.message === "not-found") return { status: "not-found" };
+    if (page.message === "forbidden") return { status: "forbidden" };
+    return { status: "error", message: page.message };
   }
 
   return {
     status: "ok",
     spec: {
-      owner: input.owner,
-      repo: input.repo,
-      sha,
-      path: input.path,
-      content: blob,
-      htmlUrl: `https://github.com/${input.owner}/${input.repo}/blob/${sha}/${input.path}`,
+      ...pin,
+      ...page,
+      htmlUrl: `https://github.com/${input.owner}/${input.repo}/blob/${sha}/${page.path}`,
       pullNumber,
       pullUrl,
       pullRev,
     },
   };
+}
+
+/**
+ * A directory opens its book's cover. A page file of a book, such as
+ * `02-write-through.md`, opens in its book; any other Markdown file alone.
+ */
+async function loadPinnedPage(
+  pin: { owner: string; repo: string; sha: string },
+  specPath: string,
+  signal?: AbortSignal,
+) {
+  if (!isMarkdownFile(specPath)) {
+    const book = await fetchPinnedBook(pin, specPath, signal);
+    if (book instanceof Error) return book;
+    const cover = book.pages[0]!;
+    return {
+      path: `${specPath}/${cover.file}`,
+      content: cover.source,
+      book: { dir: specPath, book },
+    };
+  }
+  const slash = specPath.lastIndexOf("/");
+  const dir = specPath.slice(0, Math.max(0, slash));
+  const name = specPath.slice(slash + 1);
+  if (isPageFileName(name)) {
+    const book = await fetchPinnedBook(pin, dir, signal);
+    const page =
+      book instanceof Error
+        ? undefined
+        : book.pages.find((candidate) => candidate.file === name);
+    if (page !== undefined && !(book instanceof Error)) {
+      return { path: specPath, content: page.source, book: { dir, book } };
+    }
+  }
+  const blob = await fetchPinnedBlob(pin, specPath, signal);
+  if (blob instanceof Error) return blob;
+  return { path: specPath, content: blob, book: undefined };
+}
+
+const bookCache = new Map<string, Promise<PinnedBook | Error>>();
+
+/** Every page of the book in `dir` at the pinned commit, read from raw.githubusercontent.com, which has no API rate limit. */
+function fetchPinnedBook(
+  pin: { owner: string; repo: string; sha: string },
+  dir: string,
+  signal?: AbortSignal,
+) {
+  const key = `${pin.owner}/${pin.repo}@${pin.sha}:${dir}/`;
+  const pending = bookCache.get(key);
+  if (pending !== undefined) return pending;
+  const request = readBookDirectory(pin, dir, signal).catch(
+    (cause: unknown) => {
+      bookCache.delete(key);
+      if (cause instanceof Error && cause.name === "AbortError") throw cause;
+      return cause instanceof Error
+        ? cause
+        : new Error("Failed to load this book from GitHub.");
+    },
+  );
+  bookCache.set(key, request);
+  return request;
+}
+
+async function readBookDirectory(
+  pin: { owner: string; repo: string; sha: string },
+  dir: string,
+  signal?: AbortSignal,
+): Promise<PinnedBook | Error> {
+  const encodedDir = dir.split("/").map(encodeURIComponent).join("/");
+  const response = await githubFetch(
+    `/repos/${encodeURIComponent(pin.owner)}/${encodeURIComponent(pin.repo)}/contents/${encodedDir}?ref=${encodeURIComponent(pin.sha)}`,
+    signal,
+  );
+  if (response.status === "not-found") return new Error("not-found");
+  if (response.status === "forbidden") return new Error("forbidden");
+  if (response.status === "error") return new Error(response.message);
+  const payload = (await response.body.json().catch(() => undefined)) as
+    | ContentsApi
+    | ContentsApi[]
+    | undefined;
+  if (!Array.isArray(payload)) {
+    return new Error(`"${dir}" is not a directory at this commit.`);
+  }
+  const names = payload.flatMap((entry) =>
+    entry.type === "file" &&
+    typeof entry.name === "string" &&
+    isMarkdownFile(entry.name)
+      ? [entry.name]
+      : [],
+  );
+  const files = await Promise.all(
+    names.map(async (name) => {
+      const filePath = dir === "" ? name : `${dir}/${name}`;
+      const raw = await fetch(
+        `https://raw.githubusercontent.com/${pin.owner}/${pin.repo}/${pin.sha}/${filePath.split("/").map(encodeURIComponent).join("/")}`,
+        { signal },
+      );
+      if (!raw.ok) {
+        throw new Error(`Could not fetch "${filePath}" at this commit.`);
+      }
+      return { file: name, source: await raw.text() };
+    }),
+  );
+  return makeBook(dir, files);
 }
 
 export async function fetchPinnedBlob(

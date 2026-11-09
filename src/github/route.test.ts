@@ -45,6 +45,14 @@ test("parseGitHubPath reads pull and commit spec URLs", () => {
     parseGitHubPath("/tanishqkancharla/diffmap/pull/5/src/cli.ts").kind,
     "github-invalid",
   );
+  // A path without an extension is a book's directory.
+  assert.deepEqual(parseGitHubPath("/o/r/pull/5/.diffmap/specs/sessions/"), {
+    kind: "github-pull",
+    owner: "o",
+    repo: "r",
+    pull: 5,
+    path: ".diffmap/specs/sessions",
+  });
 });
 
 test("printed GitHub viewer URLs pin pull or commit", () => {

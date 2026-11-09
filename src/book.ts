@@ -32,6 +32,11 @@ export function isMarkdownFile(name: string) {
   return MARKDOWN.test(name);
 }
 
+/** A name a book's page can have: README.md, or a numbered Markdown file. */
+export function isPageFileName(name: string) {
+  return COVER.test(name) || NUMBERED.test(name);
+}
+
 /**
  * Orders a book directory's files: README.md first, then every other Markdown
  * file by its number prefix. Other files, such as media, are ignored.

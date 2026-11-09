@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, P } from "maui";
 import { init } from "md4x/standalone";
+import type { BookPage } from "../book.ts";
 import { parseViewerDocument } from "../parseViewer.ts";
 import type { ViewerDocument } from "../parseViewer.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
@@ -25,6 +26,11 @@ import {
 } from "./route.ts";
 
 let parserReady: Promise<void> | undefined;
+
+const pullsBySha = new Map<
+  string,
+  Pick<PinnedSpec, "pullNumber" | "pullUrl" | "pullRev">
+>();
 
 function readyParser() {
   parserReady ??= init();
@@ -99,7 +105,11 @@ export function GitHubApp() {
     );
   }
 
-  if (loaded === undefined || loaded.key !== routeKey) {
+  // Moving to another page of a loaded book keeps the current page up until the next one is ready.
+  if (
+    loaded === undefined ||
+    (loaded.key !== routeKey && loaded.view.kind !== "ready")
+  ) {
     return <GistLoading title="Loading spec…" />;
   }
   const view = loaded.view;
@@ -143,6 +153,16 @@ export function GitHubApp() {
   }
 
   const spec = view.spec;
+  const pinned = spec.book;
+  const pagePath = (page: BookPage) =>
+    pinned === undefined || pinned.dir === ""
+      ? page.file
+      : `${pinned.dir}/${page.file}`;
+  const pageHref = (page: BookPage) =>
+    githubCommitPath(spec.owner, spec.repo, spec.sha, pagePath(page));
+  const current = pinned?.book.pages.find(
+    (page) => pagePath(page) === spec.path,
+  );
   return (
     <GitHubPinContext.Provider value={spec}>
       <MediaResolverContext.Provider value={(src) => rawMediaUrl(spec, src)}>
@@ -152,6 +172,24 @@ export function GitHubApp() {
             key={`${spec.owner}/${spec.repo}@${spec.sha}:${spec.path}`}
             document={view.document}
             mode="github"
+            book={
+              pinned !== undefined && current !== undefined
+                ? {
+                    title: pinned.book.title,
+                    pages: pinned.book.pages,
+                    current,
+                    href: pageHref,
+                    navigate: (page, hash) => {
+                      window.history.pushState(
+                        {},
+                        "",
+                        `${pageHref(page)}${hash}`,
+                      );
+                      setRoute(readGitHubRoute());
+                    },
+                  }
+                : undefined
+            }
             headerActions={
               <GitHubHeader
                 owner={spec.owner}
@@ -197,12 +235,22 @@ async function loadView(
     return { kind: "error", message: loaded.message };
   }
 
-  const spec = loaded.spec;
+  // The pull request a commit was pinned from, so its other pages, opened by commit URL, keep the PR link and diff.
+  const spec =
+    route.kind === "github-pull"
+      ? loaded.spec
+      : { ...loaded.spec, ...pullsBySha.get(loaded.spec.sha) };
   if (route.kind === "github-pull") {
-    const pinned = githubCommitPath(spec.owner, spec.repo, spec.sha, spec.path);
-    if (window.location.pathname !== pinned) {
-      window.history.replaceState({}, "", `${pinned}${window.location.hash}`);
-    }
+    pullsBySha.set(spec.sha, {
+      pullNumber: spec.pullNumber,
+      pullUrl: spec.pullUrl,
+      pullRev: spec.pullRev,
+    });
+  }
+  // A pull request pins to its head commit, and a book's directory to its cover page.
+  const pinned = githubCommitPath(spec.owner, spec.repo, spec.sha, spec.path);
+  if (window.location.pathname !== pinned) {
+    window.history.replaceState({}, "", `${pinned}${window.location.hash}`);
   }
 
   const parsed = parseViewerDocument(spec.content, spec.path);

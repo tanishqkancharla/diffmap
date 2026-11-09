@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fetchGitHubChanges, findSymbolLineRange } from "./fetchRepo.ts";
+import {
+  fetchGitHubChanges,
+  findSymbolLineRange,
+  loadPinnedSpec,
+} from "./fetchRepo.ts";
 
 test("findSymbolLineRange highlights a function declaration", () => {
   const source = ["const x = 1;", "export function startServer() {", "}"].join(
@@ -72,4 +76,90 @@ test("fetchGitHubChanges follows a commit's file pages and marks a capped compar
   if (compare instanceof Error) return;
   assert.equal(compare.files.length, 300);
   assert.equal(compare.truncated, true);
+});
+
+test("loadPinnedSpec opens a book's directory at its cover and a page file in its book", async (t) => {
+  const sha = "0123456789abcdef0123456789abcdef01234567";
+  const requested: string[] = [];
+  const raw: Record<string, string> = {
+    "README.md": "# Sessions\n",
+    "01-table.md": "# Phase 1: Table\n",
+    "02-write.md": "# Phase 2: Write\n",
+  };
+  t.mock.method(globalThis, "fetch", (url: string) => {
+    const { host, pathname } = new URL(url);
+    requested.push(`${host}${pathname}`);
+    if (host === "raw.githubusercontent.com") {
+      const name = pathname.split("/").at(-1) ?? "";
+      return Promise.resolve(new Response(raw[name]));
+    }
+    if (pathname === "/repos/o/r/contents/.diffmap/specs/sessions") {
+      return Promise.resolve(
+        Response.json([
+          ...Object.keys(raw).map((name) => ({ name, type: "file" })),
+          { name: "media", type: "dir" },
+        ]),
+      );
+    }
+    if (pathname === "/repos/o/r/contents/.diffmap/specs") {
+      return Promise.resolve(
+        Response.json([{ name: "plain.md", type: "file" }]),
+      );
+    }
+    if (pathname === "/repos/o/r/contents/.diffmap/specs/plain.md") {
+      return Promise.resolve(
+        Response.json({
+          type: "file",
+          encoding: "base64",
+          content: btoa("# Plain\n"),
+        }),
+      );
+    }
+    return Promise.resolve(new Response("", { status: 404 }));
+  });
+
+  const cover = await loadPinnedSpec({
+    owner: "o",
+    repo: "r",
+    sha,
+    path: ".diffmap/specs/sessions",
+  });
+  assert.equal(cover.status, "ok");
+  if (cover.status !== "ok") return;
+  assert.equal(cover.spec.path, ".diffmap/specs/sessions/README.md");
+  assert.equal(cover.spec.content, "# Sessions\n");
+  assert.deepEqual(
+    cover.spec.book?.book.pages.map((page) => page.slug),
+    ["", "table", "write"],
+  );
+
+  // The book is read once per commit; its pages open without another request.
+  const before = requested.length;
+  const page = await loadPinnedSpec({
+    owner: "o",
+    repo: "r",
+    sha,
+    path: ".diffmap/specs/sessions/02-write.md",
+  });
+  assert.equal(page.status, "ok");
+  if (page.status !== "ok") return;
+  assert.equal(page.spec.content, "# Phase 2: Write\n");
+  assert.equal(page.spec.book?.dir, ".diffmap/specs/sessions");
+  assert.equal(requested.length, before);
+
+  // A file whose name is not a page's opens alone, without listing its directory.
+  const plain = await loadPinnedSpec({
+    owner: "o",
+    repo: "r",
+    sha,
+    path: ".diffmap/specs/plain.md",
+  });
+  assert.equal(plain.status, "ok");
+  if (plain.status !== "ok") return;
+  assert.equal(plain.spec.content, "# Plain\n");
+  assert.equal(plain.spec.book, undefined);
+  assert.equal(
+    requested.includes("api.github.com/repos/o/r/contents/.diffmap/specs"),
+    false,
+  );
 });

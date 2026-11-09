@@ -9,6 +9,8 @@
  *
  * v1: /<owner>/<repo>/pull/<n>/<path-to-spec.md>
  *     /<owner>/<repo>/commit/<sha>/<path-to-spec.md>
+ * A path without an extension is a book's directory; a book's page keeps its
+ * file name, which a pinned commit never renames.
  */
 import { DIFFMAP_ORIGIN } from "../gist/route.ts";
 
@@ -138,13 +140,14 @@ function isRepoName(value: string) {
 
 function specPathError(specPath: string) {
   if (specPath.length === 0) {
-    return "A hosted spec URL needs a markdown path after the pull or commit.";
+    return "A hosted spec URL needs a markdown file or book directory after the pull or commit.";
   }
   if (specPath.split("/").some((part) => part === "." || part === "..")) {
     return "Spec path is not a repository file.";
   }
-  if (!MARKDOWN_EXT.test(specPath)) {
-    return "Spec path must be a .md or .mdx file.";
+  const name = specPath.slice(specPath.lastIndexOf("/") + 1);
+  if (name.includes(".", 1) && !MARKDOWN_EXT.test(name)) {
+    return "Spec path must be a .md or .mdx file, or a book's directory.";
   }
   return undefined;
 }

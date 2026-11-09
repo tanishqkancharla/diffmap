@@ -154,7 +154,7 @@ npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/
 
 A book's pages share one gist. Hosted viewer: `https://diffmap.dev/g/<gistId>` for the cover, `/<slug>` after it for a page (or `/<file.md>` for a file in a gist that is not a book; `#heading` is the table of contents). The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
 
-A spec committed to a GitHub pull request also opens at `https://diffmap.dev/<owner>/<repo>/pull/<n>/specs/<name>.md`.
+A spec committed to a GitHub pull request also opens at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>/`, which pins to the pull request's head commit and opens the book's cover. Its pages keep their file names in the URL, as in `…/commit/<sha>/.diffmap/specs/<name>/02-write-through.md`, since a pinned commit never renames them.
 
 ## Library
 
