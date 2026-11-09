@@ -1,7 +1,5 @@
 import { readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import { Cli, z } from "incur";
-import { DiffmapFileError } from "./errors.js";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
 import { packageVersion } from "./packageVersion.js";
 import { listRunningDiffmaps } from "./registry.js";
@@ -16,7 +14,9 @@ import {
 } from "./update.js";
 
 const serveArgs = z.object({
-  file: z.string().describe("Path to the markdown file"),
+  file: z
+    .string()
+    .describe("Path to the markdown file, or a book directory of pages"),
 });
 
 const serveOptions = z.object({
@@ -118,19 +118,24 @@ const cli = Cli.create("diffmap", {
     description:
       "Check a spec's syntax, diagrams, and annotations without starting a server",
     args: serveArgs,
-    output: z.object({ file: z.string(), valid: z.literal(true) }),
+    output: z.object({
+      file: z.string(),
+      valid: z.literal(true),
+      pages: z.array(z.string()),
+    }),
     async run(c) {
       trackCommand("validate");
-      const { parseViewerDocument } = await import("./parseViewer.js");
+      const { parseBook, readBook } = await import("./readBook.js");
       const file = resolveFromInvokeCwd(c.args.file);
-      const source = await readFile(file, "utf8").catch(
-        (cause) => new DiffmapFileError({ path: file, reason: "read", cause }),
-      );
-      const result =
-        source instanceof Error ? source : parseViewerDocument(source, file);
+      const read = await readBook(file);
+      const result = read instanceof Error ? read : parseBook(read);
       if (result instanceof Error)
         return c.error({ code: "DIFFMAP", message: result.message });
-      return c.ok({ file, valid: true });
+      return c.ok({
+        file,
+        valid: true,
+        pages: result.map((page) => page.file),
+      });
     },
   })
   .command("share", {

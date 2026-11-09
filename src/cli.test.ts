@@ -65,7 +65,11 @@ test("diffmap validate checks specs without starting a server", async () => {
     );
     const valid = await runCli(["validate", file, "--json"]);
     assert.equal(valid.exitCode, 0, valid.stderr);
-    assert.deepEqual(JSON.parse(valid.stdout), { file, valid: true });
+    assert.deepEqual(JSON.parse(valid.stdout), {
+      file,
+      valid: true,
+      pages: ["spec.md"],
+    });
     for (const [source, message] of [
       [
         "```ts\nsave(record);\n// [!note L2 save] Out of range.\n```\n",
@@ -86,6 +90,25 @@ test("diffmap validate checks specs without starting a server", async () => {
     const missing = await runCli(["validate", file]);
     assert.equal(missing.exitCode, 1);
     assert.match(missing.stdout + missing.stderr, /could not read/);
+
+    // A directory is a book: every page parses, and a failure names its page.
+    await fs.writeFile(path.join(dir, "README.md"), "# Book\n");
+    await fs.writeFile(path.join(dir, "10-last.md"), "# Last\n");
+    await fs.writeFile(
+      path.join(dir, "2-broken.md"),
+      "```mermaid\nflwochart TD\n A --> B\n```\n",
+    );
+    const broken = await runCli(["validate", dir]);
+    assert.equal(broken.exitCode, 1);
+    assert.match(broken.stdout + broken.stderr, /2-broken\.md/);
+    await fs.writeFile(path.join(dir, "2-broken.md"), "# Fixed\n");
+    const book = await runCli(["validate", dir, "--json"]);
+    assert.equal(book.exitCode, 0, book.stderr);
+    assert.deepEqual(JSON.parse(book.stdout).pages, [
+      "README.md",
+      "2-broken.md",
+      "10-last.md",
+    ]);
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }

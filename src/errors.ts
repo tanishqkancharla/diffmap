@@ -15,6 +15,11 @@ export class DiffmapRegistryError extends errore.createTaggedError({
   message: "diffmap registry failed: $reason",
 }) {}
 
+export class DiffmapBookError extends errore.createTaggedError({
+  name: "DiffmapBookError",
+  message: "diffmap book $path: $reason",
+}) {}
+
 export class DiffmapMermaidError extends errore.createTaggedError({
   name: "DiffmapMermaidError",
   message: "diffmap could not parse mermaid in $path ($where): $reason",
