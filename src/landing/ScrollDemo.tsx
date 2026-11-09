@@ -113,8 +113,9 @@ type Layout = {
 
 /**
  * Touch screens scroll the page off the main thread, so a spec scrolled from
- * page scroll events lags behind the finger. There the spec scrolls natively
- * under the finger instead, and the page moves on once it ends.
+ * page scroll events lags behind the finger, and a second scroll area makes
+ * the reader stop and swipe again. There the window grows to the whole spec
+ * and scrolls with the page, its bars sticking to the top.
  */
 const touch = window.matchMedia("(pointer: coarse)").matches;
 
@@ -122,7 +123,7 @@ const touch = window.matchMedia("(pointer: coarse)").matches;
  * A browser window running a real spec, or an empty window holding its
  * place while the spec loads. With a mouse or trackpad, page scroll drives
  * the spec's own scroll while the window is pinned; once the spec ends, the
- * page moves on.
+ * page moves on. On touch screens the window is as tall as the spec.
  */
 export function ScrollDemo(props: { document: ViewerDocument | undefined }) {
   if (props.document === undefined) return <EmptyFrame />;
@@ -180,7 +181,15 @@ function LoadedDemo(props: { document: ViewerDocument }) {
 
       const stageRect = stage.current!.getBoundingClientRect();
       const frameRect = frame.current!.getBoundingClientRect();
-      const view = article.getBoundingClientRect();
+      const articleRect = article.getBoundingClientRect();
+      // On touch the spec shows between its sticky bars and the screen's bottom edge.
+      const view = touch
+        ? {
+            top: frame.current!.querySelector("header")!.getBoundingClientRect()
+              .bottom,
+            bottom: Math.min(articleRect.bottom, window.innerHeight),
+          }
+        : articleRect;
       const measured = callouts.map((callout) => {
         const target = article.querySelector(callout.selector);
         if (target === null) return { onScreen: false, x: 0, y: 0 };
@@ -237,13 +246,11 @@ function LoadedDemo(props: { document: ViewerDocument }) {
     observer.observe(article);
     for (const child of article.children) observer.observe(child);
     window.addEventListener("scroll", schedule, { passive: true });
-    article.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", measure);
     measure();
     return () => {
       observer.disconnect();
       window.removeEventListener("scroll", schedule);
-      article.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", measure);
       cancelAnimationFrame(frameRequest);
     };
@@ -253,6 +260,7 @@ function LoadedDemo(props: { document: ViewerDocument }) {
   const stageClass = useStyles(styles.stage);
   const frameClass = useStyles(styles.frame);
   const viewerClass = useStyles(styles.viewer);
+  const dockClass = useStyles(styles.dock);
   const gutters =
     layout !== undefined &&
     Math.min(layout.frameLeft, layout.width - layout.frameRight) >= MIN_GUTTER;
@@ -261,18 +269,24 @@ function LoadedDemo(props: { document: ViewerDocument }) {
     <section
       ref={track}
       className={trackClass}
-      style={{ height: `calc(${STAGE_HEIGHT} + ${range}px)` }}
+      style={
+        touch ? undefined : { height: `calc(${STAGE_HEIGHT} + ${range}px)` }
+      }
       aria-label="Example spec"
     >
-      <div ref={stage} className={stageClass}>
-        <div ref={frame} className={frameClass}>
+      <div ref={stage} className={stageClass} data-touch={touch}>
+        <div ref={frame} className={frameClass} data-touch={touch}>
           <BrowserBar url={DEMO_URL} />
           <div className={viewerClass} data-touch={touch}>
             {viewer}
           </div>
-          {layout !== undefined && !gutters && (
-            <InlineCaption layout={layout} />
-          )}
+          {layout !== undefined &&
+            !gutters && (
+              // On touch, held at the screen's bottom edge while the window passes.
+              <div className={touch ? dockClass : undefined}>
+                <InlineCaption layout={layout} />
+              </div>
+            )}
         </div>
         {layout !== undefined &&
           gutters &&
@@ -418,6 +432,7 @@ const styles = {
     height: STAGE_HEIGHT,
     paddingBlock: "20px",
     boxSizing: "border-box",
+    "&[data-touch='true']": { position: "relative", top: 0, height: "auto" },
   }),
   frame: style(shadow.medium, {
     position: "relative",
@@ -426,6 +441,22 @@ const styles = {
     borderRadius: "12px",
     overflow: "hidden",
     backgroundColor: backgroundColor.app,
+    // Clips its corners without becoming a scroller, so its bars can stick to the page.
+    "&[data-touch='true']": { height: "auto", overflow: "clip" },
+    "&[data-touch='true'] > :first-child": {
+      position: "sticky",
+      top: `${NAV_HEIGHT}px`,
+      zIndex: 3,
+    },
+    // Hides spec text that scrolled past the bar, which would show through the frosted nav.
+    "&[data-touch='true'] > :first-child::before": {
+      content: '""',
+      position: "absolute",
+      insetInline: 0,
+      bottom: "100%",
+      height: `${NAV_HEIGHT}px`,
+      backgroundColor: backgroundColor.app,
+    },
   }),
   viewer: style({
     height: `calc(100% - ${CHROME_HEIGHT}px)`,
@@ -433,9 +464,32 @@ const styles = {
     "& > div": { height: "100%" },
     // Page scroll drives the article, so the wheel must not scroll it on its own.
     "& article": { overflowY: "hidden" },
-    // On touch screens the finger scrolls it, and the page takes over at its ends.
-    "&[data-touch='true'] article": { overflowY: "auto" },
+    // On touch the viewer grows to its whole spec and nothing inside it scrolls.
+    // Isolated, so the viewer's own layers stay under the window's bars and caption.
+    "&[data-touch='true']": { height: "auto", isolation: "isolate" },
+    "&[data-touch='true'] > div": { height: "auto", overflow: "visible" },
+    "&[data-touch='true'] > div > header": {
+      position: "sticky",
+      top: `${NAV_HEIGHT + CHROME_HEIGHT}px`,
+      zIndex: 2,
+    },
+    "&[data-touch='true'] > div > div > div": {
+      overflow: "visible",
+      gridTemplateRows: "auto",
+    },
+    "&[data-touch='true'] article": {
+      overflowY: "visible",
+      containerType: "normal",
+    },
+    // The Diff panel follows the article, so it rides the bottom edge instead of waiting at the spec's end.
+    "&[data-touch='true'] article + *": {
+      position: "sticky",
+      bottom: 0,
+      zIndex: 2,
+    },
   }),
+  // Zero height, so holding the caption adds no space at the window's end.
+  dock: style({ position: "sticky", bottom: 0, height: 0, zIndex: 3 }),
   bar: style({
     display: "grid",
     gridTemplateColumns: "1fr minmax(0, auto) 1fr",
