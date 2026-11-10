@@ -1,9 +1,8 @@
 /**
- * A spec is a book: a directory whose README.md is the cover and whose other
- * Markdown files are pages, ordered by a number prefix such as `02-`. A single
- * Markdown file is a book with only a cover. The local, gist, and GitHub
- * viewers all order pages with these functions, so this file stays free of
- * Node imports.
+ * A spec is a directory whose README.md is the cover and whose other Markdown
+ * files are pages, ordered by a number prefix such as `02-`. In code it is a
+ * `Book`. The local, gist, and GitHub viewers all order pages with these
+ * functions, so this file stays free of Node imports.
  */
 import { DiffmapBookError } from "./errors.js";
 
@@ -51,7 +50,7 @@ export function makeBook<File extends { file: string; source: string }>(
     return new DiffmapBookError({
       path: dir,
       reason:
-        "no README.md. A book's README.md is its cover: the problem, the solution, goals, and non-goals",
+        "no README.md. A spec's README.md is its cover: the problem, the solution, goals, and non-goals",
     });
   }
   const numbered: { entry: File; order: number; slug: string }[] = [];
@@ -61,7 +60,7 @@ export function makeBook<File extends { file: string; source: string }>(
     if (match === null) {
       return new DiffmapBookError({
         path: dir,
-        reason: `${entry.file} needs a number prefix that sets its place in the book, as in 01-${entry.file}`,
+        reason: `${entry.file} needs a number prefix that sets its place in the spec, as in 01-${entry.file}`,
       });
     }
     numbered.push({ entry, order: Number(match[1]), slug: match[2]! });
@@ -84,13 +83,6 @@ export function makeBook<File extends { file: string; source: string }>(
     { entry: cover, slug: "" },
     ...numbered.map(({ entry, slug }) => ({ entry, slug })),
   ]);
-}
-
-/** A single Markdown file as a book with only a cover. */
-export function singlePageBook<File extends { file: string; source: string }>(
-  entry: File,
-) {
-  return bookOf([{ entry, slug: "" }]);
 }
 
 function bookOf<File extends { file: string; source: string }>(

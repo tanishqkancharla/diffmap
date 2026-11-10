@@ -20,7 +20,12 @@ const execFileAsync = promisify(execFile);
 const srcDir = fileURLToPath(new URL(".", import.meta.url));
 const packageRoot = path.resolve(srcDir, "..");
 const cliPath = path.join(srcDir, "cli.ts");
-const sampleSpec = path.join(packageRoot, "fixtures", "sample-spec.md");
+const sampleSpec = path.join(
+  packageRoot,
+  "fixtures",
+  "sample-spec",
+  "README.md",
+);
 
 function brokenMermaidSpec(body = "flwochart TD\n  A --> B") {
   return `# Broken mermaid\n\n\`\`\`mermaid\n${body}\n\`\`\`\n`;
@@ -37,15 +42,16 @@ function codeFenceProblem(lines: string[]) {
   return String(parseViewerDocument(["```ts", ...lines, "```", ""].join("\n")));
 }
 
+/** A spec directory whose only page, its README.md, holds `source`. */
 async function withTempSpec(
   source: string,
-  run: (filePath: string) => Promise<void>,
+  run: (dir: string, page: string) => Promise<void>,
 ) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-mermaid-"));
-  const filePath = path.join(dir, "broken.md");
-  await fs.writeFile(filePath, source);
+  const page = path.join(dir, "README.md");
+  await fs.writeFile(page, source);
   try {
-    await run(filePath);
+    await run(dir, page);
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
@@ -101,7 +107,7 @@ test("a parsed mermaid diagram, themed, matches drawing it in that theme", async
     border: "var(--purse-crrLAn-6)",
     font: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
   };
-  const file = path.join(packageRoot, "fixtures", "diagram-diffs.md");
+  const file = path.join(packageRoot, "fixtures", "diagram-diffs", "README.md");
   // A label may quote a theme stand-in; it must stay as written.
   const quoting =
     '```mermaid\nflowchart TD\n  A["var(--diffmap-mermaid-bg) in the diffmap mermaid font"] --> B\n```\n';
@@ -709,29 +715,29 @@ A --> B
 });
 
 test("startServer does not listen when mermaid is invalid", async () => {
-  await withTempSpec(brokenMermaidSpec(), async (filePath) => {
+  await withTempSpec(brokenMermaidSpec(), async (dir, page) => {
     const started = await startServer({
-      filePath,
-      workspaceRoot: path.dirname(filePath),
+      filePath: dir,
+      workspaceRoot: dir,
       port: 0,
     });
     assert.equal(started instanceof DiffmapMermaidError, true);
     if (!(started instanceof DiffmapMermaidError)) return;
-    assert.equal(started.path, filePath);
+    assert.equal(started.path, page);
     assert.equal(started.where, "diagram 1, line 3");
   });
 });
 
 test("shareMarkdownFile does not call gh when mermaid is invalid", async () => {
-  await withTempSpec(brokenMermaidSpec(), async (filePath) => {
+  await withTempSpec(brokenMermaidSpec(), async (dir, page) => {
     const shared = await shareMarkdownFile({
       workspaceRoot: packageRoot,
-      filePath,
+      filePath: dir,
       isPublic: false,
     });
     assert.equal(shared instanceof DiffmapMermaidError, true);
     if (!(shared instanceof DiffmapMermaidError)) return;
-    assert.equal(shared.path, filePath);
+    assert.equal(shared.path, page);
   });
 });
 
@@ -745,8 +751,7 @@ test("shareMarkdownFile uploads the files excerpts and rev-less references read"
     "```",
     "",
   ].join("\n");
-  await withTempSpec(spec, async (filePath) => {
-    const dir = path.dirname(filePath);
+  await withTempSpec(spec, async (dir) => {
     const uploaded = path.join(dir, "uploaded");
     await fs.mkdir(uploaded);
     const gh = path.join(dir, "gh");
@@ -765,7 +770,7 @@ test("shareMarkdownFile uploads the files excerpts and rev-less references read"
     try {
       const shared = await shareMarkdownFile({
         workspaceRoot: packageRoot,
-        filePath,
+        filePath: dir,
         isPublic: false,
       });
       assert.equal(shared instanceof Error, false, String(shared));
@@ -883,15 +888,15 @@ test("shareMarkdownFile refuses local media before calling gh", async () => {
     ":::",
     "",
   ].join("\n");
-  await withTempSpec(spec, async (filePath) => {
+  await withTempSpec(spec, async (dir) => {
     const shared = await shareMarkdownFile({
       workspaceRoot: packageRoot,
-      filePath,
+      filePath: dir,
       isPublic: false,
     });
     assert.equal(
       String(shared),
-      "DiffmapShareError: diffmap share failed: a shared gist cannot show local images or videos (media/before.png, ../after.mp4). Link them by https URL, or view the spec with serve",
+      "DiffmapShareError: diffmap share failed: a shared gist cannot show local images or videos (media/before.png, ../after.mp4 in README.md). Link them by https URL, or view the spec with serve",
     );
   });
 });
@@ -901,34 +906,34 @@ function mermaidCliMessage(filePath: string) {
 }
 
 test("diffmap serve exits non-zero on broken mermaid", async () => {
-  await withTempSpec(brokenMermaidSpec(), async (filePath) => {
-    const result = await runCli(["serve", filePath]);
+  await withTempSpec(brokenMermaidSpec(), async (dir, page) => {
+    const result = await runCli(["serve", dir]);
     assert.equal(result.exitCode, 1);
     assert.equal(
       `${result.stdout}${result.stderr}`,
-      `Error (DIFFMAP): ${mermaidCliMessage(filePath)}\n`,
+      `Error (DIFFMAP): ${mermaidCliMessage(page)}\n`,
     );
   });
 });
 
-test("bare diffmap <file.md> exits non-zero on broken mermaid", async () => {
-  await withTempSpec(brokenMermaidSpec(), async (filePath) => {
-    const result = await runCli([filePath]);
+test("bare diffmap <spec> exits non-zero on broken mermaid", async () => {
+  await withTempSpec(brokenMermaidSpec(), async (dir, page) => {
+    const result = await runCli([dir]);
     assert.equal(result.exitCode, 1);
     assert.equal(
       `${result.stdout}${result.stderr}`,
-      `Error (DIFFMAP): ${mermaidCliMessage(filePath)}\n`,
+      `Error (DIFFMAP): ${mermaidCliMessage(page)}\n`,
     );
   });
 });
 
 test("diffmap share exits non-zero on broken mermaid", async () => {
-  await withTempSpec(brokenMermaidSpec(), async (filePath) => {
-    const result = await runCli(["share", filePath]);
+  await withTempSpec(brokenMermaidSpec(), async (dir, page) => {
+    const result = await runCli(["share", dir]);
     assert.equal(result.exitCode, 1);
     assert.equal(
       `${result.stdout}${result.stderr}`.trimEnd(),
-      `code: DIFFMAP\nmessage: ${JSON.stringify(mermaidCliMessage(filePath))}`,
+      `code: DIFFMAP\nmessage: ${JSON.stringify(mermaidCliMessage(page))}`,
     );
   });
 });

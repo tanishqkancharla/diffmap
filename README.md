@@ -44,7 +44,7 @@ A Mermaid or service diagram can show a change in one picture: red parts exist o
 
 ### Phases and commits
 
-A spec is a book: a directory with a cover page and one page per phase. The agent writes the plan in phases, each small enough to be one commit. When a phase is done, the spec shows a card for its commit with the files to review, most important first. Click a file to open its diff. Every link in the phase then points at that commit, so it keeps showing the code from that commit after the file changes.
+A spec is a directory with a cover page and one page per phase. The agent writes the plan in phases, each small enough to be one commit. When a phase is done, the spec shows a card for its commit with the files to review, most important first. Click a file to open its diff. Every link in the phase then points at that commit, so it keeps showing the code from that commit after the file changes.
 
 ![A finished phase's commit card, with a file opening in the Diff panel](media/phase-commits.webp)
 
@@ -66,7 +66,7 @@ agent. ⌘/Ctrl-Enter saves a comment and Escape cancels it.
 npx @tanishqkancharla/diffmap serve .diffmap/specs/<name>/
 ```
 
-Bare `npx @tanishqkancharla/diffmap .diffmap/specs/<name>/` is the same as `serve`. `serve` also takes a single Markdown file, which it shows as a book with one page.
+Bare `npx @tanishqkancharla/diffmap .diffmap/specs/<name>/` is the same as `serve`. A spec is always a directory; `serve`, `validate`, and `share` reject a single Markdown file and say where to move it.
 
 Options:
 
@@ -86,7 +86,7 @@ npx @tanishqkancharla/diffmap validate .diffmap/specs/<name>/
 ```
 
 `validate` uses the viewer's parser to check every page's Markdown, diagrams, and
-annotations, and the book's page names. It exits 0 with `valid: true` and the
+annotations, and the spec's page names. It exits 0 with `valid: true` and the
 pages in order on success, and 1 with the error, naming the page, on failure.
 Use `--json` for machine-readable output. It does not resolve source files or
 Git commits. Run it after edits, including when reusing an already-running viewer.
@@ -114,7 +114,7 @@ slug for any page but the cover:
 curl -H 'Accept: text/markdown' http://127.0.0.1:<port>/write-through
 ```
 
-## Books
+## Spec layout
 
 A spec is a directory of Markdown pages:
 
@@ -126,12 +126,12 @@ A spec is a directory of Markdown pages:
   media/                  images and videos the pages show
 ```
 
-- `README.md` is the cover. Its first `#` heading is the book's title.
+- `README.md` is the cover. Its first `#` heading is the spec's title.
 - Every other `.md` or `.mdx` file needs a number prefix, which sets its place:
   `2-` comes before `10-`. The rest of the name, the slug, is the page's URL,
   so renumbering pages keeps their links and comments. Two pages cannot share a
   slug, and `validate` and `serve` reject a page without a number.
-- The viewer shows one page at a time, with the book's pages and the current
+- The viewer shows one page at a time, with the spec's pages and the current
   page's headings in the left gutter, and links to the previous and next page
   at the bottom. A page's first heading is its title in that list.
 - A relative link to a page file, such as `[Phase 2](02-write-through.md#tests)`,
@@ -142,7 +142,7 @@ A spec is a directory of Markdown pages:
 - `serve` reloads a page when its file changes, and every page when you add,
   remove, or retitle one.
 
-Run `npx @tanishqkancharla/diffmap fixtures/book` for an example.
+Run `npx @tanishqkancharla/diffmap fixtures/sessions-in-postgres` for an example.
 
 ## Share a spec with a link (experimental)
 
@@ -152,9 +152,9 @@ Share an unlisted gist and print a `diffmap.dev` link (requires [`gh`](https://c
 npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/
 ```
 
-A book's pages share one gist. Hosted viewer: `https://diffmap.dev/g/<gistId>` for the cover, `/<slug>` after it for a page (or `/<file.md>` for a file in a gist that is not a book; `#heading` is the table of contents). The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
+A spec's pages share one gist. Hosted viewer: `https://diffmap.dev/g/<gistId>` for the cover, and `/<slug>` after it for a page (`#heading` is the table of contents). Gists shared before specs were directories still open, one file at a time. The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
 
-A spec committed to a GitHub pull request also opens at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>/`, which pins to the pull request's head commit and opens the book's cover. Its pages keep their file names in the URL, as in `…/commit/<sha>/.diffmap/specs/<name>/02-write-through.md`, since a pinned commit never renames them.
+A spec committed to a GitHub pull request also opens at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>/`, which pins to the pull request's head commit and opens the spec's cover. Its pages keep their file names in the URL, as in `…/commit/<sha>/.diffmap/specs/<name>/02-write-through.md`, since a pinned commit never renames them.
 
 ## Library
 
@@ -225,7 +225,7 @@ Write their notes with `#`. A symbol note matches the row text you see, not
 hidden references. Inside a linked row, symbol notes show on hover only; the
 row itself keeps keyboard focus.
 
-Run `npx @tanishqkancharla/diffmap fixtures/code-notes.md` for an example.
+Run `npx @tanishqkancharla/diffmap fixtures/code-notes` for an example.
 
 ## MDC
 
@@ -305,7 +305,7 @@ in Amp threads.
 loads it from the same commit. `share` fails when a spec uses local media,
 because a gist holds only text files; link media by https URL to share it.
 
-Run `npx @tanishqkancharla/diffmap fixtures/media.md` for an example.
+Run `npx @tanishqkancharla/diffmap fixtures/media` for an example.
 
 ## Link call stacks to source changes
 
@@ -390,7 +390,7 @@ Cmd-click (or Ctrl-click) a TypeScript or JavaScript symbol in the source panel
 to open its definition. Use Back to retrace navigation and return to the reference.
 Resolution uses the workspace's TypeScript configuration and current files.
 
-Run `npx @tanishqkancharla/diffmap fixtures/annotations.md` for an example
+Run `npx @tanishqkancharla/diffmap fixtures/annotations` for an example
 with commit references, multiple files, and unchanged context.
 
 ## Animated service diagrams
@@ -457,7 +457,7 @@ declared state. [ELK](https://eclipse.dev/elk/) lays the services out left to
 right, or top to bottom when that fits the column better, and routes one
 connection between each pair of services that talk. A request and its reply
 share that connection. Indentation is significant, so `services` has no MDC form.
-See [the runnable examples](fixtures/services.md).
+See [the runnable examples](fixtures/services/README.md).
 
 ## Diagram diffs
 
@@ -511,7 +511,7 @@ sign. Today replays the unmarked and `-` lines and Proposed the unmarked and
 Proposed's when they differ. A `-` and a `+` declaration of the same state key
 give each version its own starting value. Added and removed steps color their
 segment of the progress bar, and their caption starts with **Added** or
-**Removed**. See [the runnable examples](fixtures/diagram-diffs.md).
+**Removed**. See [the runnable examples](fixtures/diagram-diffs/README.md).
 
 ## Link Mermaid nodes and edges
 
@@ -543,7 +543,7 @@ sequenceDiagram
 Click a linked shape, edge line, or edge label, or focus it with Tab and press
 Enter or Space. Directives are Mermaid comments, so they remain hidden and do
 not change the diagram when rendered by other Mermaid tools. Missing diagram
-targets display an error. See [the runnable example](fixtures/references.md).
+targets display an error. See [the runnable example](fixtures/references/README.md).
 
 ## Link from prose
 

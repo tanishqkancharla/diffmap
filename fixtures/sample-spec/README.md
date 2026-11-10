@@ -66,4 +66,4 @@ Last, the CLI help text stops calling every file a walkthrough, so `diffmap --he
 
 ## References
 
-- [`src/cli.ts`](../src/cli.ts) — Starts the local server for both specs and walkthroughs.
+- [`src/cli.ts`](../../src/cli.ts) — Starts the local server for both specs and walkthroughs.

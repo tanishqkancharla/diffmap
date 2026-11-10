@@ -4,37 +4,37 @@ Run from the repository root. Paths are relative to this file.
 
 ## An image
 
-![The diffmap launch video thumbnail](../media/launch.jpg "Launch thumbnail")
+![The diffmap launch video thumbnail](../../media/launch.jpg "Launch thumbnail")
 
 ## A video
 
 A `.mp4`, `.webm`, `.mov`, `.m4v`, or `.ogv` file renders as a player.
 
-![Test pattern recording](media/clip.webm)
+![Test pattern recording](clip.webm)
 
 ## Side by side
 
 :::gallery side-by-side
-![Before](media/before.png)
-![After](media/after.png)
+![Before](before.png)
+![After](after.png)
 :::
 
 ## Grid
 
 :::gallery grid
-![Before](media/before.png)
-![After](media/after.png)
-![Recording](media/clip.webm)
+![Before](before.png)
+![After](after.png)
+![Recording](clip.webm)
 :::
 
 ## Carousel
 
 ::gallery{layout="carousel" title="Saving a record"}
-![Before](media/before.png)
+![Before](before.png)
 
-![After](media/after.png)
+![After](after.png)
 
-![Recording](media/clip.webm)
+![Recording](clip.webm)
 ::
 
 ## Beside other cards

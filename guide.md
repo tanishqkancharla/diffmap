@@ -1,6 +1,6 @@
 # Living spec
 
-A spec is a book: a directory at `.diffmap/specs/<short-kebab-case-name>/` that shows the current system, the plan, and the work done, one page per phase. Update it as the plan changes and work lands. For a walkthrough of an existing pull request, use its spec if it has one; otherwise write one in the same place. Commit specs with the code; `.diffmap/` is not ignored. Check the repo's paths and symbols before writing.
+A spec is a directory at `.diffmap/specs/<short-kebab-case-name>/` that shows the current system, the plan, and the work done, one page per phase. Update it as the plan changes and work lands. For a walkthrough of an existing pull request, use its spec if it has one; otherwise write one in the same place. Commit specs with the code; `.diffmap/` is not ignored. Check the repo's paths and symbols before writing.
 
 **Settle scope first.** Read the relevant code before writing. When the design, scope, or phase split is unclear, check with the user before writing much: offer the options and your pick.
 
@@ -10,12 +10,12 @@ Run from the repo root:
 
 ```sh
 npx @tanishqkancharla/diffmap validate .diffmap/specs/<name>/ # check after writing or editing, even if already served
-npx @tanishqkancharla/diffmap list                            # reuse the URL if this book is already served
+npx @tanishqkancharla/diffmap list                            # reuse the URL if this spec is already served
 npx @tanishqkancharla/diffmap serve .diffmap/specs/<name>/
 npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/    # only when asked; prints https://diffmap.dev/g/<id>
 ```
 
-`validate` checks every page's syntax, diagrams, and annotations, and the book's page names, without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating diffmap itself, restart existing viewers to load its new parser.
+`validate` checks every page's syntax, diagrams, and annotations, and the spec's page names, without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating diffmap itself, restart existing viewers to load its new parser.
 
 Leave the server running and give the user the directory and URL. It reloads a page when you edit it, and the page list when you add, remove, or retitle a page. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the gist, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>/`, pinned to a commit.
 
@@ -33,8 +33,8 @@ Write for someone who needs to understand the change quickly. Start from what ch
   media/<phase-slug>/       screenshots and recordings for that page
 ```
 
-- `README.md` is the cover; its first heading is the book's title. Let the content decide what each section needs, and don't repeat the cover on other pages.
-- Every other page is `NN-<slug>.md`, numbered from `01` with two digits. The number sets the page's place in the book; the slug is its URL, so renumbering keeps links and comments. To insert a page, `git mv` the pages after it to new numbers. `validate` rejects a Markdown file without a number.
+- `README.md` is the cover; its first heading is the spec's title. Let the content decide what each section needs, and don't repeat the cover on other pages.
+- Every other page is `NN-<slug>.md`, numbered from `01` with two digits. The number sets the page's place in the spec; the slug is its URL, so renumbering keeps links and comments. To insert a page, `git mv` the pages after it to new numbers. `validate` rejects a Markdown file without a number.
 - Each page is readable on its own by someone who read the cover and skimmed the pages before it. Open it with a sentence or two that says what earlier pages built that it relies on, linked, as in "[Phase 1](01-sessions-table.md) added the `sessions` table." Then say what this page changes. Define a term on the page that introduces it, and link back to that page when a later page uses it.
 - Link between pages with relative links to the file, as in `[Phase 2](02-write-through.md#tests)`. They open in diffmap and on GitHub.
 
@@ -196,10 +196,10 @@ When a phase changes a UI, capture the running app with the browser automation y
 - Show Today beside Proposed when the comparison is the point, in a `side-by-side` gallery. Capture Today from the unchanged code, such as the base commit in a worktree, not from a mockup. Use `grid` to scan several states or variants, and `carousel` to step through the stages of a flow.
 - Keep only captures that help the reader decide something. Leave out intermediate attempts; when a fix changes the UI, replace the capture so only the final one remains.
 - Crop screenshots to the part that changed, keep text readable, and leave out secrets and personal data.
-- Save captures under `media/<phase-slug>/` in the book and link them relative to the page, as in `media/write-through/save.png`. Prefer `.mp4` for recordings, since every browser plays it. Commit them with the spec so the pull request viewer shows them; ask the user before committing more than a few megabytes.
+- Save captures under `media/<phase-slug>/` in the spec and link them relative to the page, as in `media/write-through/save.png`. Prefer `.mp4` for recordings, since every browser plays it. Commit them with the spec so the pull request viewer shows them; ask the user before committing more than a few megabytes.
 - Above each capture, say in a sentence what to look for. Readers comment by highlighting that sentence or a gallery label, and **Copy comments** brings their notes back to you.
 - A capture shows what happened; it does not prove the behavior. Say which checks you ran.
-- `share` fails on local media. To share a book with captures, link them by https URL, or open the book on its pull request.
+- `share` fails on local media. To share a spec with captures, link them by https URL, or open the spec on its pull request.
 
 ## Source references
 
@@ -228,4 +228,4 @@ Say what you did, what you expected, and what happened, with the diffmap version
 ## Look up the rest
 
 - Full reference and fence syntax → [diffmap README](https://github.com/tanishqkancharla/diffmap#link-call-stacks-to-source-changes)
-- Worked examples → [annotations](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/annotations.md), [diagrams](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/references.md), [services](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/services.md), and [media](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/media.md) fixtures
+- Worked examples → [annotations](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/annotations/README.md), [diagrams](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/references/README.md), [services](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/services/README.md), and [media](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/media/README.md) fixtures

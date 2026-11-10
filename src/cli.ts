@@ -16,7 +16,7 @@ import {
 const serveArgs = z.object({
   file: z
     .string()
-    .describe("Path to the markdown file, or a book directory of pages"),
+    .describe("The spec's directory, such as .diffmap/specs/<name>/"),
 });
 
 const serveOptions = z.object({
@@ -98,7 +98,7 @@ const cli = Cli.create("diffmap", {
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
-  hint: "`guide` prints how to write a spec. A spec is a book directory of pages, such as `.diffmap/specs/<name>/`, or one Markdown file. `validate <spec>` checks it without starting a server. `serve <spec>` runs the local viewer. `share <spec>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
+  hint: "`guide` prints how to write a spec. A spec is a directory of Markdown pages, such as `.diffmap/specs/<name>/`. `validate <spec>` checks it without starting a server. `serve <spec>` runs the local viewer. `share <spec>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
   examples: [
     {
       args: { file: ".diffmap/specs/sessions/" },

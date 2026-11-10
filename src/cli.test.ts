@@ -57,18 +57,18 @@ test("diffmap guide prints guide.md", async () => {
 
 test("diffmap validate checks specs without starting a server", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-validate-"));
-  const file = path.join(dir, "spec.md");
+  const cover = path.join(dir, "README.md");
   try {
     await fs.writeFile(
-      file,
+      cover,
       "```ts\nsave(record);\nsave(record);\n// [!note L2 save] Second line.\n```\n",
     );
-    const valid = await runCli(["validate", file, "--json"]);
+    const valid = await runCli(["validate", dir, "--json"]);
     assert.equal(valid.exitCode, 0, valid.stderr);
     assert.deepEqual(JSON.parse(valid.stdout), {
-      file,
+      file: dir,
       valid: true,
-      pages: ["spec.md"],
+      pages: ["README.md"],
     });
     for (const [source, message] of [
       [
@@ -81,18 +81,25 @@ test("diffmap validate checks specs without starting a server", async () => {
         /Unknown service Auth/,
       ],
     ] as const) {
-      await fs.writeFile(file, source);
-      const invalid = await runCli(["validate", file]);
+      await fs.writeFile(cover, source);
+      const invalid = await runCli(["validate", dir]);
       assert.equal(invalid.exitCode, 1, invalid.stdout + invalid.stderr);
       assert.match(invalid.stdout + invalid.stderr, message);
+      // Every error names the page it came from.
+      assert.match(invalid.stdout + invalid.stderr, /README\.md/);
     }
-    await fs.unlink(file);
-    const missing = await runCli(["validate", file]);
-    assert.equal(missing.exitCode, 1);
-    assert.match(missing.stdout + missing.stderr, /could not read/);
 
-    // A directory is a book: every page parses, and a failure names its page.
-    await fs.writeFile(path.join(dir, "README.md"), "# Book\n");
+    // A spec is a directory; a Markdown file alone is not one.
+    const file = await runCli(["validate", cover]);
+    assert.equal(file.exitCode, 1);
+    assert.match(file.stdout + file.stderr, /a spec is a directory/);
+    await fs.unlink(cover);
+    const noCover = await runCli(["validate", dir]);
+    assert.equal(noCover.exitCode, 1);
+    assert.match(noCover.stdout + noCover.stderr, /no README\.md/);
+
+    // Every page parses, and a failure names its page.
+    await fs.writeFile(cover, "# Spec\n");
     await fs.writeFile(path.join(dir, "10-last.md"), "# Last\n");
     await fs.writeFile(
       path.join(dir, "2-broken.md"),
@@ -102,9 +109,9 @@ test("diffmap validate checks specs without starting a server", async () => {
     assert.equal(broken.exitCode, 1);
     assert.match(broken.stdout + broken.stderr, /2-broken\.md/);
     await fs.writeFile(path.join(dir, "2-broken.md"), "# Fixed\n");
-    const book = await runCli(["validate", dir, "--json"]);
-    assert.equal(book.exitCode, 0, book.stderr);
-    assert.deepEqual(JSON.parse(book.stdout).pages, [
+    const pages = await runCli(["validate", dir, "--json"]);
+    assert.equal(pages.exitCode, 0, pages.stderr);
+    assert.deepEqual(JSON.parse(pages.stdout).pages, [
       "README.md",
       "2-broken.md",
       "10-last.md",

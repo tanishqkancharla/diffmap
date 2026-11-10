@@ -60,7 +60,7 @@ export type ViewerEvent = {
 }[keyof ViewerEventSchema];
 
 export type StartServerInput = {
-  /** A spec file, or a book directory of pages. */
+  /** The spec's directory. */
   filePath: string;
   workspaceRoot: string;
   port?: number;
@@ -155,14 +155,12 @@ export async function startServer(input: StartServerInput) {
     const files = [...changedPages];
     changedPages.clear();
     let messages = files;
-    if (read.directory) {
-      const next = await readBook(filePath);
-      const nextOutline =
-        next instanceof Error ? next.message : bookOutline(next.book.pages);
-      if (nextOutline !== outline) {
-        outline = nextOutline;
-        messages = ["book"];
-      }
+    const next = await readBook(filePath);
+    const nextOutline =
+      next instanceof Error ? next.message : bookOutline(next.book.pages);
+    if (nextOutline !== outline) {
+      outline = nextOutline;
+      messages = ["book"];
     }
     for (const message of messages) {
       for (const client of reloadClients) client.write(textFrame(message));
@@ -171,13 +169,7 @@ export async function startServer(input: StartServerInput) {
   try {
     // Watch the directory: editors often save by replacing the file, which ends a watch on the file itself.
     watcher = watch(bookDir, (_event, name) => {
-      if (
-        name === null ||
-        (read.directory
-          ? !isMarkdownFile(name)
-          : name !== path.basename(filePath))
-      )
-        return;
+      if (name === null || !isMarkdownFile(name)) return;
       changedPages.add(name);
       clearTimeout(reloadTimer);
       reloadTimer = setTimeout(() => {

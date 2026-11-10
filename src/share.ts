@@ -47,7 +47,7 @@ export async function shareMarkdownFile(input: {
     const localMedia = collectMedia(page.document.nodes).filter(isLocalMedia);
     if (localMedia.length > 0) {
       return new DiffmapShareError({
-        reason: `a shared gist cannot show local images or videos (${localMedia.join(", ")}${read.directory ? ` in ${page.file}` : ""}). Link them by https URL, or view the spec with serve`,
+        reason: `a shared gist cannot show local images or videos (${localMedia.join(", ")} in ${page.file}). Link them by https URL, or view the spec with serve`,
       });
     }
     // The hosted viewer has no git, so the gist carries a snapshot of each commit.

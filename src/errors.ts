@@ -17,7 +17,7 @@ export class DiffmapRegistryError extends errore.createTaggedError({
 
 export class DiffmapBookError extends errore.createTaggedError({
   name: "DiffmapBookError",
-  message: "diffmap book $path: $reason",
+  message: "diffmap spec $path: $reason",
 }) {}
 
 export class DiffmapMermaidError extends errore.createTaggedError({

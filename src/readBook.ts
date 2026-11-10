@@ -1,10 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { isMarkdownFile, makeBook, singlePageBook } from "./book.js";
+import { isMarkdownFile, isPageFileName, makeBook } from "./book.js";
 import { DiffmapBookError, DiffmapFileError } from "./errors.js";
 import { parseViewerDocument } from "./parseViewer.js";
 
-/** Reads a book directory, or a single spec file as a book with only a cover. */
+/** Reads a spec: a directory with a README.md cover and numbered pages. */
 export async function readBook(target: string) {
   const stat = await fs
     .stat(target)
@@ -13,17 +13,18 @@ export async function readBook(target: string) {
     );
   if (stat instanceof Error) return stat;
   if (!stat.isDirectory()) {
-    const source = await readSource(target);
-    if (source instanceof Error) return source;
-    return {
-      dir: path.dirname(target),
-      directory: false,
-      book: singlePageBook({
-        file: path.basename(target),
-        path: target,
-        source,
-      }),
-    };
+    const dir = path.dirname(target);
+    const file = path.basename(target);
+    return new DiffmapBookError({
+      path: target,
+      reason: `a spec is a directory, not a file. ${
+        isPageFileName(file)
+          ? `Pass this page's spec, ${dir}`
+          : isMarkdownFile(file)
+            ? `Move this file to ${path.join(dir, file.replace(/\.mdx?$/i, ""), "README.md")} and give each phase its own numbered page`
+            : "Pass the directory that holds its README.md and numbered pages"
+      }`,
+    });
   }
   const names = await fs
     .readdir(target)
@@ -40,7 +41,7 @@ export async function readBook(target: string) {
   }
   const book = makeBook(target, files);
   if (book instanceof Error) return book;
-  return { dir: target, directory: true, book };
+  return { dir: target, book };
 }
 
 export type ReadBook = Exclude<Awaited<ReturnType<typeof readBook>>, Error>;
@@ -51,9 +52,10 @@ export function parseBook(read: ReadBook) {
   for (const page of read.book.pages) {
     const document = parseViewerDocument(page.source, page.path);
     if (document instanceof Error) {
-      return read.directory
-        ? new DiffmapBookError({ path: page.path, reason: document.message })
-        : document;
+      // Most parse errors, such as Mermaid's, already name the page.
+      return document.message.includes(page.path)
+        ? document
+        : new DiffmapBookError({ path: page.path, reason: document.message });
     }
     pages.push({ ...page, document });
   }

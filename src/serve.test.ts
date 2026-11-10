@@ -16,7 +16,7 @@ const execFileAsync = promisify(execFile);
 const srcDir = fileURLToPath(new URL(".", import.meta.url));
 const packageRoot = path.resolve(srcDir, "..");
 const cliPath = path.join(srcDir, "cli.ts");
-const sampleSpec = path.join(packageRoot, "fixtures", "sample-spec.md");
+const sampleSpec = path.join(packageRoot, "fixtures", "sample-spec");
 const localUrlPattern = /http:\/\/127\.0\.0\.1:\d+/g;
 
 function httpUrlPort(url: string) {
@@ -251,19 +251,20 @@ async function stopCli(spawned: SpawnedCli, url: string) {
   await waitForExit(spawned.child);
 }
 
+/** Two specs, each with the sample spec as its only page. */
 async function withTempSpecs(
-  run: (firstFile: string, secondFile: string) => Promise<void>,
+  run: (firstSpec: string, secondSpec: string) => Promise<void>,
 ) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-serve-"));
-  const firstFile = path.join(dir, "one.md");
-  const secondFile = path.join(dir, "two.md");
-  const source = await fs.readFile(sampleSpec, "utf8");
-  await Promise.all([
-    fs.writeFile(firstFile, source),
-    fs.writeFile(secondFile, source),
-  ]);
+  const firstSpec = path.join(dir, "one");
+  const secondSpec = path.join(dir, "two");
+  const source = await fs.readFile(path.join(sampleSpec, "README.md"), "utf8");
+  for (const spec of [firstSpec, secondSpec]) {
+    await fs.mkdir(spec);
+    await fs.writeFile(path.join(spec, "README.md"), source);
+  }
   try {
-    await run(firstFile, secondFile);
+    await run(firstSpec, secondSpec);
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
@@ -273,9 +274,9 @@ test(
   "diffmap serve prints a free port and list tracks both servers",
   { timeout: 90_000 },
   async () => {
-    await withTempSpecs(async (firstFile, secondFile) => {
-      const first = spawnCli(["serve", firstFile]);
-      const second = spawnCli([secondFile]);
+    await withTempSpecs(async (firstSpec, secondSpec) => {
+      const first = spawnCli(["serve", firstSpec]);
+      const second = spawnCli([secondSpec]);
       try {
         const firstUrl = await waitForLocalUrl(first);
         const secondUrl = await waitForLocalUrl(second);
@@ -315,14 +316,14 @@ test(
     await fs.mkdir(workspace);
     const clip = Buffer.from(Array.from({ length: 1000 }, (_, i) => i % 251));
     await Promise.all([
-      fs.writeFile(path.join(workspace, "spec.md"), "# Media\n"),
+      fs.writeFile(path.join(workspace, "README.md"), "# Media\n"),
       fs.writeFile(path.join(workspace, "clip.webm"), clip),
       fs.writeFile(path.join(workspace, ".env"), "SECRET=1\n"),
       fs.writeFile(path.join(dir, "outside.png"), "outside"),
     ]);
     const server = assertStarted(
       await startServer({
-        filePath: path.join(workspace, "spec.md"),
+        filePath: workspace,
         workspaceRoot: workspace,
       }),
     );
@@ -398,7 +399,7 @@ test(
       for (const tag of tags) assert.ok(tag.includes(`nonce="${nonce}"`), tag);
       // Any other response opened as a page, such as an SVG from the repo, runs no script at all.
       const media = await fetch(
-        `${server.url}/__diffmap/media?path=media/after.png`,
+        `${server.url}/__diffmap/media?path=../media/after.png`,
       );
       assert.equal(media.status, 200);
       assert.match(
@@ -455,12 +456,13 @@ test(
 );
 
 test(
-  "startServer tells the page to reload when the spec changes",
+  "startServer tells the page to reload when its page changes",
   { timeout: 30_000 },
   async () => {
-    await withTempSpecs(async (file) => {
+    await withTempSpecs(async (spec) => {
+      const file = path.join(spec, "README.md");
       const server = assertStarted(
-        await startServer({ filePath: file, workspaceRoot: packageRoot }),
+        await startServer({ filePath: spec, workspaceRoot: packageRoot }),
       );
       const socket = new WebSocket(
         `${server.url.replace("http", "ws")}/__diffmap/events`,
@@ -501,8 +503,9 @@ test(
             once: true,
           });
         });
-        // Save the way many editors do: write a new file and rename it over the spec.
-        await fs.writeFile(`${file}.tmp`, "# Edited spec\n");
+        // Save the way many editors do: write a new file and rename it over the page.
+        // The title stays, so only this page's tabs reload, not every page's.
+        await fs.writeFile(`${file}.tmp`, "# Spec fixture\n\nEdited spec\n");
         await fs.rename(`${file}.tmp`, file);
         assert.equal(await message, path.basename(file));
         const document = (await (
