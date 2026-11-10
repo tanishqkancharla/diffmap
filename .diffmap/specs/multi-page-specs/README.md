@@ -1,4 +1,4 @@
-# Specs as books
+# Multi-page specs
 
 ## Problem overview
 
@@ -10,7 +10,7 @@ A spec was one Markdown file. On a real change it grows to a dozen phases, each 
 
 ## Solution overview
 
-A spec is now a **book**: a directory in `.diffmap/specs/`. `README.md` is the cover, with the problem, the solution, goals, and non-goals. Every other page is a file whose name starts with a number, which sets its place in the book. Usually there is one page per phase.
+A spec is now a directory in `.diffmap/specs/`. `README.md` is the cover, with the problem, the solution, goals, and non-goals. Every other page is a file whose name starts with a number, which sets its place in the spec. Usually there is one page per phase.
 
 ```text [.diffmap/specs/session-store/]
 README.md                     cover: problem, solution, goals, non-goals
@@ -20,12 +20,12 @@ README.md                     cover: problem, solution, goals, non-goals
 media/drop-memory-cache/      captures for Phase 3
 ```
 
-`diffmap serve .diffmap/specs/session-store/` shows one page at a time, at its own URL, with the book's pages in the left gutter and links to the previous and next page at the bottom. Each page reads on its own: it assumes the reader knows the cover and skimmed the pages before it, not every detail of them.
+`diffmap serve .diffmap/specs/session-store/` shows one page at a time, at its own URL, with the spec's pages in the left gutter and links to the previous and next page at the bottom. Each page reads on its own: it assumes the reader knows the cover and skimmed the pages before it, not every detail of them.
 
-A single file still works. diffmap reads `spec.md` as a book with only a cover, so existing specs, gists, and pull request links keep working, and one code path serves both.
+A spec is always a directory. `serve`, `validate`, and `share` reject a single Markdown file and say where to move it ([Phase 7](07-directories-only.md)). diffmap.dev still opens gists and pull requests made before then, one file at a time, so links people already shared keep working.
 
 ```tsx
-// The one rule every viewer uses to turn file names into pages (src/book.ts).
+// The one rule every viewer uses to turn file names into pages (src/book.ts, which calls a spec a `Book`).
 type BookPage = {
   file: string; // "02-write-through.md"
   slug: string; // "write-through", or "" for the cover
@@ -56,8 +56,9 @@ The local and gist URLs use the name without its number (`/write-through`), so r
 
 - **`README.md` is required.** Without it, `/` has no clear page, and the problem and goals end up repeated on every page.
 - **A Markdown file without a number prefix is an error**, with a message that names the file and suggests a number. Otherwise an appendix such as `references.md` lands in an order nobody chose.
-- **Copy comments copies the whole book**, grouped by page, since a reviewer reads several pages and then pastes once.
+- **Copy comments copies the whole spec**, grouped by page, since a reviewer reads several pages and then pastes once.
 - **Gist URLs use slugs; pull request URLs keep file names.** A gist page is `/g/<id>/write-through`, and the gist's file name still works. A pull request URL pins to one commit, where no file is ever renamed, so its pages are the files themselves, as GitHub names them.
+- **No single-file specs.** One shape for every spec keeps the guide, the viewers, and the agents simple; a small spec is a cover and one page.
 - **`.diffmap/specs/` is the one place specs live**, committed with the code, including walkthroughs of pull requests. This repository's own specs moved there.
 
 ## Goals
@@ -66,30 +67,29 @@ The local and gist URLs use the name without its number (`/write-through`), so r
 - Each page has its own URL, comments, and Diff button, which opens that page's `changes` card.
 - Readers move between pages from a page list and links to the previous and next page.
 - Relative links between pages, such as `[Phase 2](02-write-through.md)`, work in diffmap and on GitHub.
-- `diffmap guide` tells agents to write books in `.diffmap/specs/`, and how to make each page stand on its own.
+- `diffmap guide` tells agents to write specs as directories in `.diffmap/specs/`, and how to make each page stand on its own.
 
 ## Non-goals
 
-- Nested directories or sections inside a book. Gists hold only flat files, and a long book can split into two books.
-- Removing single-file specs.
-- Turning existing single-file specs, such as [merge-generate-spec-walkthrough](../merge-generate-spec-walkthrough.md), into books.
+- Nested directories or sections inside a spec. Gists hold only flat files, and a long spec can split into two specs.
 - A search box across pages.
 
 ## Pages
 
-1. [Read a directory as a book](01-read-a-directory.md): the page rule and `validate <dir>`.
+1. [Read a spec directory](01-read-a-directory.md): the page rule and `validate <dir>`.
 2. [Serve each page at its own URL](02-serve-pages.md): the server and live reload.
 3. [Move between pages](03-move-between-pages.md): the page list, next and previous links, and links between pages.
-4. [Tell agents to write books](04-write-books.md): the guide, the README, and `.diffmap/specs/`.
-5. [Share a book as a gist](05-share-a-book.md): `share <dir>` and the gist viewer.
-6. [Open a book on a pull request](06-open-on-a-pull-request.md): diffmap.dev's GitHub viewer.
+4. [Tell agents to write multi-page specs](04-tell-agents.md): the guide, the README, and `.diffmap/specs/`.
+5. [Share a spec as a gist](05-share-a-spec.md): `share <dir>` and the gist viewer.
+6. [Open a spec on a pull request](06-open-on-a-pull-request.md): diffmap.dev's GitHub viewer.
+7. [Only directories](07-directories-only.md): no more single-file specs.
 
 ## References
 
-- [[src/book.ts]] orders pages and finds them by slug, file name, or link; [[src/readBook.ts]] reads a book from disk.
-- [[src/serve.ts#startServer]] reads, parses, watches, and serves the book.
+- [[src/book.ts]] orders pages and finds them by slug, file name, or link; [[src/readBook.ts]] reads a spec from disk.
+- [[src/serve.ts#startServer]] reads, parses, watches, and serves the spec.
 - [[src/viewer/main.tsx]] loads the page the URL names and moves between pages.
-- [[src/viewer/bookNav.tsx]] holds the book a page belongs to, its links, and the pager.
+- [[src/viewer/bookNav.tsx]] holds the spec a page belongs to, its links, and the pager.
 - [[src/share.ts#shareMarkdownFile]], [[src/gist/fetchGist.ts#loadGistMarkdown]], and [[src/gist/GistApp.tsx#GistApp]] share and load gists.
 - [[src/github/route.ts#parseGitHubPath]] and [[src/github/fetchRepo.ts#loadPinnedSpec]] load specs from pull requests.
 - [[guide.md]] is what `diffmap guide` prints.

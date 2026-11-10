@@ -1,6 +1,6 @@
-# ✅ Phase 4: Tell agents to write books
+# ✅ Phase 4: Tell agents to write multi-page specs
 
-Phases [1](01-read-a-directory.md) through [3](03-move-between-pages.md) let diffmap read, serve, and navigate a book. This phase tells agents to write one, and where.
+Phases [1](01-read-a-directory.md) through [3](03-move-between-pages.md) let diffmap read, serve, and navigate a multi-page spec. This phase tells agents to write one, and where.
 
 **Today**
 
@@ -8,23 +8,23 @@ Phases [1](01-read-a-directory.md) through [3](03-move-between-pages.md) let dif
 
 **Proposed**
 
-Every spec lives in `.diffmap/specs/<name>/`, committed with the code; `.diffmap/` is not in `.gitignore`. A walkthrough of a pull request goes there too, so there is one place to look. The guide's Shape section now describes a book:
+Every spec lives in `.diffmap/specs/<name>/`, committed with the code; `.diffmap/` is not in `.gitignore`. A walkthrough of a pull request goes there too, so there is one place to look. The guide's Shape section now describes the directory:
 
 - The cover holds the problem, the solution, goals, non-goals, and References. Pages do not repeat it.
 - One page per phase, named `NN-<slug>.md` with two-digit numbers. The page's first heading is the phase's title with its ⏳ or ✅, which the page list shows.
 - Each page is readable by someone who read the cover and skimmed the pages before it. It opens with a sentence or two that says what earlier pages built, linked, as in `[Phase 1](01-sessions-table.md) added the sessions table.` Then Today and Proposed, the walkthrough, and the `changes` fence last, as before.
 - A term is defined on the page that introduces it, and later pages link back to that page.
 - To insert a page, `git mv` the pages after it to new numbers. URLs and comments survive because they use the slug.
-- Captures go in `media/<slug>/` inside the book.
+- Captures go in `media/<slug>/` inside the spec.
 
-The guide's example phase is now a page, `02-validate-request-input.md`, that opens by linking the page before it. The README gained a **Books** section with the naming rules, and its commands take a directory. `fixtures/book` is a three-page example: `npx @tanishqkancharla/diffmap fixtures/book`.
+The guide's example phase is now a page, `02-validate-request-input.md`, that opens by linking the page before it. The README gained a **Spec layout** section with the naming rules, and its commands take a directory. A three-page example, now `fixtures/sessions-in-postgres`, runs with `npx @tanishqkancharla/diffmap fixtures/sessions-in-postgres`.
 
 [[skills/generate-diffmap/SKILL.md]] needed no change: it loads the guide, so agents get the new instructions with the next diffmap release.
 
-This repository's own specs moved to `.diffmap/specs/`. The earlier spec stays one file, and this one is the first book.
+This repository's own specs moved to `.diffmap/specs/`. This was the first multi-page spec; [Phase 7](07-directories-only.md) turned the earlier one into a directory too.
 
 ```changes
-723f654
+9636b02
 guide.md
 README.md
 src/cli.ts

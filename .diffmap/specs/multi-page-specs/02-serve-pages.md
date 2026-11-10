@@ -1,6 +1,6 @@
 # ✅ Phase 2: Serve each page at its own URL
 
-[Phase 1](01-read-a-directory.md) added `readBook`, which reads a book's pages in order. This phase serves them, one page per URL.
+[Phase 1](01-read-a-directory.md) added `readBook`, which reads a spec's pages in order. This phase serves them, one page per URL.
 
 **Today**
 
@@ -10,29 +10,29 @@
 
 `serve .diffmap/specs/session-store/` serves the cover at `/` and each page at `/<slug>`. A link to a page's file, such as `/02-write-through.md`, opens that page and settles on `/write-through`. Each page's comments, Reviewed checkboxes, and Diff button are its own: comments and Reviewed already saved under the URL's path, so per-page URLs separate them, and the Diff button opens the page's first `changes` card, which is its phase's commit.
 
-```mermaid diff [serve reads a book]
+```mermaid diff [serve reads a spec directory]
  flowchart LR
 -  File["spec.md"] --> Serve[startServer]
 +  Dir[".diffmap/specs/name/"] --> Read[readBook]
 +  Read --> Serve[startServer]
    Serve -->|/__diffmap/document?page=slug| Viewer[ViewerApp]
 +  Serve -->|/__diffmap/book| Viewer
-   %% ref node:Read [[fdfc4c0:src/readBook.ts#L8-L44]]
-   %% ref node:Serve [[d8e63e3:src/serve.ts#L82-L96]]
-   %% ref node:Viewer [[d8e63e3:src/viewer/main.tsx]]
+   %% ref node:Read [[adb2cb4:src/readBook.ts#L8-L44]]
+   %% ref node:Serve [[0272b88:src/serve.ts#L111-L125]]
+   %% ref node:Viewer [[0272b88:src/viewer/main.tsx]]
 ```
 
-- At startup, `startServer` parses every page and collects `changes` warnings from all of them, so a broken page still stops `serve` ([[d8e63e3:src/serve.ts#L82-L96]]).
-- `/__diffmap/book` returns the title and the ordered pages (`file`, `slug`, `title`). `/__diffmap/document?page=<slug>` returns one page's document, cached per page until its source changes ([[d8e63e3:src/serve.ts#L606-L676]]).
-- `Accept: text/markdown` on `/<slug>` returns that page's source, so an agent can read one page of a served book. An unknown page is a 404.
-- `/__diffmap/media` resolves paths against the book's directory, where every page lives.
+- At startup, `startServer` parses every page and collects `changes` warnings from all of them, so a broken page still stops `serve` ([[0272b88:src/serve.ts#L111-L125]]).
+- `/__diffmap/book` returns the title and the ordered pages (`file`, `slug`, `title`). `/__diffmap/document?page=<slug>` returns one page's document, cached per page until its source changes ([[0272b88:src/serve.ts#L674-L746]]).
+- `Accept: text/markdown` on `/<slug>` returns that page's source, so an agent can read one page of a served spec. An unknown page is a 404.
+- `/__diffmap/media` resolves paths against the spec's directory, where every page lives.
 - `list` shows the directory and the cover's title.
 
 Live reload changed the most. The server now watches every page, but a reader on one page should not lose their place because another page changed:
 
-```services [Live reload in a book]
+```services [Live reload across pages]
 service Agent
-service Server "diffmap serve" [[d8e63e3:src/serve.ts#L122-L160]]
+service Server "diffmap serve" [[0272b88:src/serve.ts#L151-L189]]
   state outline = 3 pages
 service Browser "reader on /write-through"
   state page = 02-write-through.md
@@ -54,13 +54,17 @@ step "The agent edits this page"
     > This tab's page, so it reloads.
 ```
 
-Before, the reload frame always said `change`. Now [[d8e63e3:src/serve.ts#L49-L63]] writes a text frame with the changed file's name, or `book` when the outline (each page's file, slug, and title) differs from the last one sent.
+Before, the reload frame always said `change`. Now [[0272b88:src/serve.ts#L77-L92]] writes a text frame with the changed file's name, or `book` when the outline (each page's file, slug, and title) differs from the last one sent.
 
-`src/serve.test.ts` serves a three-page book and checks the page order, a page's document and Markdown, a 404 for an unknown page, and each of the three reload messages above.
+`src/serve.test.ts` serves a three-page spec and checks the page order, a page's document and Markdown, a 404 for an unknown page, and each of the three reload messages above.
+
+`serve`'s startup telemetry now counts pages, and the references and diagrams across all of them ([[0272b88:src/cli.ts]]); [[0272b88:TELEMETRY.md]] lists the new `pages` count.
 
 ```changes
-d8e63e3
+0272b88
 src/serve.ts
 src/viewer/main.tsx
+src/cli.ts
+TELEMETRY.md
 src/serve.test.ts
 ```
