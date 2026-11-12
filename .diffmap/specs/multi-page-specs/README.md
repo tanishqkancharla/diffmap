@@ -25,14 +25,14 @@ media/drop-memory-cache/      captures for Phase 3
 A spec is always a directory. `serve`, `validate`, and `share` reject a single Markdown file and say where to move it ([Phase 7](07-directories-only.md)). diffmap.dev still opens gists and pull requests made before then, one file at a time, so links people already shared keep working.
 
 ```tsx
-// The one rule every viewer uses to turn file names into pages (src/book.ts, which calls a spec a `Book`).
-type BookPage = {
+// The one rule every viewer uses to turn file names into pages (src/spec.ts).
+type SpecPage = {
   file: string; // "02-write-through.md"
   slug: string; // "write-through", or "" for the cover
   title: string; // the page's first # heading
 };
 
-function makeBook(dir: string, files: { file: string; source: string }[]) {
+function makeSpec(dir: string, files: { file: string; source: string }[]) {
   // README.md is the cover and is required.
   // Every other .md needs a number prefix: "notes.md needs a number prefix ... as in 01-notes.md".
   // Pages sort by that number, so 10- comes after 9-; two pages may not share a slug.
@@ -86,10 +86,10 @@ The local and gist URLs use the name without its number (`/write-through`), so r
 
 ## References
 
-- [[src/book.ts]] orders pages and finds them by slug, file name, or link; [[src/readBook.ts]] reads a spec from disk.
+- [[src/spec.ts]] orders pages and finds them by slug, file name, or link; [[src/readSpec.ts]] reads a spec from disk.
 - [[src/serve.ts#startServer]] reads, parses, watches, and serves the spec.
 - [[src/viewer/main.tsx]] loads the page the URL names and moves between pages.
-- [[src/viewer/bookNav.tsx]] holds the spec a page belongs to, its links, and the pager.
+- [[src/viewer/specNav.tsx]] holds the spec a page belongs to, its links, and the previous and next links.
 - [[src/share.ts#shareMarkdownFile]], [[src/gist/fetchGist.ts#loadGistMarkdown]], and [[src/gist/GistApp.tsx#GistApp]] share and load gists.
 - [[src/github/route.ts#parseGitHubPath]] and [[src/github/fetchRepo.ts#loadPinnedSpec]] load specs from pull requests.
 - [[guide.md]] is what `diffmap guide` prints.

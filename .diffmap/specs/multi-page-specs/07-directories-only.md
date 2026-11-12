@@ -30,7 +30,7 @@ The only reader of files from disk, [[20dcf5f:src/readBook.ts#L15-L28]], returns
 
 Now that every error comes from a page of a spec, [[20dcf5f:src/readBook.ts#L50-L63]] names the page on errors that don't already. A Mermaid error already names its file, so it stays as it is, without the path twice.
 
-The word "book" is gone from what people read: the guide, the README, the CLI's help, and its errors say "spec". The code still calls a spec a `Book` and its files `BookPage`s.
+The word "book" is gone from what people read: the guide, the README, the CLI's help, and its errors say "spec". Later, [[1d87880:src/spec.ts]] renamed the code to match: `Book` is `Spec`, `BookPage` is `SpecPage`, `readBook.ts` is `readSpec.ts`, and `bookNav.tsx` is `specNav.tsx`. The links above point at the commits before that rename.
 
 Every fixture is now a directory with a `README.md`, so the README's `npx @tanishqkancharla/diffmap fixtures/annotations` commands work. `fixtures/book` is now `fixtures/sessions-in-postgres`, and this repository's earlier spec is now `.diffmap/specs/merge-generate-spec-walkthrough/`.
 
