@@ -440,6 +440,12 @@ const tocListRules = {
     margin: 0,
     padding: 0,
   },
+  // 1px between entries, including between a page and its nested headings.
+  "& ol, & li": {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1px",
+  },
   "& ol ol": {
     paddingInlineStart: spacing.value(6),
   },
