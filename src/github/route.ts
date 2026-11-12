@@ -141,7 +141,7 @@ function isRepoName(value: string) {
 
 function specPathError(specPath: string) {
   if (specPath.length === 0) {
-    return "A hosted spec URL needs a markdown file or book directory after the pull or commit.";
+    return "A hosted spec URL needs a spec directory or markdown file after the pull or commit.";
   }
   if (specPath.split("/").some((part) => part === "." || part === "..")) {
     return "Spec path is not a repository file.";

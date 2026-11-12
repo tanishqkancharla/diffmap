@@ -19,11 +19,11 @@ import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
 import {
-  BookContext,
-  BookPager,
+  SpecContext,
+  PageLinks,
   isMultiPage,
-  type BookNav,
-} from "./bookNav.tsx";
+  type SpecNav,
+} from "./specNav.tsx";
 import { commentsKey, CommentsContext, useCommentStore } from "./comments.ts";
 import { CopyCommentsButton } from "./CopyCommentsButton.tsx";
 import { commentHighlightStyle, PageComments } from "./PageComments.tsx";
@@ -50,8 +50,8 @@ export function ViewerApp(props: {
   headerActions?: ReactNode;
   /** Changes the Diff button opens before any reference is selected, such as a pull request. */
   defaultRev?: Rev;
-  /** The book this page belongs to. Its host remounts the viewer for each page. */
-  book?: BookNav;
+  /** The spec this page belongs to. Its host remounts the viewer for each page. */
+  spec?: SpecNav;
 }) {
   const viewerDocument = props.document;
   const meta = useViewerMeta(props.mode === "local");
@@ -87,14 +87,14 @@ export function ViewerApp(props: {
     props.title ??
     viewerDocument.headings.find((heading) => heading.level === 1)?.text ??
     "diffmap";
-  const book = props.book;
-  const title = isMultiPage(book)
-    ? book.title
+  const spec = props.spec;
+  const title = isMultiPage(spec)
+    ? spec.title
     : props.mode === "local" && meta !== undefined
       ? meta.title
       : parsedTitle;
-  const tabTitle = isMultiPage(book)
-    ? `${book.current.title} · ${book.title}`
+  const tabTitle = isMultiPage(spec)
+    ? `${spec.current.title} · ${spec.title}`
     : title;
   const shell = useStyles(styles.shell);
   const header = useStyles(styles.header);
@@ -111,15 +111,15 @@ export function ViewerApp(props: {
   );
   const contentRef = useRef<HTMLDivElement>(null);
   // localStorage is per origin, so the path names the page: a gist file, a GitHub spec, or a local server's page.
-  // A book page uses its own URL, which Copy comments reads back for every page.
+  // A spec page uses its own URL, which Copy comments reads back for every page.
   const comments = useCommentStore(
-    commentsKey(book?.href(book.current) ?? window.location.pathname),
+    commentsKey(spec?.href(spec.current) ?? window.location.pathname),
   );
   const closed = useStyles(styles.closed);
   const closedCopy = useStyles(styles.closedCopy);
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
-  const hasToc = hasTableOfContents(viewerDocument.headings, book);
+  const hasToc = hasTableOfContents(viewerDocument.headings, spec);
   const [tocDrawerOpen, setTocDrawerOpen] = useState(false);
   useEffect(() => {
     document.title = tabTitle;
@@ -155,7 +155,7 @@ export function ViewerApp(props: {
 
   return (
     <ViewerModeContext.Provider value={props.mode}>
-      <BookContext.Provider value={book}>
+      <SpecContext.Provider value={spec}>
         <CommentsContext.Provider value={comments}>
           <div className={shell}>
             <header className={header}>
@@ -222,7 +222,7 @@ export function ViewerApp(props: {
                           }}
                         />
                       </div>
-                      <BookPager />
+                      <PageLinks />
                     </div>
                     <PageComments contentRef={contentRef} />
                     {hasToc && (
@@ -258,7 +258,7 @@ export function ViewerApp(props: {
             </div>
           </div>
         </CommentsContext.Provider>
-      </BookContext.Provider>
+      </SpecContext.Provider>
     </ViewerModeContext.Provider>
   );
 }

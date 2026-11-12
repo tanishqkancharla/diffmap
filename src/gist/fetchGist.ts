@@ -4,7 +4,7 @@ import {
   type Changes,
   type Rev,
 } from "../changes.ts";
-import { findPage, makeBook, type Book, type BookPage } from "../book.ts";
+import { findPage, makeSpec, type Spec, type SpecPage } from "../spec.ts";
 import type { HostFiles } from "../host/files.ts";
 import { githubGistUrl, markdownFileNames, pickMarkdownFile } from "./route.ts";
 
@@ -17,8 +17,8 @@ export type GistDocument = {
   id: string;
   htmlUrl: string;
   files: GistMarkdownFile[];
-  /** The pages, when the gist's Markdown files form a book: a README.md and numbered pages. */
-  book: Book<BookPage & { source: string }> | undefined;
+  /** The pages, when the gist's Markdown files form a spec: a README.md and numbered pages. */
+  spec: Spec<SpecPage & { source: string }> | undefined;
   /** Snapshot `diffmap share` saved for each commit and changes card the spec references. */
   changes: Record<Rev, Changes>;
   /** Files excerpts and references without a commit read, as they were when shared. */
@@ -121,7 +121,7 @@ export async function loadGistMarkdown(
       id: typeof payload.id === "string" ? payload.id : gistId,
       htmlUrl,
       files,
-      book: gistBook(gistId, files),
+      spec: gistSpec(gistId, files),
       changes,
       sourceFiles,
     },
@@ -166,21 +166,21 @@ async function readGistFile(file: GistApiFile, signal?: AbortSignal) {
   return raw.text();
 }
 
-function gistBook(gistId: string, files: GistMarkdownFile[]) {
-  const book = makeBook(
+function gistSpec(gistId: string, files: GistMarkdownFile[]) {
+  const spec = makeSpec(
     gistId,
     files.map((file) => ({ file: file.name, source: file.content })),
   );
-  return book instanceof Error ? undefined : book;
+  return spec instanceof Error ? undefined : spec;
 }
 
-/** The file a gist URL names: a book's page by slug or file name, or another gist's file by name. */
+/** The file a gist URL names: a spec's page by slug or file name, or another gist's file by name. */
 export function chooseGistFile(
   gist: GistDocument,
   requested: string | undefined,
 ) {
-  if (gist.book !== undefined) {
-    const page = findPage(gist.book, requested);
+  if (gist.spec !== undefined) {
+    const page = findPage(gist.spec, requested);
     return page === undefined
       ? undefined
       : { name: page.file, content: page.source, page };

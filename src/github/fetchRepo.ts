@@ -7,10 +7,10 @@
 import {
   isMarkdownFile,
   isPageFileName,
-  makeBook,
-  type Book,
-  type BookPage,
-} from "../book.ts";
+  makeSpec,
+  type Spec,
+  type SpecPage,
+} from "../spec.ts";
 import { WORKING, type Changes, type Rev } from "../changes.ts";
 import { githubChangedFiles, type GitHubFile } from "./patch.ts";
 
@@ -19,17 +19,17 @@ const GITHUB_JSON = {
   Accept: "application/vnd.github+json",
 };
 
-export type PinnedBook = Book<BookPage & { source: string }>;
+export type PinnedPages = Spec<SpecPage & { source: string }>;
 
 export type PinnedSpec = {
   owner: string;
   repo: string;
   sha: string;
-  /** The page shown: a spec file, or a page of a book. */
+  /** The page shown: a spec file, or a page of a spec. */
   path: string;
   content: string;
-  /** The book the page belongs to, and its directory. */
-  book?: { dir: string; book: PinnedBook };
+  /** The spec the page belongs to, and its directory. */
+  pages?: { dir: string; spec: PinnedPages };
   htmlUrl: string;
   pullNumber?: number;
   pullUrl?: string;
@@ -126,8 +126,8 @@ export async function loadPinnedSpec(input: {
 }
 
 /**
- * A directory opens its book's cover. A page file of a book, such as
- * `02-write-through.md`, opens in its book; any other Markdown file alone.
+ * A directory opens its spec's cover. A page file of a spec, such as
+ * `02-write-through.md`, opens in its spec; any other Markdown file alone.
  */
 async function loadPinnedPage(
   pin: { owner: string; repo: string; sha: string },
@@ -135,62 +135,62 @@ async function loadPinnedPage(
   signal?: AbortSignal,
 ) {
   if (!isMarkdownFile(specPath)) {
-    const book = await fetchPinnedBook(pin, specPath, signal);
-    if (book instanceof Error) return book;
-    const cover = book.pages[0]!;
+    const spec = await fetchPinnedPages(pin, specPath, signal);
+    if (spec instanceof Error) return spec;
+    const cover = spec.pages[0]!;
     return {
       path: `${specPath}/${cover.file}`,
       content: cover.source,
-      book: { dir: specPath, book },
+      pages: { dir: specPath, spec },
     };
   }
   const slash = specPath.lastIndexOf("/");
   const dir = specPath.slice(0, Math.max(0, slash));
   const name = specPath.slice(slash + 1);
   if (isPageFileName(name)) {
-    const book = await fetchPinnedBook(pin, dir, signal);
+    const spec = await fetchPinnedPages(pin, dir, signal);
     const page =
-      book instanceof Error
+      spec instanceof Error
         ? undefined
-        : book.pages.find((candidate) => candidate.file === name);
-    if (page !== undefined && !(book instanceof Error)) {
-      return { path: specPath, content: page.source, book: { dir, book } };
+        : spec.pages.find((candidate) => candidate.file === name);
+    if (page !== undefined && !(spec instanceof Error)) {
+      return { path: specPath, content: page.source, pages: { dir, spec } };
     }
   }
   const blob = await fetchPinnedBlob(pin, specPath, signal);
   if (blob instanceof Error) return blob;
-  return { path: specPath, content: blob, book: undefined };
+  return { path: specPath, content: blob, pages: undefined };
 }
 
-const bookCache = new Map<string, Promise<PinnedBook | Error>>();
+const pagesCache = new Map<string, Promise<PinnedPages | Error>>();
 
-/** Every page of the book in `dir` at the pinned commit, read from raw.githubusercontent.com, which has no API rate limit. */
-function fetchPinnedBook(
+/** Every page of the spec in `dir` at the pinned commit, read from raw.githubusercontent.com, which has no API rate limit. */
+function fetchPinnedPages(
   pin: { owner: string; repo: string; sha: string },
   dir: string,
   signal?: AbortSignal,
 ) {
   const key = `${pin.owner}/${pin.repo}@${pin.sha}:${dir}/`;
-  const pending = bookCache.get(key);
+  const pending = pagesCache.get(key);
   if (pending !== undefined) return pending;
-  const request = readBookDirectory(pin, dir, signal).catch(
+  const request = readSpecDirectory(pin, dir, signal).catch(
     (cause: unknown) => {
-      bookCache.delete(key);
+      pagesCache.delete(key);
       if (cause instanceof Error && cause.name === "AbortError") throw cause;
       return cause instanceof Error
         ? cause
-        : new Error("Failed to load this book from GitHub.");
+        : new Error("Failed to load this spec from GitHub.");
     },
   );
-  bookCache.set(key, request);
+  pagesCache.set(key, request);
   return request;
 }
 
-async function readBookDirectory(
+async function readSpecDirectory(
   pin: { owner: string; repo: string; sha: string },
   dir: string,
   signal?: AbortSignal,
-): Promise<PinnedBook | Error> {
+): Promise<PinnedPages | Error> {
   const encodedDir = dir.split("/").map(encodeURIComponent).join("/");
   const response = await githubFetch(
     `/repos/${encodeURIComponent(pin.owner)}/${encodeURIComponent(pin.repo)}/contents/${encodedDir}?ref=${encodeURIComponent(pin.sha)}`,
@@ -226,7 +226,7 @@ async function readBookDirectory(
       return { file: name, source: await raw.text() };
     }),
   );
-  return makeBook(dir, files);
+  return makeSpec(dir, files);
 }
 
 export async function fetchPinnedBlob(

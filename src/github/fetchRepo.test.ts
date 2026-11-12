@@ -78,7 +78,7 @@ test("fetchGitHubChanges follows a commit's file pages and marks a capped compar
   assert.equal(compare.truncated, true);
 });
 
-test("loadPinnedSpec opens a book's directory at its cover and a page file in its book", async (t) => {
+test("loadPinnedSpec opens a spec's directory at its cover and a page file in its spec", async (t) => {
   const sha = "0123456789abcdef0123456789abcdef01234567";
   const requested: string[] = [];
   const raw: Record<string, string> = {
@@ -129,11 +129,11 @@ test("loadPinnedSpec opens a book's directory at its cover and a page file in it
   assert.equal(cover.spec.path, ".diffmap/specs/sessions/README.md");
   assert.equal(cover.spec.content, "# Sessions\n");
   assert.deepEqual(
-    cover.spec.book?.book.pages.map((page) => page.slug),
+    cover.spec.pages?.spec.pages.map((page) => page.slug),
     ["", "table", "write"],
   );
 
-  // The book is read once per commit; its pages open without another request.
+  // The spec is read once per commit; its pages open without another request.
   const before = requested.length;
   const page = await loadPinnedSpec({
     owner: "o",
@@ -144,7 +144,7 @@ test("loadPinnedSpec opens a book's directory at its cover and a page file in it
   assert.equal(page.status, "ok");
   if (page.status !== "ok") return;
   assert.equal(page.spec.content, "# Phase 2: Write\n");
-  assert.equal(page.spec.book?.dir, ".diffmap/specs/sessions");
+  assert.equal(page.spec.pages?.dir, ".diffmap/specs/sessions");
   assert.equal(requested.length, before);
 
   // A file whose name is not a page's opens alone, without listing its directory.
@@ -157,7 +157,7 @@ test("loadPinnedSpec opens a book's directory at its cover and a page file in it
   assert.equal(plain.status, "ok");
   if (plain.status !== "ok") return;
   assert.equal(plain.spec.content, "# Plain\n");
-  assert.equal(plain.spec.book, undefined);
+  assert.equal(plain.spec.pages, undefined);
   assert.equal(
     requested.includes("api.github.com/repos/o/r/contents/.diffmap/specs"),
     false,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, P } from "maui";
 import { init } from "md4x/standalone";
-import type { BookPage } from "../book.ts";
+import type { SpecPage } from "../spec.ts";
 import { parseViewerDocument } from "../parseViewer.ts";
 import type { ViewerDocument } from "../parseViewer.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
@@ -105,7 +105,7 @@ export function GitHubApp() {
     );
   }
 
-  // Moving to another page of a loaded book keeps the current page up until the next one is ready.
+  // Moving to another page of a loaded spec keeps the current page up until the next one is ready.
   if (
     loaded === undefined ||
     (loaded.key !== routeKey && loaded.view.kind !== "ready")
@@ -153,14 +153,14 @@ export function GitHubApp() {
   }
 
   const spec = view.spec;
-  const pinned = spec.book;
-  const pagePath = (page: BookPage) =>
+  const pinned = spec.pages;
+  const pagePath = (page: SpecPage) =>
     pinned === undefined || pinned.dir === ""
       ? page.file
       : `${pinned.dir}/${page.file}`;
-  const pageHref = (page: BookPage) =>
+  const pageHref = (page: SpecPage) =>
     githubCommitPath(spec.owner, spec.repo, spec.sha, pagePath(page));
-  const current = pinned?.book.pages.find(
+  const current = pinned?.spec.pages.find(
     (page) => pagePath(page) === spec.path,
   );
   return (
@@ -172,11 +172,11 @@ export function GitHubApp() {
             key={`${spec.owner}/${spec.repo}@${spec.sha}:${spec.path}`}
             document={view.document}
             mode="github"
-            book={
+            spec={
               pinned !== undefined && current !== undefined
                 ? {
-                    title: pinned.book.title,
-                    pages: pinned.book.pages,
+                    title: pinned.spec.title,
+                    pages: pinned.spec.pages,
                     current,
                     href: pageHref,
                     navigate: (page, hash) => {
@@ -247,7 +247,7 @@ async function loadView(
       pullRev: spec.pullRev,
     });
   }
-  // A pull request pins to its head commit, and a book's directory to its cover page.
+  // A pull request pins to its head commit, and a spec's directory to its cover page.
   const pinned = githubCommitPath(spec.owner, spec.repo, spec.sha, spec.path);
   if (window.location.pathname !== pinned) {
     window.history.replaceState({}, "", `${pinned}${window.location.hash}`);

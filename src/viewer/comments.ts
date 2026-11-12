@@ -129,13 +129,13 @@ export function loadComments(key: string): ReviewComment[] {
   }
 }
 
-/** Every comment as a Markdown list to paste to an agent; a book's comments go under each page's title. */
+/** Every comment as a Markdown list to paste to an agent; a spec's comments go under each page's title. */
 export function formatComments(input: {
   title: string;
   /** The document's file path or URL. */
   source: string | undefined;
   comments: ReviewComment[];
-  /** Every page of a book with its comments, in book order. */
+  /** Every page of a spec with its comments, in spec order. */
   pages?: { title: string; comments: ReviewComment[] }[];
 }): string {
   const heading =

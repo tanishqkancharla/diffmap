@@ -19,7 +19,7 @@ import {
   collectMedia,
   type ViewerDocument,
 } from "./parseViewer.js";
-import { parseBook, readBook } from "./readBook.js";
+import { parseSpec, readSpec } from "./readSpec.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -35,10 +35,10 @@ export async function shareMarkdownFile(input: {
   isPublic: boolean;
 }) {
   const filePath = path.resolve(input.filePath);
-  const read = await readBook(filePath);
+  const read = await readSpec(filePath);
   if (read instanceof Error) return read;
-  // A book's pages share one flat gist, as they share one directory.
-  const pages = parseBook(read);
+  // A spec's pages share one flat gist, as they share one directory.
+  const pages = parseSpec(read);
   if (pages instanceof Error) return pages;
   const changes = new Map<Rev, Changes>();
   const files: Record<string, string> = {};
@@ -75,7 +75,7 @@ export async function shareMarkdownFile(input: {
 
   const args = ["gist", "create"];
   if (input.isPublic) args.push("--public");
-  args.push("--desc", read.book.title, ...pages.map((page) => page.path));
+  args.push("--desc", read.spec.title, ...pages.map((page) => page.path));
   const snapshots = [
     { name: GIST_CHANGES_FILE, value: Object.fromEntries(changes) },
     { name: GIST_FILES_FILE, value: files },

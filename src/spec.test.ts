@@ -1,21 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findPage, linkedPage, makeBook } from "./book.ts";
+import { findPage, linkedPage, makeSpec } from "./spec.ts";
 
 const page = (file: string, source = `# ${file}\n`) => ({ file, source });
 
-test("makeBook puts the cover first and orders pages by number, not by name", () => {
-  const book = makeBook("book", [
+test("makeSpec puts the cover first and orders pages by number, not by name", () => {
+  const spec = makeSpec("spec", [
     page("10-cleanup.md"),
     page("2-write.md", "```sh\n# not a title\n```\n# Phase 2: Write\n"),
     page("README.md", "# Sessions in Postgres\n"),
     page("9-read.mdx"),
     page("media.png"),
   ]);
-  assert.ok(!(book instanceof Error), String(book));
-  assert.equal(book.title, "Sessions in Postgres");
+  assert.ok(!(spec instanceof Error), String(spec));
+  assert.equal(spec.title, "Sessions in Postgres");
   assert.deepEqual(
-    book.pages.map((p) => [p.file, p.slug]),
+    spec.pages.map((p) => [p.file, p.slug]),
     [
       ["README.md", ""],
       ["2-write.md", "write"],
@@ -25,16 +25,16 @@ test("makeBook puts the cover first and orders pages by number, not by name", ()
   );
 });
 
-test("makeBook names the file that breaks the book", () => {
-  const noCover = makeBook("book", [page("01-a.md")]);
+test("makeSpec names the file that breaks the spec", () => {
+  const noCover = makeSpec("spec", [page("01-a.md")]);
   assert.ok(noCover instanceof Error);
   assert.match(noCover.message, /no README\.md/);
 
-  const unnumbered = makeBook("book", [page("README.md"), page("notes.md")]);
+  const unnumbered = makeSpec("spec", [page("README.md"), page("notes.md")]);
   assert.ok(unnumbered instanceof Error);
   assert.match(unnumbered.message, /notes\.md needs a number prefix/);
 
-  const shared = makeBook("book", [
+  const shared = makeSpec("spec", [
     page("README.md"),
     page("01-Write.md"),
     page("02-write.md"),
@@ -44,28 +44,28 @@ test("makeBook names the file that breaks the book", () => {
 });
 
 test("findPage and linkedPage find pages by slug or file name", () => {
-  const book = makeBook("book", [
+  const spec = makeSpec("spec", [
     page("README.md"),
     page("01-sessions-table.md"),
     page("02-write-through.md"),
   ]);
-  assert.ok(!(book instanceof Error));
-  assert.equal(findPage(book, undefined)?.file, "README.md");
-  assert.equal(findPage(book, "write-through")?.file, "02-write-through.md");
-  assert.equal(findPage(book, "01-Sessions-Table.md")?.slug, "sessions-table");
-  assert.equal(findPage(book, "missing"), undefined);
+  assert.ok(!(spec instanceof Error));
+  assert.equal(findPage(spec, undefined)?.file, "README.md");
+  assert.equal(findPage(spec, "write-through")?.file, "02-write-through.md");
+  assert.equal(findPage(spec, "01-Sessions-Table.md")?.slug, "sessions-table");
+  assert.equal(findPage(spec, "missing"), undefined);
 
-  assert.deepEqual(linkedPage(book, "./02-write-through.md#tests"), {
-    page: book.pages[2],
+  assert.deepEqual(linkedPage(spec, "./02-write-through.md#tests"), {
+    page: spec.pages[2],
     hash: "#tests",
   });
-  assert.equal(linkedPage(book, "README.md")?.page.slug, "");
+  assert.equal(linkedPage(spec, "README.md")?.page.slug, "");
   for (const href of [
     "#tests",
     "../other/02-write-through.md",
     "https://example.com/02-write-through.md",
     "03-missing.md",
   ]) {
-    assert.equal(linkedPage(book, href), undefined, href);
+    assert.equal(linkedPage(spec, href), undefined, href);
   }
 });

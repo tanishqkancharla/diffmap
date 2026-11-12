@@ -21,17 +21,17 @@ import {
   text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
-import type { BookPage } from "../book.js";
+import type { SpecPage } from "../spec.js";
 import type { ViewerHeading } from "../parseViewer.js";
 import {
   isMultiPage,
   navigateOnClick,
-  useBook,
-  type BookNav,
-} from "./bookNav.tsx";
+  useSpec,
+  type SpecNav,
+} from "./specNav.tsx";
 
-/** A heading on this page, or in a book, a page with the current page's headings under it. */
-type TocEntryData = ViewerHeading & { page?: BookPage; currentPage?: boolean };
+/** A heading on this page, or in a spec, a page with the current page's headings under it. */
+type TocEntryData = ViewerHeading & { page?: SpecPage; currentPage?: boolean };
 type TocItem = TocEntryData & { children: TocItem[] };
 
 const TOC_LINE_MAX_PX = 12;
@@ -68,26 +68,26 @@ const TOC_DOCKED_MIN_GUTTER_PX = 220;
 
 export function hasTableOfContents(
   headings: ViewerHeading[],
-  book: BookNav | undefined,
+  spec: SpecNav | undefined,
 ) {
-  return tocHeadings(headings).length > 0 || isMultiPage(book);
+  return tocHeadings(headings).length > 0 || isMultiPage(spec);
 }
 
 function tocEntries(
   headings: ViewerHeading[],
-  book: BookNav | undefined,
+  spec: SpecNav | undefined,
 ): TocEntryData[] {
   const onPage = tocHeadings(headings);
-  if (!isMultiPage(book)) return onPage;
-  return book.pages.flatMap((page) => [
+  if (!isMultiPage(spec)) return onPage;
+  return spec.pages.flatMap((page) => [
     {
       id: `diffmap-page:${page.slug}`,
       text: page.title,
       level: 1 as const,
       page,
-      currentPage: page === book.current,
+      currentPage: page === spec.current,
     },
-    ...(page === book.current
+    ...(page === spec.current
       ? onPage.map((heading) => ({
           ...heading,
           level: Math.max(heading.level, 2) as ViewerHeading["level"],
@@ -108,8 +108,8 @@ export function TableOfContents(props: {
   drawerOpen: boolean;
   onDrawerOpenChange: (open: boolean) => void;
 }) {
-  const book = useBook();
-  const headings = tocEntries(props.headings, book);
+  const spec = useSpec();
+  const headings = tocEntries(props.headings, spec);
   const items = nestHeadings(headings);
   const { activeId, setActiveId } = useActiveHeading(
     props.headings,
@@ -125,10 +125,10 @@ export function TableOfContents(props: {
   if (items.length === 0) return undefined;
 
   // The current page's entry returns to its top; another page's opens that page.
-  const openPage = (event: MouseEvent, page: BookPage) => {
-    if (book === undefined) return;
-    if (page !== book.current) {
-      navigateOnClick(event, book, page);
+  const openPage = (event: MouseEvent, page: SpecPage) => {
+    if (spec === undefined) return;
+    if (page !== spec.current) {
+      navigateOnClick(event, spec, page);
       return;
     }
     event.preventDefault();
@@ -142,7 +142,7 @@ export function TableOfContents(props: {
       activeId={activeId}
       onSelect={setActiveId}
       onPage={openPage}
-      pageHref={book?.href}
+      pageHref={spec?.href}
     />
   );
 
@@ -184,7 +184,7 @@ export function TableOfContents(props: {
               openPage(event, page);
               props.onDrawerOpenChange(false);
             }}
-            pageHref={book?.href}
+            pageHref={spec?.href}
           />
         </nav>
       </Drawer>
@@ -298,8 +298,8 @@ type TocListProps = {
   className: string;
   activeId: string | undefined;
   onSelect: (id: string) => void;
-  onPage: (event: MouseEvent, page: BookPage) => void;
-  pageHref: ((page: BookPage) => string) | undefined;
+  onPage: (event: MouseEvent, page: SpecPage) => void;
+  pageHref: ((page: SpecPage) => string) | undefined;
 };
 
 function TocList(props: TocListProps & { items: TocItem[] }) {

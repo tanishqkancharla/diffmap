@@ -131,10 +131,10 @@ const cli = Cli.create("diffmap", {
     }),
     async run(c) {
       trackCommand("validate");
-      const { parseBook, readBook } = await import("./readBook.js");
+      const { parseSpec, readSpec } = await import("./readSpec.js");
       const file = resolveFromInvokeCwd(c.args.file);
-      const read = await readBook(file);
-      const result = read instanceof Error ? read : parseBook(read);
+      const read = await readSpec(file);
+      const result = read instanceof Error ? read : parseSpec(read);
       if (result instanceof Error)
         return c.error({ code: "DIFFMAP", message: result.message });
       return c.ok({

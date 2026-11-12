@@ -14,34 +14,34 @@ import {
   text,
 } from "maui";
 import { style, useStyles } from "purse-styles";
-import { linkedPage, type BookPage } from "../book.js";
+import { linkedPage, type SpecPage } from "../spec.js";
 
-/** A book the viewer shows one page of, and how its host moves between pages. */
-export type BookNav = {
+/** A spec the viewer shows one page of, and how its host moves between pages. */
+export type SpecNav = {
   title: string;
-  pages: BookPage[];
-  current: BookPage;
+  pages: SpecPage[];
+  current: SpecPage;
   /** The page's URL path, which also names its saved comments. */
-  href: (page: BookPage) => string;
-  navigate: (page: BookPage, hash: string) => void;
+  href: (page: SpecPage) => string;
+  navigate: (page: SpecPage, hash: string) => void;
 };
 
-export const BookContext = createContext<BookNav | undefined>(undefined);
+export const SpecContext = createContext<SpecNav | undefined>(undefined);
 
-export function useBook() {
-  return useContext(BookContext);
+export function useSpec() {
+  return useContext(SpecContext);
 }
 
-/** A book with more than one page; a single spec shows no page navigation. */
-export function isMultiPage(book: BookNav | undefined): book is BookNav {
-  return book !== undefined && book.pages.length > 1;
+/** A spec with more than one page; a one-page spec shows no page navigation. */
+export function isMultiPage(spec: SpecNav | undefined): spec is SpecNav {
+  return spec !== undefined && spec.pages.length > 1;
 }
 
 /** Opens a page in place on a plain click; a modified click opens the page's URL as a browser would. */
 export function navigateOnClick(
   event: MouseEvent,
-  book: BookNav,
-  page: BookPage,
+  spec: SpecNav,
+  page: SpecPage,
   hash = "",
 ) {
   if (
@@ -53,10 +53,10 @@ export function navigateOnClick(
   )
     return;
   event.preventDefault();
-  book.navigate(page, hash);
+  spec.navigate(page, hash);
 }
 
-/** A Markdown link; one to another page of the book opens that page. */
+/** A Markdown link; one to another page of the spec opens that page. */
 export function DocumentLink(props: {
   href: string | undefined;
   title: string | undefined;
@@ -64,46 +64,46 @@ export function DocumentLink(props: {
   id: string | undefined;
   children: ReactNode;
 }) {
-  const book = useBook();
+  const spec = useSpec();
   const target =
-    book === undefined || props.href === undefined
+    spec === undefined || props.href === undefined
       ? undefined
-      : linkedPage(book, props.href);
-  if (book === undefined || target === undefined) {
+      : linkedPage(spec, props.href);
+  if (spec === undefined || target === undefined) {
     return <a {...props} />;
   }
   return (
     <a
       {...props}
-      href={`${book.href(target.page)}${target.hash}`}
+      href={`${spec.href(target.page)}${target.hash}`}
       onClick={(event) =>
-        navigateOnClick(event, book, target.page, target.hash)
+        navigateOnClick(event, spec, target.page, target.hash)
       }
     />
   );
 }
 
 /** Links to the previous and next pages, at the end of a page. */
-export function BookPager() {
-  const book = useBook();
+export function PageLinks() {
+  const spec = useSpec();
   const nav = useStyles(styles.nav);
   const link = useStyles(styles.link);
   const label = useStyles(styles.label);
   const pageTitle = useStyles(styles.title);
-  if (!isMultiPage(book)) return undefined;
-  const index = book.pages.indexOf(book.current);
-  const previous = book.pages[index - 1];
-  const next = book.pages[index + 1];
-  const item = (page: BookPage | undefined, direction: "previous" | "next") =>
+  if (!isMultiPage(spec)) return undefined;
+  const index = spec.pages.indexOf(spec.current);
+  const previous = spec.pages[index - 1];
+  const next = spec.pages[index + 1];
+  const item = (page: SpecPage | undefined, direction: "previous" | "next") =>
     page === undefined ? (
       <span />
     ) : (
       <a
         className={link}
         data-direction={direction}
-        href={book.href(page)}
+        href={spec.href(page)}
         rel={direction === "previous" ? "prev" : "next"}
-        onClick={(event) => navigateOnClick(event, book, page)}
+        onClick={(event) => navigateOnClick(event, spec, page)}
       >
         <span className={label}>
           {direction === "previous" ? "← Previous" : "Next →"}
@@ -112,7 +112,7 @@ export function BookPager() {
       </a>
     );
   return (
-    <nav className={nav} aria-label="Pages" data-diffmap-kind="book-pager">
+    <nav className={nav} aria-label="Pages" data-diffmap-kind="page-links">
       {item(previous, "previous")}
       {item(next, "next")}
     </nav>

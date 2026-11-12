@@ -15,8 +15,8 @@ export class DiffmapRegistryError extends errore.createTaggedError({
   message: "diffmap registry failed: $reason",
 }) {}
 
-export class DiffmapBookError extends errore.createTaggedError({
-  name: "DiffmapBookError",
+export class DiffmapSpecError extends errore.createTaggedError({
+  name: "DiffmapSpecError",
   message: "diffmap spec $path: $reason",
 }) {}
 

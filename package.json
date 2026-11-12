@@ -38,7 +38,7 @@
     "prepublishOnly": "npm run typecheck && npm run lint && npm run format:check",
     "release": "npm publish",
     "pretest": "npm run build:viewer && npm run build:lib",
-    "test": "DIFFMAP_TELEMETRY=0 tsx --test src/book.test.ts src/cli.test.ts src/update.test.ts src/parseViewer.test.ts src/git.test.ts src/serve.test.ts src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts src/viewer/comments.test.ts",
+    "test": "DIFFMAP_TELEMETRY=0 tsx --test src/spec.test.ts src/cli.test.ts src/update.test.ts src/parseViewer.test.ts src/git.test.ts src/serve.test.ts src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts src/viewer/comments.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "build:gist": "vite build",

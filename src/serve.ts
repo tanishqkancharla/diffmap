@@ -8,9 +8,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ViteDevServer } from "vite";
 import { DiffmapFileError, DiffmapServeError } from "./errors.js";
-import { findPage, isMarkdownFile, type BookPage } from "./book.js";
+import { findPage, isMarkdownFile, type SpecPage } from "./spec.js";
 import { parseViewerDocument, type ViewerDocument } from "./parseViewer.js";
-import { parseBook, readBook } from "./readBook.js";
+import { parseSpec, readSpec } from "./readSpec.js";
 import {
   findUnlistedFiles,
   listDeltas,
@@ -74,7 +74,7 @@ const viewerDist = path.join(packageRoot, "viewer-dist");
 
 function noop() {}
 
-/** A WebSocket text frame. The reload socket sends the changed page's file name, or `book` when the list of pages changed. */
+/** A WebSocket text frame. The reload socket sends the changed page's file name, or `pages` when the list of pages changed. */
 function textFrame(text: string) {
   const payload = Buffer.from(text);
   const header =
@@ -85,7 +85,7 @@ function textFrame(text: string) {
 }
 
 /** What the page list shows, to tell an edit inside a page from a change to the list. */
-function bookOutline(pages: BookPage[]) {
+function pageOutline(pages: SpecPage[]) {
   return JSON.stringify(
     pages.map((page) => [page.file, page.slug, page.title]),
   );
@@ -108,9 +108,9 @@ export async function startServer(input: StartServerInput) {
   const filePath = path.resolve(input.filePath);
   const workspaceRoot = path.resolve(input.workspaceRoot);
   const port = input.port ?? 0;
-  const read = await readBook(filePath);
+  const read = await readSpec(filePath);
   if (read instanceof Error) return read;
-  const parsed = parseBook(read);
+  const parsed = parseSpec(read);
   if (parsed instanceof Error) return parsed;
   const changes = new Map<Rev, Changes>();
   const warnings: string[] = [];
@@ -120,9 +120,9 @@ export async function startServer(input: StartServerInput) {
     for (const [rev, value] of pageChanges) changes.set(rev, value);
     warnings.push(...findUnlistedFiles(page.document.changeCards, changes));
   }
-  const bookDir = read.dir;
+  const specDir = read.dir;
 
-  const title = read.book.title;
+  const title = read.spec.title;
   // DIFFMAP_DEV serves the viewer from source through Vite, with hot reload, for working on diffmap itself.
   const dev = process.env.DIFFMAP_DEV === "1";
   if (!dev && !(await isFile(path.join(viewerDist, "index.html")))) {
@@ -136,7 +136,7 @@ export async function startServer(input: StartServerInput) {
   const closedBarrier = createClosedBarrier();
   let shuttingDown = false;
   let inactivityTimer: ReturnType<typeof setTimeout> | undefined;
-  const mediaRoots = [workspaceRoot, bookDir];
+  const mediaRoots = [workspaceRoot, specDir];
   // Parsing draws every Mermaid diagram, so page loads reuse it until the page changes, as Vite cached its module.
   const documentCache: DocumentCache = new Map(
     parsed.map((page) => [
@@ -149,18 +149,18 @@ export async function startServer(input: StartServerInput) {
   const reloadToken = randomBytes(16).toString("base64url");
   let reloadTimer: ReturnType<typeof setTimeout> | undefined;
   let watcher: FSWatcher | undefined;
-  let outline = bookOutline(read.book.pages);
+  let outline = pageOutline(read.spec.pages);
   const changedPages = new Set<string>();
   const sendReload = async () => {
     const files = [...changedPages];
     changedPages.clear();
     let messages = files;
-    const next = await readBook(filePath);
+    const next = await readSpec(filePath);
     const nextOutline =
-      next instanceof Error ? next.message : bookOutline(next.book.pages);
+      next instanceof Error ? next.message : pageOutline(next.spec.pages);
     if (nextOutline !== outline) {
       outline = nextOutline;
-      messages = ["book"];
+      messages = ["pages"];
     }
     for (const message of messages) {
       for (const client of reloadClients) client.write(textFrame(message));
@@ -168,7 +168,7 @@ export async function startServer(input: StartServerInput) {
   };
   try {
     // Watch the directory: editors often save by replacing the file, which ends a watch on the file itself.
-    watcher = watch(bookDir, (_event, name) => {
+    watcher = watch(specDir, (_event, name) => {
       if (name === null || !isMarkdownFile(name)) return;
       changedPages.add(name);
       clearTimeout(reloadTimer);
@@ -280,8 +280,8 @@ export async function startServer(input: StartServerInput) {
       await serveMarkdown({ filePath, page: pageSegment(pathname), res });
       return;
     }
-    if (req.method === "GET" && pathname === "/__diffmap/book") {
-      await serveBook({ filePath, res });
+    if (req.method === "GET" && pathname === "/__diffmap/spec") {
+      await serveSpec({ filePath, res });
       return;
     }
     if (req.method === "GET" && pathname === "/__diffmap/document") {
@@ -305,7 +305,7 @@ export async function startServer(input: StartServerInput) {
     }
     if (get && pathname === "/__diffmap/media") {
       const resolved = path.resolve(
-        bookDir,
+        specDir,
         requestUrl.searchParams.get("path") ?? "",
       );
       if (!isServableMedia(resolved, mediaRoots)) {
@@ -666,7 +666,7 @@ function escapeHtml(value: string) {
 type DocumentCache = Map<string, { source: string; body: string }>;
 
 /** A page's document, or its parse error. Both name the page, so the viewer knows which file to reload on. */
-function documentBody(page: BookPage, document: unknown) {
+function documentBody(page: SpecPage, document: unknown) {
   return JSON.stringify({
     page: { file: page.file, slug: page.slug, title: page.title },
     ...(document instanceof Error
@@ -685,27 +685,27 @@ function pageSegment(pathname: string) {
 }
 
 async function readPage(filePath: string, segment: string) {
-  const read = await readBook(filePath);
+  const read = await readSpec(filePath);
   if (read instanceof Error) return read;
-  const page = findPage(read.book, segment);
+  const page = findPage(read.spec, segment);
   if (page === undefined) {
     return new DiffmapServeError({
-      reason: `this book has no page "${segment}"`,
+      reason: `this spec has no page "${segment}"`,
     });
   }
   return page;
 }
 
-async function serveBook(input: { filePath: string; res: DiffmapResponse }) {
-  const read = await readBook(input.filePath);
+async function serveSpec(input: { filePath: string; res: DiffmapResponse }) {
+  const read = await readSpec(input.filePath);
   sendJson(
     input.res,
     JSON.stringify(
       read instanceof Error
         ? { error: read.message }
         : {
-            title: read.book.title,
-            pages: read.book.pages.map((page) => ({
+            title: read.spec.title,
+            pages: read.spec.pages.map((page) => ({
               file: page.file,
               slug: page.slug,
               title: page.title,
@@ -849,8 +849,8 @@ async function handleDiffmapRequest(input: {
     return;
   }
   if (parsed.pathname === "/__diffmap/meta" && input.method === "GET") {
-    const read = await readBook(input.filePath);
-    const title = read instanceof Error ? input.title : read.book.title;
+    const read = await readSpec(input.filePath);
+    const title = read instanceof Error ? input.title : read.spec.title;
     input.res.statusCode = 200;
     input.res.setHeader("content-type", "application/json; charset=utf-8");
     input.res.end(

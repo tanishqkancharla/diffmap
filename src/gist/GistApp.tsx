@@ -9,7 +9,7 @@ import {
   type ChangesLoader,
 } from "../viewer/changesSource.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
-import type { BookPage } from "../book.ts";
+import type { SpecPage } from "../spec.ts";
 import {
   chooseGistFile,
   loadGistMarkdown,
@@ -139,7 +139,7 @@ export function GistApp() {
   );
 }
 
-/** One file of a loaded gist, or one page when the gist is a book. */
+/** One file of a loaded gist, or one page when the gist is a spec. */
 function GistPage(props: {
   gist: GistDocument;
   loadChanges: ChangesLoader;
@@ -153,7 +153,7 @@ function GistPage(props: {
     chosen === undefined
       ? undefined
       : parseViewerDocument(chosen.content, chosen.name);
-  const pageHref = (page: BookPage) =>
+  const pageHref = (page: SpecPage) =>
     gistPath(gist.id, page.slug === "" ? undefined : page.slug);
   const canonical =
     chosen?.page === undefined ? undefined : pageHref(chosen.page);
@@ -188,9 +188,9 @@ function GistPage(props: {
       </GistStatus>
     );
   }
-  const book = gist.book;
+  const spec = gist.spec;
   const multiPage =
-    book !== undefined && chosen.page !== undefined && book.pages.length > 1;
+    spec !== undefined && chosen.page !== undefined && spec.pages.length > 1;
   return (
     <GistPinContext.Provider
       value={{
@@ -205,11 +205,11 @@ function GistPage(props: {
             key={`${gist.id}:${chosen.name}`}
             document={document}
             mode="gist"
-            book={
+            spec={
               multiPage
                 ? {
-                    title: book.title,
-                    pages: book.pages,
+                    title: spec.title,
+                    pages: spec.pages,
                     current: chosen.page,
                     href: pageHref,
                     navigate: (page, hash) =>
@@ -221,7 +221,7 @@ function GistPage(props: {
               <GistHeader
                 gistId={gist.id}
                 htmlUrl={gist.htmlUrl}
-                // A book moves between its pages from the page list instead.
+                // A spec moves between its pages from the page list instead.
                 files={multiPage ? [] : gist.files}
                 current={chosen.name}
                 onSelect={(file) => props.onRoute(gistPath(gist.id, file), "")}

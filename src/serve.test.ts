@@ -522,10 +522,10 @@ test(
 );
 
 test(
-  "startServer serves each page of a book and names what changed",
+  "startServer serves each page of a spec and names what changed",
   { timeout: 30_000 },
   async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-book-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-spec-"));
     await Promise.all([
       fs.writeFile(path.join(dir, "README.md"), "# Sessions\n"),
       fs.writeFile(path.join(dir, "10-cleanup.md"), "# Phase 10: Cleanup\n"),
@@ -548,12 +548,12 @@ test(
         socket.addEventListener("open", resolve, { once: true });
         socket.addEventListener("error", reject, { once: true });
       });
-      const book = (await (
-        await fetch(`${server.url}/__diffmap/book`)
+      const spec = (await (
+        await fetch(`${server.url}/__diffmap/spec`)
       ).json()) as { title: string; pages: { slug: string }[] };
-      assert.equal(book.title, "Sessions");
+      assert.equal(spec.title, "Sessions");
       assert.deepEqual(
-        book.pages.map((page) => page.slug),
+        spec.pages.map((page) => page.slug),
         ["", "write", "cleanup"],
       );
       const page = (await (
@@ -580,10 +580,10 @@ test(
       // A new page or a new title changes the page list, which every tab shows.
       message = nextMessage();
       await fs.writeFile(path.join(dir, "3-read.md"), "# Phase 3: Read\n");
-      assert.equal(await message, "book");
+      assert.equal(await message, "pages");
       message = nextMessage();
       await fs.writeFile(path.join(dir, "2-write.md"), "# Phase 2: Writes\n");
-      assert.equal(await message, "book");
+      assert.equal(await message, "pages");
     } finally {
       socket.close();
       await server.shutdown();

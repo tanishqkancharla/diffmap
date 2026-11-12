@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, buttonStyles, Check, colors, Copy } from "maui";
 import { style, useStyles } from "purse-styles";
-import { isMultiPage, useBook } from "./bookNav.tsx";
+import { isMultiPage, useSpec } from "./specNav.tsx";
 import {
   commentsKey,
   formatComments,
@@ -10,21 +10,21 @@ import {
 } from "./comments.ts";
 import { trackViewerEvent } from "./telemetry.ts";
 
-/** Copies every comment as Markdown to paste to an agent, from every page of a book. Hidden until there is one. */
+/** Copies every comment as Markdown to paste to an agent, from every page of a spec. Hidden until there is one. */
 export function CopyCommentsButton(props: {
   title: string;
   source: string | undefined;
 }) {
   const { comments } = useComments();
-  const book = useBook();
+  const spec = useSpec();
   // Other pages' comments are saved under their own URLs; this page's are live.
-  const pages = isMultiPage(book)
-    ? book.pages.map((page) => ({
+  const pages = isMultiPage(spec)
+    ? spec.pages.map((page) => ({
         title: page.title,
         comments:
-          page === book.current
+          page === spec.current
             ? comments
-            : loadComments(commentsKey(book.href(page))),
+            : loadComments(commentsKey(spec.href(page))),
       }))
     : undefined;
   const total =

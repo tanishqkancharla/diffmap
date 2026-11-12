@@ -22,7 +22,7 @@ import type {
   ViewerNode,
 } from "../parseViewer.js";
 import type { SourceAnnotation, SourceNavigation } from "../annotations.js";
-import { DocumentLink } from "./bookNav.tsx";
+import { DocumentLink } from "./specNav.tsx";
 import { Fence } from "./Fence.tsx";
 import { HtmlPlaceholder } from "./HtmlPlaceholder.tsx";
 import { Gallery, Media, MediaCard } from "./Media.tsx";

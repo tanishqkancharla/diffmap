@@ -97,7 +97,7 @@ function textComment(id: string, section: string) {
   };
 }
 
-test("a book's comments go under each page's title and keep counting", () => {
+test("a spec's comments go under each page's title and keep counting", () => {
   const markdown = formatComments({
     title: "Sessions",
     source: ".diffmap/specs/sessions",

@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { MauiProvider, P } from "maui";
-import type { Book, BookPage } from "../book.js";
+import type { Spec, SpecPage } from "../spec.js";
 import type { ViewerDocument } from "../parseViewer.js";
 import { ViewerApp } from "./ViewerApp.tsx";
 import { GistStatus } from "../gist/GistStatus.tsx";
@@ -14,7 +14,7 @@ if (root === null) throw new Error("diffmap root element is missing");
 
 /** `serve`'s answer for one page, from parseViewerDocument. */
 type PageLoad = {
-  page?: BookPage;
+  page?: SpecPage;
   viewerDocument?: ViewerDocument;
   parseError?: string;
 };
@@ -31,7 +31,7 @@ function pageSegment() {
   return decodeURIComponent(window.location.pathname).replace(/^\/+|\/+$/g, "");
 }
 
-function pageHref(target: BookPage) {
+function pageHref(target: SpecPage) {
   return `/${encodeURIComponent(target.slug)}`;
 }
 
@@ -48,11 +48,11 @@ function settleUrl(load: PageLoad) {
   }
 }
 
-const [initialPage, initialBook] = await Promise.all([
+const [initialPage, initialSpec] = await Promise.all([
   loadPage(pageSegment()),
-  // SAFETY: `serve` answers with this shape from readBook.
-  fetch("/__diffmap/book").then((response) => response.json()) as Promise<
-    Book | { error: string }
+  // SAFETY: `serve` answers with this shape from readSpec.
+  fetch("/__diffmap/spec").then((response) => response.json()) as Promise<
+    Spec | { error: string }
   >,
 ]);
 settleUrl(initialPage);
@@ -68,7 +68,7 @@ function trackPageError(load: PageLoad) {
 }
 trackPageError(initialPage);
 
-// `serve` names each page file that changes, or sends `book` when the list of pages changed.
+// `serve` names each page file that changes, or sends `pages` when the list of pages changed.
 const reloadToken =
   document.querySelector<HTMLMetaElement>('meta[name="diffmap-reload-token"]')
     ?.content ?? "";
@@ -76,7 +76,7 @@ const reloadSocket = new WebSocket(
   `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/__diffmap/events?${new URLSearchParams({ token: reloadToken })}`,
 );
 reloadSocket.addEventListener("message", (event) => {
-  if (event.data === "book" || event.data === shownFile)
+  if (event.data === "pages" || event.data === shownFile)
     window.location.reload();
 });
 // Like Vite's client: once the server goes away, reload when one answers on this port again.
@@ -101,7 +101,7 @@ function reloadWhenServerAnswers() {
 
 function LocalApp() {
   const [load, setLoad] = useState(initialPage);
-  const book = "error" in initialBook ? undefined : initialBook;
+  const spec = "error" in initialSpec ? undefined : initialSpec;
 
   useEffect(() => {
     // Back and forward load the page the URL names; a jump to a heading on the same page stays put.
@@ -118,7 +118,7 @@ function LocalApp() {
   }, []);
 
   const current =
-    book?.pages.find((candidate) => candidate.file === load.page?.file) ??
+    spec?.pages.find((candidate) => candidate.file === load.page?.file) ??
     load.page;
   if (load.viewerDocument === undefined) {
     return (
@@ -134,12 +134,12 @@ function LocalApp() {
         key={current?.file}
         document={load.viewerDocument}
         mode="local"
-        book={
-          book === undefined || current === undefined
+        spec={
+          spec === undefined || current === undefined
             ? undefined
             : {
-                title: book.title,
-                pages: book.pages,
+                title: spec.title,
+                pages: spec.pages,
                 current,
                 href: pageHref,
                 navigate: (page, hash) => {
