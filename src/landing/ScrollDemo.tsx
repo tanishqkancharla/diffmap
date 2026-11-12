@@ -33,9 +33,13 @@ const DRAW_MS = 520;
 /** On touch: the column in the window's 16px margin, left of the spec, where lines run up to their part. */
 const LINE_X = 4;
 /** On touch: the caption's height at the screen's bottom edge, which parts must clear to count as on screen. */
-const CAPTION_SPACE = 96;
+const CAPTION_SPACE = 110;
 /** On touch: the corner where a line turns from the margin toward its part. */
 const ELBOW_RADIUS = 6;
+/** On touch: the page-colored gap between the stuck window and the nav, and under the caption. */
+const TOUCH_GAP = 10;
+/** On touch: room for the iPhone home indicator and Safari's floating toolbar under the caption. */
+const SAFE_BOTTOM = "env(safe-area-inset-bottom, 0px)";
 
 type Callout = {
   /** The part of the spec it explains, found inside the demo's article. */
@@ -254,6 +258,7 @@ function LoadedDemo(props: { document: ViewerDocument }) {
         height: stageRect.height,
         barsBottom: touch
           ? NAV_HEIGHT +
+            TOUCH_GAP +
             CHROME_HEIGHT +
             frame.current!.querySelector("header")!.offsetHeight
           : 0,
@@ -298,6 +303,7 @@ function LoadedDemo(props: { document: ViewerDocument }) {
   const frameClass = useStyles(styles.frame);
   const viewerClass = useStyles(styles.viewer);
   const dockClass = useStyles(styles.dock);
+  const gapClass = useStyles(styles.gap);
   const gutters =
     layout !== undefined &&
     Math.min(layout.frameLeft, layout.width - layout.frameRight) >= MIN_GUTTER;
@@ -312,6 +318,7 @@ function LoadedDemo(props: { document: ViewerDocument }) {
       aria-label="Example spec"
     >
       <div ref={stage} className={stageClass} data-touch={touch}>
+        {touch && <div className={gapClass} />}
         <div ref={frame} className={frameClass} data-touch={touch}>
           <BrowserBar url={DEMO_URL} />
           <div className={viewerClass} data-touch={touch}>
@@ -550,21 +557,72 @@ const styles = {
     overflow: "hidden",
     backgroundColor: backgroundColor.app,
     // Clips its corners without becoming a scroller, so its bars can stick to the page.
-    "&[data-touch='true']": { height: "auto", overflow: "clip" },
+    "&[data-touch='true']": {
+      height: "auto",
+      overflow: "clip",
+      boxShadow: "none",
+    },
+    // Its edge, drawn inside its box, so it lines up with the stuck bar's own edge below.
+    "&[data-touch='true']::after": {
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      borderRadius: "inherit",
+      boxShadow: `inset 0 0 0 1px ${colors.grayAlpha[5]}`,
+      pointerEvents: "none",
+      zIndex: 1,
+    },
+    /*
+     * Stuck, the bar is the window's top: the window's own rounded top has
+     * scrolled away, so the bar draws its rounded top edge itself.
+     */
     "&[data-touch='true'] > :first-child": {
       position: "sticky",
-      top: `${NAV_HEIGHT}px`,
+      top: `${NAV_HEIGHT + TOUCH_GAP}px`,
       zIndex: 3,
+      backgroundColor: "transparent",
     },
-    // Hides spec text that scrolled past the bar, which would show through the frosted nav.
+    // Page color above the bar, hiding spec text that scrolled past it, and in its rounded corners.
     "&[data-touch='true'] > :first-child::before": {
       content: '""',
       position: "absolute",
       insetInline: 0,
-      bottom: "100%",
-      height: `${NAV_HEIGHT}px`,
+      top: `-${NAV_HEIGHT + TOUCH_GAP}px`,
+      // Under its bottom border too, which is translucent.
+      bottom: "-1px",
+      zIndex: -1,
       backgroundColor: backgroundColor.app,
     },
+    // Its background and edge; the layer above covers the bar's own border, so this redraws it.
+    "&[data-touch='true'] > :first-child::after": {
+      content: '""',
+      position: "absolute",
+      inset: "0 0 -1px",
+      zIndex: -1,
+      borderRadius: "12px 12px 0 0",
+      backgroundColor: colors.gray[2],
+      boxShadow: [
+        `inset 0 1px 0 ${colors.grayAlpha[5]}`,
+        `inset 1px 0 0 ${colors.grayAlpha[5]}`,
+        `inset -1px 0 0 ${colors.grayAlpha[5]}`,
+        `inset 0 -1px 0 ${colors.grayAlpha[4]}`,
+      ].join(", "),
+    },
+  }),
+  /**
+   * On touch, a band of page color stuck under the nav, so the stuck window
+   * floats below it; it spans the stage to cover the window's sides too. It
+   * rests in the stage's top padding, so it takes no space.
+   */
+  gap: style({
+    position: "sticky",
+    top: `${NAV_HEIGHT}px`,
+    zIndex: 4,
+    height: `${TOUCH_GAP}px`,
+    marginTop: `-${TOUCH_GAP}px`,
+    alignSelf: "stretch",
+    backgroundColor: backgroundColor.app,
+    pointerEvents: "none",
   }),
   viewer: style({
     height: `calc(100% - ${CHROME_HEIGHT}px)`,
@@ -578,7 +636,7 @@ const styles = {
     "&[data-touch='true'] > div": { height: "auto", overflow: "visible" },
     "&[data-touch='true'] > div > header": {
       position: "sticky",
-      top: `${NAV_HEIGHT + CHROME_HEIGHT}px`,
+      top: `${NAV_HEIGHT + TOUCH_GAP + CHROME_HEIGHT}px`,
       zIndex: 2,
     },
     "&[data-touch='true'] > div > div > div": {
@@ -603,13 +661,23 @@ const styles = {
     bottom: 0,
     height: 0,
     zIndex: 3,
-    // Across the window's bottom edge, so it covers the lower end of its line.
+    // Across the window, lifted off the screen's bottom edge; it covers the lower end of its line.
     "& > div": {
       left: 0,
       right: 0,
-      bottom: 0,
-      borderRadius: "10px 10px 0 0",
+      bottom: `calc(${TOUCH_GAP}px + ${SAFE_BOTTOM})`,
+      borderRadius: "10px",
       padding: "12px 16px 14px",
+    },
+    // Page color under the caption, hiding the spec and the line as they pass below it.
+    "&::after": {
+      content: '""',
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: `calc(${TOUCH_GAP}px + ${SAFE_BOTTOM})`,
+      backgroundColor: backgroundColor.app,
     },
   }),
   // Spans its part, so the sticky dot inside it is released with the part's bottom.
@@ -628,7 +696,8 @@ const styles = {
       position: "absolute",
       left: "-0.625px",
       width: "1.25px",
-      height: "100svh",
+      // The tallest the screen gets once Safari's toolbars collapse.
+      height: "100lvh",
       backgroundColor: colors.blue[8],
       transformOrigin: "top",
     },
