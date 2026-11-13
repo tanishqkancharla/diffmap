@@ -1,6 +1,8 @@
 import {
   createContext,
   type KeyboardEvent,
+  type ReactEventHandler,
+  type Ref,
   useContext,
   useRef,
   useState,
@@ -9,7 +11,12 @@ import {
   Button,
   ChevronLeft,
   ChevronRight,
+  Close,
+  Dialog,
+  Maximize,
+  Text,
   Tooltip,
+  backgroundColor,
   border,
   flex,
   radius,
@@ -29,53 +36,200 @@ export function localMediaUrl(src: string) {
   return `/__diffmap/media?${new URLSearchParams({ path: src }).toString()}`;
 }
 
-/** An image, or a player for a recording, chosen by file extension. */
-export function Media(props: {
+type MediaProps = {
   src: string;
   alt: string | undefined;
   title: string | undefined;
   className?: string;
+};
+
+function mediaLabel(media: MediaProps) {
+  return (
+    media.alt || media.title || (isVideoSource(media.src) ? "Video" : "Image")
+  );
+}
+
+/** An image, or a player for a recording, chosen by file extension. */
+function MediaContent({
+  videoRef,
+  onLoadedMetadata,
+  ...props
+}: MediaProps & {
+  videoRef?: Ref<HTMLVideoElement>;
+  onLoadedMetadata?: ReactEventHandler<HTMLVideoElement>;
 }) {
   const resolve = useContext(MediaResolverContext);
   const url = isLocalMedia(props.src) ? resolve(props.src) : props.src;
   const inline = useStyles(styles.media);
-  // A card styles its media; an image inside a sentence keeps the inline style.
-  const classes = props.className ?? inline;
+  const className = props.className ?? inline;
   if (isVideoSource(props.src)) {
     return (
       <video
-        className={classes}
+        ref={videoRef}
+        className={className}
         src={url}
         title={props.title}
         aria-label={props.alt}
         controls
         playsInline
         preload="metadata"
+        onLoadedMetadata={onLoadedMetadata}
       />
     );
   }
   return (
-    <img className={classes} src={url} alt={props.alt} title={props.title} />
+    <img className={className} src={url} alt={props.alt} title={props.title} />
   );
 }
 
-/** A card like a code block: the alt text as its title row, then the media, edge to edge. */
+function MediaExpandButton(props: { media: MediaProps; onClick: () => void }) {
+  return (
+    <Button
+      size="sm"
+      variant="quiet"
+      aria-label={`Full screen: ${mediaLabel(props.media)}`}
+      onClick={props.onClick}
+    >
+      <Maximize size="xs" />
+    </Button>
+  );
+}
+
+/** Cards, carousels, and inline media share the dialog and playback handoff. */
+function useExpandedMedia() {
+  const [selection, setSelection] = useState<{
+    media: MediaProps;
+    video: HTMLVideoElement | null | undefined;
+  }>();
+  const [fullscreen, setFullscreen] = useState(false);
+  const expandedVideo = useRef<HTMLVideoElement>(null);
+  const resume = useRef(false);
+  const dialog = useStyles(styles.dialog);
+  const header = useStyles(styles.dialogHeader);
+  const expanded = useStyles(styles.expandedMedia);
+  const transferPlayback = (from: HTMLVideoElement, to: HTMLVideoElement) => {
+    to.currentTime = from.currentTime;
+    to.volume = from.volume;
+    to.muted = from.muted;
+    to.playbackRate = from.playbackRate;
+    if (resume.current) void to.play().catch(() => {});
+  };
+  const open = (
+    media: MediaProps,
+    video: HTMLVideoElement | null | undefined,
+  ) => {
+    resume.current = Boolean(video && !video.paused && !video.ended);
+    video?.pause();
+    setSelection({ media, video });
+    setFullscreen(true);
+  };
+  const close = () => {
+    const from = expandedVideo.current;
+    const to = selection?.video;
+    if (from && to) {
+      // Closing before metadata arrives must not reset the inline player's position.
+      if (from.readyState === 0) {
+        if (resume.current) void to.play().catch(() => {});
+      } else {
+        resume.current = !from.paused && !from.ended;
+        from.pause();
+        transferPlayback(from, to);
+      }
+    }
+    setFullscreen(false);
+  };
+  return {
+    open,
+    dialog: (
+      <Dialog
+        isOpen={fullscreen}
+        onOpenChange={(next) => {
+          if (!next) close();
+        }}
+        size="lg"
+        aria-label={selection ? mediaLabel(selection.media) : "Media"}
+        className={dialog}
+      >
+        <div className={header}>
+          <Text size="xs" fontWeight={500} color="lowContrast">
+            {selection && mediaLabel(selection.media)}
+          </Text>
+          <Button
+            size="sm"
+            variant="quiet"
+            slot="close"
+            aria-label="Exit full screen"
+          >
+            <Close size="xs" />
+          </Button>
+        </div>
+        {selection && (
+          <MediaContent
+            key={selection.media.src}
+            {...selection.media}
+            className={expanded}
+            videoRef={expandedVideo}
+            onLoadedMetadata={(event) => {
+              if (fullscreen && selection.video)
+                transferPlayback(selection.video, event.currentTarget);
+            }}
+          />
+        )}
+      </Dialog>
+    ),
+  };
+}
+
+/** Media inside a sentence has no card header, so its action stays overlaid. */
+export function Media(props: MediaProps) {
+  const shell = useStyles(styles.mediaShell);
+  const expand = useStyles(styles.expand);
+  const video = useRef<HTMLVideoElement>(null);
+  const expanded = useExpandedMedia();
+  return (
+    <span className={shell}>
+      <MediaContent {...props} videoRef={video} />
+      <span className={expand}>
+        <MediaExpandButton
+          media={props}
+          onClick={() => expanded.open(props, video.current)}
+        />
+      </span>
+      {expanded.dialog}
+    </span>
+  );
+}
+
+/** A card like a code block: the alt text and action, then the media, edge to edge. */
 export function MediaCard(props: { item: ViewerElement }) {
   const frame = useStyles(pierreShell, styles.frame);
-  const title = useStyles(fenceTitle);
-  const media = useStyles(styles.cardMedia);
-  const label = props.item.attrs.alt;
+  const header = useStyles(fenceTitle, styles.cardHeader);
+  const className = useStyles(styles.cardMedia);
+  const video = useRef<HTMLVideoElement>(null);
+  const expanded = useExpandedMedia();
+  const media = {
+    src: props.item.attrs.src ?? "",
+    alt: props.item.attrs.alt,
+    title: props.item.attrs.title,
+  };
   return (
     <figure className={frame} data-diffmap-kind="media">
-      {label !== undefined && label !== "" && (
-        <figcaption className={title}>{label}</figcaption>
-      )}
-      <Media
-        src={props.item.attrs.src ?? ""}
-        alt={label}
-        title={props.item.attrs.title}
-        className={media}
-      />
+      <figcaption className={header}>
+        <Text
+          size="xs"
+          fontWeight={500}
+          color="lowContrast"
+          style={{ marginRight: "auto" }}
+        >
+          {media.alt}
+        </Text>
+        <MediaExpandButton
+          media={media}
+          onClick={() => expanded.open(media, video.current)}
+        />
+      </figcaption>
+      <MediaContent {...media} className={className} videoRef={video} />
+      {expanded.dialog}
     </figure>
   );
 }
@@ -128,12 +282,18 @@ function Carousel(props: {
   const last = props.items.length - 1;
   const current = props.items[index]!;
   const frame = useStyles(pierreShell, styles.frame);
-  const header = useStyles(fenceTitle, styles.carouselHeader);
+  const header = useStyles(fenceTitle, styles.cardHeader);
   const description = useStyles(styles.description);
   const stackClass = useStyles(styles.stack);
   const slide = useStyles(styles.slide);
   const media = useStyles(styles.cardMedia);
   const stack = useRef<HTMLDivElement>(null);
+  const expanded = useExpandedMedia();
+  const currentMedia = {
+    src: current.attrs.src ?? "",
+    alt: current.attrs.alt,
+    title: current.attrs.title,
+  };
   // A video keeps playing when hidden, so moving on pauses them all.
   const goTo = (next: number) => {
     for (const video of stack.current?.querySelectorAll("video") ?? [])
@@ -141,6 +301,12 @@ function Carousel(props: {
     setIndex(next);
   };
   const onKeyDown = (event: KeyboardEvent) => {
+    // Native player keys and portaled dialog keys must not change slides.
+    if (
+      event.target instanceof Element &&
+      event.target.closest("video, [role='dialog']")
+    )
+      return;
     if (event.key === "ArrowLeft" && index > 0) {
       event.preventDefault();
       goTo(index - 1);
@@ -187,6 +353,17 @@ function Carousel(props: {
             <ChevronRight size="xs" />
           </Button>
         </Tooltip>
+        <MediaExpandButton
+          media={currentMedia}
+          onClick={() =>
+            expanded.open(
+              currentMedia,
+              stack.current?.querySelector<HTMLVideoElement>(
+                "[data-current='true'] video",
+              ),
+            )
+          }
+        />
       </figcaption>
       <div className={description} aria-live="polite">
         {current.attrs.alt}
@@ -201,7 +378,7 @@ function Carousel(props: {
             aria-hidden={itemIndex !== index}
             inert={itemIndex !== index}
           >
-            <Media
+            <MediaContent
               src={item.attrs.src ?? ""}
               alt={item.attrs.alt}
               title={item.attrs.title}
@@ -210,11 +387,46 @@ function Carousel(props: {
           </div>
         ))}
       </div>
+      {expanded.dialog}
     </figure>
   );
 }
 
 const styles = {
+  mediaShell: style({
+    position: "relative",
+    display: "inline-block",
+    maxWidth: "100%",
+    verticalAlign: "middle",
+  }),
+  expand: style(radius.sm, {
+    display: "inline-flex",
+    position: "absolute",
+    top: "6px",
+    right: "6px",
+    backgroundColor: backgroundColor.element,
+  }),
+  dialog: style({
+    width: "calc(100vw - 32px)",
+    height: "calc(100dvh - 32px)",
+    padding: spacing.value(6),
+    "& > [role='dialog']": { flex: 1, minHeight: 0, gap: spacing.value(2) },
+  }),
+  dialogHeader: style({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.value(4),
+  }),
+  expandedMedia: style({
+    display: "block",
+    flex: 1,
+    minHeight: 0,
+    minWidth: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+  }),
   media: style(radius.sm, {
     maxWidth: "100%",
     height: "auto",
@@ -229,13 +441,10 @@ const styles = {
     objectFit: "contain",
   }),
   grid: style({ display: "grid", gap: spacing.value(6), alignItems: "start" }),
-  carouselHeader: style(
-    flex({ direction: "row", alignItems: "center", gap: 1 }),
-    {
-      // The buttons overhang the text line, so this row matches every other title row.
-      "& button": { marginBlock: -3 },
-    },
-  ),
+  cardHeader: style(flex({ direction: "row", alignItems: "center", gap: 1 }), {
+    // The buttons overhang the text line, so this row matches every other title row.
+    "& button": { marginBlock: -3 },
+  }),
   description: style(
     text({ size: "sm" }),
     spacing.padding({ x: 6, y: 3 }),
