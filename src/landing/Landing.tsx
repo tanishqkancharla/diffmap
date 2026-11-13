@@ -128,6 +128,7 @@ const styles = {
     maxWidth: "620px",
     mixBlendMode: "multiply",
     opacity: 0.8,
+    "@supports (mix-blend-mode: plus-darker)": { mixBlendMode: "plus-darker" },
     '&:is(:root[data-theme="dark"] *)': { mixBlendMode: "plus-lighter" },
   }),
   cta: style(
