@@ -14,7 +14,7 @@ import {
 } from "../viewer/changesSource.ts";
 import { CommentsContext, useCommentStore } from "../viewer/comments.ts";
 import { ViewerModeContext } from "../viewer/viewerMode.ts";
-import { Mesh, glassCode, headerBlobs } from "./Mesh.tsx";
+import { Mesh, promptCode, headerBlobs, type Blob } from "./Mesh.tsx";
 import { MeshFooter } from "./MeshFooter.tsx";
 import { ScrollDemo } from "./ScrollDemo.tsx";
 import {
@@ -34,7 +34,7 @@ const loadChanges: ChangesLoader = (rev) =>
     : fetchGitHubChanges({ owner: "tanishqkancharla", repo: "diffmap" }, rev);
 
 /** diffmap.dev's homepage. */
-export function Landing() {
+export function Landing(props: { mesh?: { header: Blob[]; footer: Blob[] } }) {
   const demo = useDemo();
   const comments = useCommentStore("diffmap-comments:landing");
 
@@ -51,7 +51,7 @@ export function Landing() {
       <CommentsContext.Provider value={comments}>
         <HostFilesContext.Provider value={sessionStoreFiles}>
           <ChangesLoaderContext.Provider value={loadChanges}>
-            <LandingPage demo={demo} />
+            <LandingPage demo={demo} mesh={props.mesh} />
           </ChangesLoaderContext.Provider>
         </HostFilesContext.Provider>
       </CommentsContext.Provider>
@@ -63,7 +63,10 @@ export function Landing() {
  * The product is the hero: a big headline, one prompt to copy, then a
  * browser window whose spec you scroll through, with callouts beside it.
  */
-function LandingPage(props: { demo: ViewerDocument | undefined }) {
+function LandingPage(props: {
+  demo: ViewerDocument | undefined;
+  mesh?: { header: Blob[]; footer: Blob[] };
+}) {
   const page = useStyles(shared.page);
   const container = useStyles(shared.container);
   const heroBand = useStyles(styles.heroBand);
@@ -76,10 +79,11 @@ function LandingPage(props: { demo: ViewerDocument | undefined }) {
     <div className={page} id="top">
       <Nav />
       <div className={heroBand}>
-        {/* Fades out at both edges, so the nav and the demo sit on plain page. */}
+        {/* Color falls from the header's top edge and fades before the demo. */}
         <Mesh
-          blobs={headerBlobs}
-          mask="linear-gradient(to bottom, transparent, black 18%, black 70%, transparent)"
+          blobs={props.mesh?.header ?? headerBlobs}
+          edge="top"
+          mask="linear-gradient(to bottom, black, black 35%, transparent)"
         />
         <header className={`${container} ${hero}`}>
           <DiffHeadline
@@ -103,23 +107,31 @@ function LandingPage(props: { demo: ViewerDocument | undefined }) {
 
       <ScrollDemo document={props.demo} />
 
-      <MeshFooter />
+      <MeshFooter blobs={props.mesh?.footer} />
     </div>
   );
 }
 
 const styles = {
   // Full width behind the hero, so the mesh runs edge to edge.
-  heroBand: style({ position: "relative", overflow: "hidden" }),
+  heroBand: style({
+    position: "relative",
+    overflow: "hidden",
+  }),
   hero: style(flex({ direction: "column", alignItems: "center", gap: 12 }), {
     position: "relative",
     paddingTop: "64px",
     paddingBottom: "24px",
     textAlign: "center",
   }),
-  ledeWidth: style({ maxWidth: "620px" }),
+  ledeWidth: style({
+    maxWidth: "620px",
+    mixBlendMode: "multiply",
+    opacity: 0.8,
+    '&:is(:root[data-theme="dark"] *)': { mixBlendMode: "plus-lighter" },
+  }),
   cta: style(
-    glassCode,
+    promptCode,
     flex({ direction: "column", alignItems: "center", gap: 3 }),
     {
       width: "100%",

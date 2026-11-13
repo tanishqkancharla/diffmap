@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { backgroundColor, borderColor, colors, shadowVars } from "maui";
 import { style, useStyles } from "purse-styles";
 
-/** A blurred shape, placed by its center relative to the mesh's center (px). */
+/** A blurred shape, centered horizontally and relative to its mesh's edge (px). */
 export type Blob = {
   x: number;
   y: number;
@@ -45,7 +45,7 @@ const fade: Strength[] = [6, 6, 5, 5, 5, 5];
  * curls up as it grows; each ellipse points along its spoke and gets smaller
  * and fainter toward the tip.
  */
-export const footerBlobs = mirrored(
+export const ribbonFooterBlobs = mirrored(
   fade.map((strength, index) => {
     const t = index / (fade.length - 1);
     const angle = Math.PI * (0.96 + 0.36 * t);
@@ -69,7 +69,7 @@ export const footerBlobs = mirrored(
  */
 const RIBBON_RISE = 70;
 const RIBBON_SPAN = 900;
-export const headerBlobs = mirrored(
+export const ribbonHeaderBlobs = mirrored(
   ([7, 7, 6, 6, 6] as Strength[]).map((strength, index, all) => {
     const t = index / (all.length - 1);
     const slope =
@@ -84,8 +84,41 @@ export const headerBlobs = mirrored(
       strength,
     };
   }),
-  // Lowered so it runs behind the subtitle and the frosted prompt.
+  // Offset slightly inward from the header's top edge.
 ).map((blob) => ({ ...blob, y: blob.y + 50 }));
+
+/** Lagoon: a green pool between coral shores, flowing down from the header. */
+export const headerBlobs = meshField([
+  [-520, -100, 760, 560, 20, colors.redAlpha[8]],
+  [520, 160, 700, 500, -30, colors.redAlpha[7]],
+  [-70, 150, 760, 620, -25, colors.greenAlpha[8]],
+  [270, -120, 540, 500, 35, colors.greenAlpha[7]],
+  [-180, -180, 460, 350, -15, backgroundColor.app],
+  [700, -100, 400, 440, 0, backgroundColor.app],
+]);
+
+/** The same Lagoon formation rising from the footer's bottom edge. */
+export const footerBlobs = meshField([
+  [-530, -180, 740, 500, 28, colors.redAlpha[8]],
+  [600, 210, 720, 430, -25, colors.redAlpha[8]],
+  [-80, 140, 740, 560, -20, colors.greenAlpha[8]],
+  [250, -190, 530, 450, 30, colors.greenAlpha[7]],
+  [-170, -170, 400, 320, -10, backgroundColor.app],
+  [700, -120, 410, 420, 0, backgroundColor.app],
+]);
+
+export function meshField(
+  points: [number, number, number, number, number, string][],
+): Blob[] {
+  return points.map(([x, y, w, h, rotate, color]) => ({
+    x,
+    y,
+    w,
+    h,
+    rotate,
+    color,
+  }));
+}
 
 /** How far each blob fades out past its edge (px), like a 64px blur. */
 const FEATHER = 128;
@@ -107,12 +140,18 @@ function softEllipse(shape: Blob): string {
  * A grainy mesh gradient filling its positioned parent. `mask` fades its
  * edges into the page, such as a footer's top or a header's bottom.
  */
-export function Mesh(props: { blobs: Blob[]; mask: string; lamp?: boolean }) {
+export function Mesh(props: {
+  blobs: Blob[];
+  mask: string;
+  edge: "top" | "bottom";
+  lamp?: boolean;
+}) {
   const layer = useStyles(styles.layer);
   const blob = useStyles(styles.blob);
   const lamp = useStyles(styles.lamp);
   const grain = useStyles(styles.grain);
   const masked: CSSProperties = { maskImage: props.mask };
+  const origin = props.edge === "top" ? "0%" : "100%";
   return (
     <>
       <div className={layer} style={masked} aria-hidden>
@@ -122,7 +161,7 @@ export function Mesh(props: { blobs: Blob[]; mask: string; lamp?: boolean }) {
             className={blob}
             style={{
               left: `calc(50% + ${shape.x}px)`,
-              top: `calc(50% + ${shape.y}px)`,
+              top: `calc(${origin} + ${shape.y}px)`,
               width: shape.w + 2 * FEATHER,
               height: shape.h + 2 * FEATHER,
               rotate: `${shape.rotate}deg`,
@@ -130,44 +169,45 @@ export function Mesh(props: { blobs: Blob[]; mask: string; lamp?: boolean }) {
             }}
           />
         ))}
-        {props.lamp && <div className={lamp} />}
+        {props.lamp && <div className={lamp} style={{ top: origin }} />}
       </div>
       <div className={grain} style={masked} aria-hidden />
     </>
   );
 }
 
-/**
- * For a code card over a mesh, applied to its parent: a mostly opaque card
- * with a solid border, so the code stays crisp and the mesh only tints it.
- */
-export const glassCode = style({
+/** A solid element surface for the header and footer prompt cards. */
+export const promptCode = style({
   "& > figure": {
     width: "fit-content",
     maxWidth: "100%",
     textAlign: "left",
     borderRadius: "12px",
-    backgroundColor: `color-mix(in oklch, ${backgroundColor.app} 72%, transparent)`,
-    backdropFilter: "blur(24px)",
+    backgroundColor: backgroundColor.element,
     border: `1px solid ${borderColor.border}`,
     boxShadow: shadowVars.subtle,
   },
 });
 
 const styles = {
-  layer: style({ position: "absolute", inset: 0, pointerEvents: "none" }),
+  layer: style({
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+    '&:is(:root[data-theme="dark"] *)': { opacity: 0.45 },
+  }),
   // Centered on its point; its feathered edge melts into its neighbors.
   blob: style({ position: "absolute", translate: "-50% -50%" }),
-  // A pale spot at the center, so red and green do not mix into brown where they meet.
+  // A pale spot at the color origin, so red and green do not mix into brown.
   lamp: style({
     position: "absolute",
-    top: "50%",
     left: "50%",
     width: "570px",
     height: "290px",
     translate: "-50% -50%",
     background:
       "radial-gradient(closest-side, rgb(255 255 255 / 0.3), transparent)",
+    '&:is(:root[data-theme="dark"] *)': { opacity: 0.15 },
   }),
   grain: style({
     position: "absolute",
@@ -176,5 +216,6 @@ const styles = {
     backgroundImage: GRAIN,
     opacity: 0.7,
     mixBlendMode: "overlay",
+    '&:is(:root[data-theme="dark"] *)': { opacity: 0.35 },
   }),
 };

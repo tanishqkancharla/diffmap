@@ -1,6 +1,6 @@
 import { colors, flex, text } from "maui";
 import { style, useStyles } from "purse-styles";
-import { Mesh, footerBlobs, glassCode } from "./Mesh.tsx";
+import { Mesh, footerBlobs, promptCode, type Blob } from "./Mesh.tsx";
 import {
   BranchPrompt,
   DOCS_URL,
@@ -11,9 +11,9 @@ import {
 
 /**
  * The page's last word: a diff's two colors as a grainy mesh gradient
- * around the tagline, red flowing up to the left and green down to the right.
+ * rising from the bottom edge toward the tagline.
  */
-export function MeshFooter() {
+export function MeshFooter(props: { blobs?: Blob[] }) {
   const root = useStyles(styles.root);
   const content = useStyles(styles.content);
   const brand = useStyles(styles.brand);
@@ -25,8 +25,9 @@ export function MeshFooter() {
     <footer className={root}>
       {/* Fades in from the page above, so the color has no hard top edge. */}
       <Mesh
-        blobs={footerBlobs}
-        mask="linear-gradient(to bottom, transparent, black 18%)"
+        blobs={props.blobs ?? footerBlobs}
+        edge="bottom"
+        mask="linear-gradient(to top, black, black 12%, transparent 90%)"
         lamp
       />
       <div className={content}>
@@ -78,7 +79,7 @@ const styles = {
     textWrap: "balance",
   }),
   prompt: style(
-    glassCode,
+    promptCode,
     flex({ direction: "column", alignItems: "center" }),
     {
       width: "100%",
