@@ -16,6 +16,7 @@ import {
 } from "./changes.js";
 import { DiffmapGitError } from "./errors.js";
 import type { ChangeCard, ViewerDocument } from "./parseViewer.js";
+import type { SourceDefinition } from "./definitions.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -457,10 +458,44 @@ function totals(entries: NumstatEntry[]) {
   );
 }
 
-/**
- * Loads every commit rev a document uses and checks that each commit
- * reference names a changed file and a range inside its new version.
- */
+/** Read a text file at a commit (or a commit range's destination), never the worktree. */
+export async function readSnapshotReference(
+  root: string,
+  reference: { rev: string; path: string; start?: number; end?: number },
+): Promise<SourceDefinition | DiffmapGitError> {
+  const { rev, path: file } = reference;
+  if (!isCommitRev(rev))
+    return new DiffmapGitError({ reason: `Invalid snapshot rev: ${rev}.` });
+  if (
+    !file ||
+    !path.resolve(root, file).startsWith(path.resolve(root) + path.sep)
+  )
+    return new DiffmapGitError({ reason: "Path escapes the workspace." });
+  const commit = await resolveCommit(root, rev.split("..").at(-1)!);
+  if (commit instanceof Error) return commit;
+  const contents = await git(root, ["cat-file", "blob", `${commit}:./${file}`]);
+  if (contents instanceof Error)
+    return new DiffmapGitError({ reason: `${file} does not exist at ${rev}.` });
+  if (contents.includes("\0"))
+    return new DiffmapGitError({ reason: `${file} is binary at ${rev}.` });
+  const lines = countLines(contents);
+  const start = reference.start ?? 1;
+  const end = reference.end ?? Math.max(1, lines);
+  if (reference.end !== undefined && end > lines)
+    return new DiffmapGitError({
+      reason: `[[${rev}:${file}]]: line ${String(end)} is past the end of ${file} (${String(lines)} lines) after ${rev}.`,
+    });
+  if (
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(end) ||
+    start < 1 ||
+    end < start
+  )
+    return new DiffmapGitError({ reason: `Invalid line range for ${file}.` });
+  return { path: file, contents, start, end };
+}
+
+/** Load commit diffs and snapshot any unchanged supporting references. */
 export async function readDocumentChanges(
   root: string,
   document: Pick<ViewerDocument, "references" | "changeCards">,
@@ -496,10 +531,17 @@ export async function readDocumentChanges(
       .get(reference.rev)!
       .files.find((item) => item.path === reference.path);
     const label = `[[${reference.rev}:${reference.path}]]`;
-    if (file === undefined)
-      return new DiffmapGitError({
-        reason: `${label}: ${reference.path} is not changed in ${reference.rev}.`,
+    if (file === undefined) {
+      const snapshot = await readSnapshotReference(root, {
+        ...reference,
+        rev: reference.rev,
       });
+      if (snapshot instanceof Error) return snapshot;
+      const changes = loaded.get(reference.rev)!;
+      changes.sources ??= {};
+      changes.sources[reference.path] = snapshot.contents;
+      continue;
+    }
     if (reference.end === undefined) continue;
     const lines =
       file.contents?.new === undefined ? 0 : countLines(file.contents.new);

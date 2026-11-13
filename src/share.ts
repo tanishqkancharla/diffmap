@@ -56,7 +56,12 @@ export async function shareMarkdownFile(input: {
       page.document,
     );
     if (pageChanges instanceof Error) return pageChanges;
-    for (const [rev, value] of pageChanges) changes.set(rev, value);
+    for (const [rev, value] of pageChanges) {
+      const previous = changes.get(rev);
+      if (previous?.sources !== undefined)
+        value.sources = { ...previous.sources, ...value.sources };
+      changes.set(rev, value);
+    }
     // An uncommitted changes card shows the tree as it is when you share.
     for (const { rev } of page.document.changeCards) {
       if (changes.has(rev)) continue;

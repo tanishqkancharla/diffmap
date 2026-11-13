@@ -41,14 +41,21 @@ export async function requestSource(
   return result.definition;
 }
 
-export function useSourceReference(reference: SourceReference | undefined) {
+export function useSourceReference(
+  reference: SourceReference | undefined,
+  snapshots?: Record<string, string>,
+) {
   const [resolution, setResolution] = useState<{
     reference: SourceReference;
     result: SourceDefinition | Error;
   }>();
   const pin = useGitHubPin();
-  const hostFiles = useHostFiles();
+  const currentFiles = useHostFiles();
   const mode = useViewerMode();
+  const hostFiles =
+    reference?.rev !== undefined
+      ? (snapshots ?? (mode === "gist" ? EMPTY_FILES : undefined))
+      : currentFiles;
   const hostResult = useMemo(() => {
     if (reference?.kind !== "file" || hostFiles === undefined) return undefined;
     return readHostFileReference(hostFiles, reference);
@@ -58,9 +65,14 @@ export function useSourceReference(reference: SourceReference | undefined) {
     if (hostFiles !== undefined) return;
     let active = true;
     if (pin !== undefined) {
-      // Pinned GitHub spec: load this path at the spec commit SHA, never main.
+      // An explicit reference rev overrides the spec's own pin.
       // oxlint-disable-next-line typescript/no-floating-promises -- The effect owns its asynchronous source result.
-      void fetchPinnedBlob(pin, reference.path).then((contents) => {
+      void fetchPinnedBlob(
+        reference.rev === undefined
+          ? pin
+          : { ...pin, sha: reference.rev.split("..").at(-1)! },
+        reference.path,
+      ).then((contents) => {
         if (!active) return;
         if (contents instanceof Error) {
           const message =
@@ -97,6 +109,7 @@ export function useSourceReference(reference: SourceReference | undefined) {
     }
     if (mode !== "local") return;
     const params = new URLSearchParams({ path: reference.path });
+    if (reference.rev !== undefined) params.set("rev", reference.rev);
     if (reference.symbol !== undefined) params.set("symbol", reference.symbol);
     if (reference.start !== undefined)
       params.set("start", String(reference.start));
@@ -115,6 +128,8 @@ export function useSourceReference(reference: SourceReference | undefined) {
   if (hostResult !== undefined) return hostResult;
   return resolution?.reference === reference ? resolution?.result : undefined;
 }
+
+const EMPTY_FILES: Record<string, string> = {};
 
 function readHostFileReference(
   files: Record<string, string>,

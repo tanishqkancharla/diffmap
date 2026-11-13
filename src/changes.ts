@@ -151,6 +151,8 @@ export type Changes = {
   /** GitHub listed only the first files; `url` has the rest. */
   truncated?: boolean;
   files: ChangedFile[];
+  /** Unchanged supporting files at this rev's destination, keyed by path. */
+  sources?: Record<string, string>;
 };
 
 /**

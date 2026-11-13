@@ -116,17 +116,20 @@ export function SourceDiffPanel(props: {
   const hostFiles = useHostFiles();
   const nextChanges = useChanges(props.rev);
   const nextReference = props.selection?.reference;
-  // A rev-less reference resolves against current files; a commit reference names its lines directly.
+  const needsSource =
+    nextReference?.kind === "file" &&
+    (nextReference.rev === undefined ||
+      (nextChanges !== undefined &&
+        !(nextChanges instanceof Error) &&
+        !nextChanges.files.some((file) => file.path === nextReference.path)));
   const nextSource = useSourceReference(
-    nextReference?.kind === "file" && nextReference.rev === undefined
-      ? nextReference
-      : undefined,
+    needsSource ? nextReference : undefined,
+    nextChanges instanceof Error ? undefined : nextChanges?.sources,
   );
   const loading =
     nextChanges === undefined
       ? "Loading changes…"
-      : nextReference?.kind === "file" &&
-          nextReference.rev === undefined &&
+      : needsSource &&
           nextSource === undefined &&
           (mode === "local" || mode === "github" || hostFiles !== undefined)
         ? "Opening source…"
@@ -341,7 +344,16 @@ export function SourceDiffPanel(props: {
   const pin =
     file === undefined
       ? { kind: "none" as const }
-      : sourcePanelPin({ path: file.path, github, gist });
+      : sourcePanelPin({
+          path: file.path,
+          github:
+            github !== undefined &&
+            reference?.rev !== undefined &&
+            definition === undefined
+              ? { ...github, sha: reference.rev.split("..").at(-1)! }
+              : github,
+          gist,
+        });
   // Diffs keep Pierre's sticky per-file headers; a single file shows its path in the panel title.
   const showTitle = file !== undefined;
   const options = pierreDiffOptions({
@@ -458,6 +470,7 @@ export function SourceDiffPanel(props: {
             {
               type: "file",
               id: file.path,
+              version: hashNumber(file.contents),
               file: { name: file.path, contents: file.contents },
             },
           ];

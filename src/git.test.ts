@@ -295,7 +295,7 @@ test("readChanges names files relative to a root below the repository's top leve
   });
 });
 
-test("readDocumentChanges rejects unchanged files and ranges past the end", async () => {
+test("readDocumentChanges snapshots unchanged files and validates ranges and change cards", async () => {
   await withRepo(async (root, git) => {
     await fs.writeFile(path.join(root, "keep.ts"), "one\ntwo\nthree\nfour\n");
     await git("commit", "-qam", "Add four");
@@ -318,9 +318,16 @@ test("readDocumentChanges rejects unchanged files and ranges past the end", asyn
     );
 
     const unchanged = await check({ path: "gone.ts" });
+    assert.ok(!(unchanged instanceof Error), String(unchanged));
+    assert.deepEqual(unchanged.get(sha)?.sources, { "gone.ts": "bye\n" });
+    assert.deepEqual(
+      unchanged.get(sha)?.files.map((file) => file.path),
+      ["keep.ts"],
+    );
+    const missing = await check({ path: "missing.ts" });
     assert.match(
-      unchanged instanceof Error ? unchanged.message : "",
-      /gone\.ts is not changed/,
+      missing instanceof Error ? missing.message : "",
+      /missing\.ts does not exist at/,
     );
 
     const review = (paths: string[]) =>
@@ -329,11 +336,60 @@ test("readDocumentChanges rejects unchanged files and ranges past the end", asyn
         references: [],
       });
     assert.equal((await review(["keep.ts"])) instanceof Error, false);
-    const missing = await review(["keep.ts", "gone.ts"]);
+    const unmodified = await review(["keep.ts", "gone.ts"]);
     assert.match(
-      missing instanceof Error ? missing.message : "",
+      unmodified instanceof Error ? unmodified.message : "",
       /lists gone\.ts, but it is not changed/,
     );
+  });
+});
+
+test("supporting snapshots are pinned per revision, including range destinations", async () => {
+  await withRepo(async (root, git) => {
+    const base = await git("rev-parse", "HEAD");
+    await fs.writeFile(path.join(root, "keep.ts"), "entry v2\n");
+    await git("commit", "-qam", "Entry only");
+    const first = await git("rev-parse", "HEAD");
+    await fs.writeFile(path.join(root, "gone.ts"), "helper v2\nsecond\n");
+    await git("commit", "-qam", "Helper update");
+    await fs.writeFile(path.join(root, "keep.ts"), "entry v3\n");
+    await git("commit", "-qam", "Entry again");
+    const second = await git("rev-parse", "HEAD");
+    await fs.writeFile(path.join(root, "gone.ts"), "WORKTREE ONLY\n");
+    const revs = [first, second, `${base}..${first}`];
+    const result = await readDocumentChanges(root, {
+      changeCards: [],
+      references: revs.map((rev) => ({
+        kind: "file",
+        rev,
+        path: "gone.ts",
+        start: 1,
+        end: 1,
+      })),
+    });
+    assert.ok(!(result instanceof Error), String(result));
+    assert.deepEqual(
+      revs.map((rev) => result.get(rev)?.sources?.["gone.ts"]),
+      ["bye\n", "helper v2\nsecond\n", "bye\n"],
+    );
+    const pastEnd = await readDocumentChanges(root, {
+      changeCards: [],
+      references: [
+        { kind: "file", rev: first, path: "gone.ts", start: 1, end: 2 },
+      ],
+    });
+    assert.match(String(pastEnd), /past the end.*\(1 lines\)/);
+    await git("rm", "-f", "gone.ts");
+    await git("commit", "-qm", "Delete helper");
+    await fs.writeFile(path.join(root, "keep.ts"), "entry v4\n");
+    await git("commit", "-qam", "Entry after deletion");
+    const deleted = await readDocumentChanges(root, {
+      changeCards: [],
+      references: [
+        { kind: "file", rev: await git("rev-parse", "HEAD"), path: "gone.ts" },
+      ],
+    });
+    assert.match(String(deleted), /gone\.ts does not exist at/);
   });
 });
 

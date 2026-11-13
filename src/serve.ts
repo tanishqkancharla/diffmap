@@ -16,6 +16,7 @@ import {
   listDeltas,
   readChanges,
   readDocumentChanges,
+  readSnapshotReference,
 } from "./git.js";
 import type { Changes, Rev } from "./changes.js";
 import {
@@ -792,13 +793,25 @@ async function handleDiffmapRequest(input: {
       parsed.pathname === "/__diffmap/source") &&
     input.method === "GET"
   ) {
-    // The TypeScript compiler loads with the first lookup instead of at startup.
-    const { findDefinition, readSourceReference } =
-      await import("./definitions.js");
-    const definition =
-      parsed.pathname === "/__diffmap/source"
-        ? readSourceReference(input.workspaceRoot, parsed.searchParams)
-        : findDefinition(input.workspaceRoot, parsed.searchParams);
+    const params = parsed.searchParams;
+    const rev = params.get("rev");
+    const snapshot = parsed.pathname === "/__diffmap/source" && rev !== null;
+    // Historical text does not need the TypeScript compiler or the worktree.
+    const definition = snapshot
+      ? await readSnapshotReference(input.workspaceRoot, {
+          rev,
+          path: params.get("path") ?? "",
+          ...(params.has("start")
+            ? { start: Number(params.get("start")) }
+            : {}),
+          ...(params.has("end") ? { end: Number(params.get("end")) } : {}),
+        })
+      : await import("./definitions.js").then(
+          ({ findDefinition, readSourceReference }) =>
+            parsed.pathname === "/__diffmap/source"
+              ? readSourceReference(input.workspaceRoot, params)
+              : findDefinition(input.workspaceRoot, params),
+        );
     input.res.statusCode = definition instanceof Error ? 400 : 200;
     input.res.setHeader("content-type", "application/json; charset=utf-8");
     input.res.end(

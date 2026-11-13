@@ -793,6 +793,107 @@ test("shareMarkdownFile uploads the files excerpts and rev-less references read"
   });
 });
 
+test("serve and share preserve unchanged supporting files at their pinned snapshots", async () => {
+  await withTempSpec("# Snapshots\n", async (dir) => {
+    const git = async (...args: string[]) =>
+      (await execFileAsync("git", args, { cwd: dir })).stdout.trim();
+    await git("init", "-q");
+    await git("config", "user.email", "test@example.com");
+    await git("config", "user.name", "Test");
+    await fs.writeFile(path.join(dir, "helper.ts"), "historical\nhelper\n");
+    await fs.writeFile(path.join(dir, "other.ts"), "support\n");
+    await fs.writeFile(path.join(dir, "entry.ts"), "before\n");
+    await git("add", ".");
+    await git("commit", "-qm", "Initial");
+    const base = await git("rev-parse", "HEAD");
+    await fs.writeFile(path.join(dir, "entry.ts"), "after\n");
+    await git("commit", "-qam", "Entry only");
+    const sha = await git("rev-parse", "HEAD");
+    await fs.writeFile(
+      path.join(dir, "README.md"),
+      `# Snapshots\n\n[[${sha}:helper.ts#L1-L2]]\n`,
+    );
+    await fs.writeFile(
+      path.join(dir, "02-other.md"),
+      `# Other\n\n[[${sha}:other.ts]]\n`,
+    );
+    await fs.writeFile(path.join(dir, "helper.ts"), "WORKTREE ONLY\n");
+
+    const server = await startServer({
+      filePath: dir,
+      workspaceRoot: dir,
+      port: 0,
+    });
+    assert.ok(!(server instanceof Error), String(server));
+    try {
+      for (const rev of [sha, `${base}..${sha}`]) {
+        const response: Response = await fetch(
+          `${server.url}/__diffmap/source?${new URLSearchParams({ rev, path: "helper.ts", start: "1", end: "2" })}`,
+        );
+        assert.equal(response.status, 200);
+        assert.deepEqual(await response.json(), {
+          definition: {
+            path: "helper.ts",
+            contents: "historical\nhelper\n",
+            start: 1,
+            end: 2,
+          },
+        });
+      }
+      const invalid: Record<string, string>[] = [
+        { rev: sha, path: "helper.ts", end: "3" },
+        { rev: sha, path: "missing.ts" },
+        { rev: sha, path: "../outside.ts" },
+        { rev: "HEAD", path: "helper.ts" },
+      ];
+      for (const params of invalid) {
+        const response: Response = await fetch(
+          `${server.url}/__diffmap/source?${new URLSearchParams(params)}`,
+        );
+        assert.equal(response.status, 400);
+      }
+    } finally {
+      await server.shutdown();
+    }
+
+    const uploaded = path.join(dir, "uploaded");
+    await fs.mkdir(uploaded);
+    await fs.writeFile(
+      path.join(dir, "gh"),
+      [
+        "#!/bin/sh",
+        'if [ "$1" = auth ]; then exit 0; fi',
+        `for arg; do case "$arg" in *.json) cp "$arg" ${JSON.stringify(uploaded)};; esac; done`,
+        "echo https://gist.github.com/0123456789abcdef0123456789abcdef",
+      ].join("\n"),
+      { mode: 0o755 },
+    );
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${dir}${path.delimiter}${originalPath ?? ""}`;
+    try {
+      const shared = await shareMarkdownFile({
+        filePath: dir,
+        workspaceRoot: dir,
+        isPublic: false,
+      });
+      assert.ok(!(shared instanceof Error), String(shared));
+    } finally {
+      process.env.PATH = originalPath;
+    }
+    const saved = JSON.parse(
+      await fs.readFile(path.join(uploaded, "diffmap-changes.json"), "utf8"),
+    );
+    assert.deepEqual(saved[sha].sources, {
+      "helper.ts": "historical\nhelper\n",
+      "other.ts": "support\n",
+    });
+    assert.deepEqual(
+      saved[sha].files.map((file: { path: string }) => file.path),
+      ["entry.ts"],
+    );
+  });
+});
+
 test("parseViewerDocument reads Amp and MDC galleries, with a carousel title", () => {
   const parsed = parseViewerDocument(
     [

@@ -317,8 +317,8 @@ Append a reference to a call stack line to link it. Paths are relative to `--roo
 - `[[path/to/file]]` links a whole file and `[[path/to/file#L12-L30]]` a line
   range. These work with any language.
 - `[[<sha>:path/to/file#L12-L30]]` or `[[<sha>:path/to/file]]` links a change
-  in a commit. `<sha>` is a 7–40 character lowercase commit SHA, or a range
-  `<sha>..<sha>`.
+  or an unchanged file in a commit. `<sha>` is a 7–40 character lowercase
+  commit SHA, or a range `<sha>..<sha>`.
 
 ```callstack
  shareMarkdownFile [[src/share.ts#shareMarkdownFile]]
@@ -331,10 +331,11 @@ uncommitted changes, the panel shows the current file.
 
 A commit reference opens the Diff panel on every file changed in that commit or
 range, with a sticky header per file, scrolled to the linked file and lines.
-Line numbers are the file's lines after the commit. The file must be changed in
-that commit and the range must fit the new file; `serve` and `share` run git and
-fail at startup otherwise. Deleted lines cannot be referenced, and a commit
-cannot be combined with `#symbol`.
+Line numbers are the file's lines after the commit. If the file is unchanged,
+the panel shows its source at that commit (or the destination of a range),
+not the working tree. The file must exist there and the range must fit;
+`serve` and `share` run git and fail at startup otherwise. Deleted lines cannot
+be referenced, and a commit cannot be combined with `#symbol`.
 
 Multiple references on one stack line are allowed. The references are hidden in
 the rendered stack, and linked rows support mouse clicks and keyboard activation.
@@ -379,10 +380,12 @@ the pull request's full diff.
 
 A shared gist is a snapshot taken when you run `diffmap share`. It saves every
 referenced commit and every `changes` card, including uncommitted ones, to
-`diffmap-changes.json`. It saves the current contents of every file that a file
-excerpt or a reference without a commit reads to `diffmap-files.json`. In the
-gist, those references open the saved file; symbols resolve to their first
-matching line, and Cmd-click definitions only work in a local viewer. Commit
+`diffmap-changes.json`, with unchanged supporting files saved at each referenced
+revision separately from the changed-file list. It saves the current contents
+of every file that a file excerpt or a reference without a commit reads to
+`diffmap-files.json`. In the gist, references without a commit open that saved
+file; symbols resolve to their first matching line, and Cmd-click definitions
+only work in a local viewer. Commit
 your work and point references at the commit before sharing, so the gist shows
 the diff instead of a bare file.
 
