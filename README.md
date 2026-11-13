@@ -565,4 +565,8 @@ Turn it off with `DIFFMAP_TELEMETRY=0` (or `false`) or `DO_NOT_TRACK=1`. It is a
 
 ## Feedback
 
-Found a bug, hit a confusing error, or want a feature? [Open an issue](https://github.com/tanishqkancharla/diffmap/issues/new) with what you did, what you expected, what happened, and your diffmap version (`diffmap --version`). Agents using the generate-diffmap skill do the same through `gh issue create`.
+Found a bug, hit a confusing error, or want a feature? Search [existing issues](https://github.com/tanishqkancharla/diffmap/issues), then comment on a matching issue or [open a new one](https://github.com/tanishqkancharla/diffmap/issues/new). Describe what you did, what you expected, and what happened, with your Diffmap version (`diffmap --version`). Keep submissions de-identified and prose-only, without PII, code, attachments, or identifying details.
+
+Agents follow the [guide's Feedback section](guide.md#feedback) through `gh`, adding the `agent-feedback` label when available and the footer “Reported via Diffmap agent feedback” to issue bodies and comments. Diagnostic metadata is limited to the Diffmap version and agent product name, if known.
+
+These markers identify the reporting path, not verified origin. This is guidance, not enforced anonymization: GitHub still shows the submitting account.

@@ -216,14 +216,27 @@ Fences: `mermaid` draws a diagram, `services` an animated diagram of services, t
 
 ## Feedback
 
-When diffmap gets in your way or the user has feedback on it, such as a rendering bug, a confusing error, a missing feature, or advice in this guide that did not work, open an issue on the diffmap repo. Search first, and comment on a matching issue instead of opening a duplicate:
+When diffmap gets in your way or the user has feedback on it, such as a rendering bug, a confusing error, a missing feature, or advice in this guide that did not work, report it on the diffmap repo. Search first, and comment on a matching issue instead of opening a duplicate:
 
 ```sh
 gh issue list --repo tanishqkancharla/diffmap --search "<keywords>" --state all
-gh issue create --repo tanishqkancharla/diffmap --title "<short summary>" --body "<details>"
+gh issue create --repo tanishqkancharla/diffmap --title "<summary>" --body "<details and footer>"
+gh issue comment "<issue-number>" --repo tanishqkancharla/diffmap --body "<details and footer>"
 ```
 
-Say what you did, what you expected, and what happened, with the diffmap version (`npx @tanishqkancharla/diffmap --version`) and the smallest Markdown that shows the problem. Issues are public, so leave out private code, file contents, paths, and gist links unless the user agrees. Give the user the issue URL.
+Describe what you did, what you expected, and what happened. Keep titles, issue bodies, and comments de-identified and prose-only: no PII, code or spec snippets, raw logs, screenshots, credentials, or identifying details (including private paths, repository/customer names, and links).
+
+End agent-submitted issue bodies and comments with this footer. Include only the Diffmap version (`npx @tanishqkancharla/diffmap --version`) and agent product name as diagnostic metadata; omit the agent line if unknown:
+
+```text
+Reported via Diffmap agent feedback
+Diffmap version: <version>
+Agent: <product name>
+```
+
+Add `--label agent-feedback` when creating an issue if the label is available; otherwise keep the footer and submit without it. Ask before changing shared label configuration. These markers identify the reporting path, not verified origin.
+
+This is guidance, not enforced anonymization: GitHub still shows the submitting account. Give the user the issue URL.
 
 ## Look up the rest
 
