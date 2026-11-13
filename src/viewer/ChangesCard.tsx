@@ -21,6 +21,7 @@ import {
   isCommitRev,
   orderForReview,
   shortRev,
+  summaryFiles,
   type ChangedFile,
   type Changes,
   type Rev,
@@ -48,9 +49,11 @@ export function ChangesCard(
   const range = useStyles(styles.range);
   const toggle = useStyles(styles.row, styles.toggle);
   const empty = useStyles(styles.empty);
-  const files =
-    changes === undefined || changes instanceof Error ? [] : changes.files;
-  const { reviewed, other } = orderForReview(files, props.review, props.ignore);
+  const { reviewed, other } = orderForReview(
+    changes === undefined || changes instanceof Error ? [] : changes.files,
+    props.review,
+    props.ignore,
+  );
   const rowProps = {
     rev: props.rev,
     selectedAnnotation: props.selectedAnnotation,
@@ -68,7 +71,7 @@ export function ChangesCard(
         ) : (
           <ChangesSummary changes={changes} />
         )}
-        {files.length > 0 && (
+        {reviewed.length + other.length > 0 && (
           <button
             type="button"
             className={review}
@@ -178,7 +181,8 @@ export function ChangesSummary(props: {
   className?: string;
 }) {
   const summary = useStyles(styles.summary);
-  const { files, truncated } = props.changes;
+  const { truncated } = props.changes;
+  const files = summaryFiles(props.changes.files);
   const additions = files.reduce((sum, file) => sum + file.additions, 0);
   const deletions = files.reduce((sum, file) => sum + file.deletions, 0);
   const count = files.length;

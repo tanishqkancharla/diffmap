@@ -6,6 +6,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 import {
+  orderForReview,
+  summaryFiles,
   revWindow,
   windowLabel,
   windowRev,
@@ -22,6 +24,36 @@ import {
 } from "./git.js";
 
 const execFileAsync = promisify(execFile);
+
+test("commit summaries omit .diffmap directories without hiding similarly named code", () => {
+  const paths = [
+    ".diffmap/specs/change/README.md",
+    "packages/app/.diffmap/specs/change/phase.md",
+    "src/diffmap.ts",
+    "diffmap/index.ts",
+    ".diffmap-backup/spec.md",
+    "docs/.diffmap.md",
+    "src/.diffmap",
+  ];
+  const files: Changes["files"] = paths.map((filePath) => ({
+    path: filePath,
+    status: "modified",
+    additions: 3,
+    deletions: 2,
+    binary: false,
+  }));
+  const metadata = files.slice(0, 2);
+  const code = files.slice(2);
+  assert.deepEqual(summaryFiles(files), code);
+  assert.deepEqual(orderForReview(files, []), { reviewed: code, other: [] });
+  assert.deepEqual(orderForReview(files, [paths[0]!, paths[3]!], [paths[1]!]), {
+    reviewed: [code[1]],
+    other: [code[0], ...code.slice(2)],
+  });
+  assert.deepEqual(orderForReview(metadata, []), { reviewed: [], other: [] });
+  assert.deepEqual(summaryFiles(metadata), []);
+  assert.equal(files.length, 7, "rendering preserves underlying Git changes");
+});
 
 test("range labels run from the diff base to its destination", () => {
   const deltas: Delta[] = [

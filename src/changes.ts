@@ -155,6 +155,13 @@ export type Changes = {
   sources?: Record<string, string>;
 };
 
+/** Spec metadata is not part of the code review; match directories, not substrings. */
+export function summaryFiles(files: ChangedFile[]) {
+  return files.filter(
+    (file) => !file.path.split("/").slice(0, -1).includes(".diffmap"),
+  );
+}
+
 /**
  * Splits files into the ones to review, in `review` order, and the rest in
  * their original order. Listing no files at all means every file is to be
@@ -165,6 +172,7 @@ export function orderForReview(
   review: string[],
   ignore: string[] = [],
 ) {
+  files = summaryFiles(files);
   if (review.length === 0 && ignore.length === 0)
     return { reviewed: files, other: [] };
   const reviewed = review.flatMap(
