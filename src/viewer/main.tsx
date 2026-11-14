@@ -1,29 +1,65 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useEffectEvent, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { MauiProvider, P } from "maui";
+import {
+  ActivityIndicator,
+  Banner,
+  FileError,
+  FileSearch,
+  Flex,
+  Label,
+  Link,
+  LoadingScreen,
+  MauiProvider,
+  P,
+  PlugOff,
+} from "maui";
+import { style, useStyles } from "purse-styles";
 import type { Spec, SpecPage } from "../spec.js";
 import type { ViewerDocument } from "../parseViewer.js";
 import { ViewerApp } from "./ViewerApp.tsx";
-import { GistStatus } from "../gist/GistStatus.tsx";
+import {
+  RetryButton,
+  SpecErrorPage,
+  StatusLink,
+  StatusPage,
+} from "./StatusPage.tsx";
 import { localMediaUrl, MediaResolverContext } from "./Media.tsx";
 import { enableViewerTelemetry, trackViewerEvent } from "./telemetry.ts";
+import {
+  setServerConnection,
+  useServerConnection,
+} from "./serverConnection.ts";
 import "./styles.css";
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("diffmap root element is missing");
 
-/** `serve`'s answer for one page, from parseViewerDocument. */
+/** `serve`'s answer for one page. */
 type PageLoad = {
   page?: SpecPage;
   viewerDocument?: ViewerDocument;
+  /** The page's file did not parse. */
   parseError?: string;
+  /** The URL names no page of the spec. */
+  missingPage?: string;
+  /** The spec itself could not be read. */
+  specError?: string;
 };
+
+type SpecLoad = Spec | { error: string };
+
+async function loadJson(url: string) {
+  const response = await fetch(url);
+  if (!response.ok)
+    throw new Error(`${url} answered ${String(response.status)}`);
+  return (await response.json()) as unknown;
+}
 
 async function loadPage(segment: string) {
   // SAFETY: `serve` answers with this shape.
-  return (await fetch(
+  return (await loadJson(
     `/__diffmap/document?${new URLSearchParams({ page: segment })}`,
-  ).then((response) => response.json())) as PageLoad;
+  )) as PageLoad;
 }
 
 /** The page the URL names: `/` is the cover, `/<slug>` a page. */
@@ -48,15 +84,12 @@ function settleUrl(load: PageLoad) {
   }
 }
 
-const [initialPage, initialSpec] = await Promise.all([
+const initialLoad = Promise.all([
   loadPage(pageSegment()),
   // SAFETY: `serve` answers with this shape from readSpec.
-  fetch("/__diffmap/spec").then((response) => response.json()) as Promise<
-    Spec | { error: string }
-  >,
+  loadJson("/__diffmap/spec") as Promise<SpecLoad>,
 ]);
-settleUrl(initialPage);
-let shownFile = initialPage.page?.file;
+let shownFile: string | undefined;
 
 enableViewerTelemetry();
 trackViewerEvent({ event: "viewer_opened" });
@@ -66,7 +99,6 @@ function trackPageError(load: PageLoad) {
   if (load.viewerDocument === undefined)
     trackViewerEvent({ event: "viewer_error", kind: "document" });
 }
-trackPageError(initialPage);
 
 // `serve` names each page file that changes, or sends `pages` when the list of pages changed.
 const reloadToken =
@@ -85,7 +117,9 @@ reloadSocket.addEventListener("open", () => {
   reloadSocketOpened = true;
 });
 reloadSocket.addEventListener("close", () => {
-  if (reloadSocketOpened) setTimeout(reloadWhenServerAnswers, 1000);
+  if (!reloadSocketOpened) return;
+  setServerConnection("disconnected");
+  setTimeout(reloadWhenServerAnswers, 1000);
 });
 
 function reloadWhenServerAnswers() {
@@ -100,19 +134,85 @@ function reloadWhenServerAnswers() {
 }
 
 function LocalApp() {
-  const [load, setLoad] = useState(initialPage);
-  const spec = "error" in initialSpec ? undefined : initialSpec;
-
+  const [boot, setBoot] = useState<
+    { page: PageLoad; spec: SpecLoad } | Error | undefined
+  >();
   useEffect(() => {
-    // Back and forward load the page the URL names; a jump to a heading on the same page stays put.
-    const onPop = () => {
-      // oxlint-disable-next-line typescript/no-floating-promises -- The event owns this load.
-      void loadPage(pageSegment()).then((next) => {
-        if (next.page?.file === shownFile) return;
+    // oxlint-disable-next-line typescript/no-floating-promises -- The effect owns this load; it settles once per page load.
+    void initialLoad.then(
+      ([page, spec]) => {
+        settleUrl(page);
+        shownFile = page.page?.file;
+        trackPageError(page);
+        setBoot({ page, spec });
+      },
+      (cause: unknown) => {
+        setBoot(cause instanceof Error ? cause : new Error(String(cause)));
+        setTimeout(reloadWhenServerAnswers, 1000);
+      },
+    );
+  }, []);
+
+  if (boot === undefined) return <BootLoading />;
+  if (boot instanceof Error) {
+    return (
+      <StatusPage
+        tone="danger"
+        icon={PlugOff}
+        title="Can't reach the diffmap server"
+        actions={<RetryButton />}
+      >
+        <P>
+          The server that opened this page isn't answering. Run diffmap serve
+          again and this page reloads on its own.
+        </P>
+      </StatusPage>
+    );
+  }
+  return (
+    <LocalViewer
+      initialPage={boot.page}
+      spec={"error" in boot.spec ? undefined : boot.spec}
+    />
+  );
+}
+
+/** Blank until 2s pass, so a fast local load never flashes a spinner. */
+function BootLoading() {
+  const className = useStyles(styles.boot);
+  return (
+    <div className={className}>
+      <LoadingScreen />
+    </div>
+  );
+}
+
+function LocalViewer(props: { initialPage: PageLoad; spec: Spec | undefined }) {
+  const [load, setLoad] = useState(props.initialPage);
+  const [pageLoading, setPageLoading] = useState(false);
+  const spec = props.spec;
+
+  const show = (segment: string, commit?: (next: PageLoad) => void) => {
+    setPageLoading(true);
+    // oxlint-disable-next-line typescript/no-floating-promises -- Navigation owns this load.
+    void loadPage(segment).then(
+      (next) => {
+        setPageLoading(false);
+        commit?.(next);
+        if (next.page?.file === shownFile && next.viewerDocument !== undefined)
+          return;
+        trackPageError(next);
         shownFile = next.page?.file;
         setLoad(next);
-      });
-    };
+      },
+      // The reload socket reports a stopped server; the current page stays up.
+      () => setPageLoading(false),
+    );
+  };
+
+  // Back and forward load the page the URL names; a jump to a heading on the same page stays put.
+  const onPop = useEffectEvent(() => show(pageSegment()));
+  useEffect(() => {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -120,11 +220,52 @@ function LocalApp() {
   const current =
     spec?.pages.find((candidate) => candidate.file === load.page?.file) ??
     load.page;
+  if (load.missingPage !== undefined) {
+    return (
+      <StatusPage
+        tone="neutral"
+        icon={FileSearch}
+        title="Page not found"
+        actions={
+          <StatusLink href="/" variant="primary">
+            Go to the cover page
+          </StatusLink>
+        }
+        footer={spec !== undefined && <PageList pages={spec.pages} />}
+      >
+        <P>
+          This spec has no page at /{load.missingPage}. It may have been renamed
+          or removed since this link was made.
+        </P>
+      </StatusPage>
+    );
+  }
+  if (load.specError !== undefined) {
+    return (
+      <StatusPage
+        tone="danger"
+        icon={FileError}
+        title="Can't read this spec"
+        detail={load.specError}
+      >
+        <P>
+          diffmap couldn't read the spec it's serving. Fix the problem below;
+          this page reloads when the spec's files change.
+        </P>
+      </StatusPage>
+    );
+  }
   if (load.viewerDocument === undefined) {
     return (
-      <GistStatus title="Could not parse this spec">
-        <P>{load.parseError ?? "Unknown parse error."}</P>
-      </GistStatus>
+      <SpecErrorPage
+        title="This page has an error"
+        file={load.page?.file ?? "This page"}
+        message={load.parseError ?? "Unknown parse error."}
+      >
+        <P>
+          Fix the problem below and save the file. This page reloads on its own.
+        </P>
+      </SpecErrorPage>
     );
   }
   return (
@@ -134,6 +275,8 @@ function LocalApp() {
         key={current?.file}
         document={load.viewerDocument}
         mode="local"
+        pageLoading={pageLoading}
+        notice={<DisconnectedNotice />}
         spec={
           spec === undefined || current === undefined
             ? undefined
@@ -142,25 +285,54 @@ function LocalApp() {
                 pages: spec.pages,
                 current,
                 href: pageHref,
-                navigate: (page, hash) => {
-                  // oxlint-disable-next-line typescript/no-floating-promises -- Navigation owns this load.
-                  void loadPage(page.slug).then((next) => {
-                    trackPageError(next);
+                navigate: (page, hash) =>
+                  show(page.slug, () =>
                     window.history.pushState(
                       {},
                       "",
                       `${pageHref(page)}${hash}`,
-                    );
-                    shownFile = next.page?.file;
-                    setLoad(next);
-                  });
-                },
+                    ),
+                  ),
               }
         }
       />
     </MediaResolverContext.Provider>
   );
 }
+
+function DisconnectedNotice() {
+  const connection = useServerConnection();
+  if (connection !== "disconnected") return undefined;
+  return (
+    <Banner
+      tone="warning"
+      layout="stacked"
+      role="status"
+      icon={<ActivityIndicator variant="primary" aria-label="Reconnecting" />}
+      title="The diffmap server stopped"
+    >
+      You can keep reading. Run diffmap serve again and this page reloads with
+      the latest spec.
+    </Banner>
+  );
+}
+
+function PageList(props: { pages: SpecPage[] }) {
+  return (
+    <Flex column gap={3} pt={6}>
+      <Label>Pages in this spec</Label>
+      {props.pages.map((page) => (
+        <Link key={page.file} href={pageHref(page)}>
+          {page.title}
+        </Link>
+      ))}
+    </Flex>
+  );
+}
+
+const styles = {
+  boot: style({ display: "flex", width: "100%", height: "100vh" }),
+};
 
 createRoot(root).render(
   <StrictMode>

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  ActivityIndicator,
   backgroundColor,
   border,
+  Close,
   colors,
   flex,
   flexItem,
-  H1,
   P,
   proseHtml,
   proseMaxWidth,
@@ -18,6 +19,8 @@ import type { ViewerDocument } from "../parseViewer.js";
 import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
+import { StatusPage } from "./StatusPage.tsx";
+import { setServerConnection } from "./serverConnection.ts";
 import {
   SpecContext,
   PageLinks,
@@ -52,6 +55,10 @@ export function ViewerApp(props: {
   defaultRev?: Rev;
   /** The spec this page belongs to. Its host remounts the viewer for each page. */
   spec?: SpecNav;
+  /** Another page of the spec is loading; this one stays up until it is ready. */
+  pageLoading?: boolean;
+  /** A Banner above the page, such as a stopped server. */
+  notice?: ReactNode;
 }) {
   const viewerDocument = props.document;
   const meta = useViewerMeta(props.mode === "local");
@@ -115,8 +122,8 @@ export function ViewerApp(props: {
   const comments = useCommentStore(
     commentsKey(spec?.href(spec.current) ?? window.location.pathname),
   );
-  const closed = useStyles(styles.closed);
-  const closedCopy = useStyles(styles.closedCopy);
+  const notice = useStyles(styles.notice);
+  const pageLoading = useDelayed(props.pageLoading === true, 150);
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
   const hasToc = hasTableOfContents(viewerDocument.headings, spec);
@@ -144,12 +151,12 @@ export function ViewerApp(props: {
 
   if (shutDown) {
     return (
-      <main className={closed}>
-        <div className={closedCopy}>
-          <H1>Closed spec</H1>
-          <P>The local server stopped.</P>
-        </div>
-      </main>
+      <StatusPage tone="neutral" icon={Close} title="Server closed">
+        <P>
+          You closed the server for {title}. Run diffmap serve again to reopen
+          it.
+        </P>
+      </StatusPage>
     );
   }
 
@@ -167,6 +174,9 @@ export function ViewerApp(props: {
                   />
                 )}
                 <div className={titleClass}>{title}</div>
+                {pageLoading && (
+                  <ActivityIndicator size="xs" aria-label="Loading page" />
+                )}
               </div>
               <div className={actions}>
                 <CopyCommentsButton
@@ -188,6 +198,7 @@ export function ViewerApp(props: {
                   <CloseServerButton
                     onClick={() => {
                       trackViewerEvent({ event: "server_closed" });
+                      setServerConnection("closed");
                       setShutDown(true);
                       // oxlint-disable-next-line typescript/no-floating-promises -- React click callbacks cannot await the server shutdown request.
                       void closeViewer();
@@ -196,6 +207,9 @@ export function ViewerApp(props: {
                 )}
               </div>
             </header>
+            {props.notice !== undefined && (
+              <div className={notice}>{props.notice}</div>
+            )}
             <div className={stage}>
               <div className={body} data-has-source-diffs={diffPanelOpen}>
                 <article ref={articleRef} className={article}>
@@ -278,6 +292,20 @@ function useViewerMeta(enabled: boolean) {
       });
   }, [enabled]);
   return meta;
+}
+
+/** True once `value` has stayed true for `ms`, so quick loads show nothing. */
+function useDelayed(value: boolean, ms: number) {
+  const [delayed, setDelayed] = useState(false);
+  useEffect(() => {
+    if (!value) return;
+    const timer = setTimeout(() => setDelayed(true), ms);
+    return () => {
+      clearTimeout(timer);
+      setDelayed(false);
+    };
+  }, [value, ms]);
+  return value && delayed;
 }
 
 async function closeViewer() {
@@ -388,24 +416,13 @@ const styles = {
       content: "none",
     },
   }),
-  closed: style(
-    flex({
-      direction: "column",
-      alignItems: "center",
-      justifyContent: "center",
-    }),
-    spacing.padding({ x: 12, y: 12 }),
+  notice: style(
+    spacing.padding({ x: 6, y: 4 }),
+    flexItem({ size: "hug" }),
+    border(["bottom"], "border"),
     {
-      minHeight: "100vh",
       backgroundColor: backgroundColor.app,
-    },
-  ),
-  closedCopy: style(
-    flex({ direction: "column", alignItems: "center", gap: 3 }),
-    {
-      width: "100%",
-      maxWidth: proseMaxWidth,
-      textAlign: "center",
+      "&:empty": { display: "none" },
     },
   ),
 };

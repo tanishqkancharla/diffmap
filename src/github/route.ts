@@ -54,7 +54,10 @@ export function parseGitHubPath(
   const specPath = parts.slice(4).map(decodePathSegment).join("/");
   if (kind === "pull") {
     if (!PULL_PATTERN.test(id)) {
-      return { kind: "github-invalid", message: "Not a pull request number." };
+      return {
+        kind: "github-invalid",
+        message: "The part after pull/ isn't a pull request number.",
+      };
     }
     const pathError = specPathError(specPath);
     if (pathError !== undefined)
@@ -68,7 +71,10 @@ export function parseGitHubPath(
     };
   }
   if (!SHA_PATTERN.test(id)) {
-    return { kind: "github-invalid", message: "Not a git commit SHA." };
+    return {
+      kind: "github-invalid",
+      message: "The part after commit/ isn't a commit SHA.",
+    };
   }
   const pathError = specPathError(specPath);
   if (pathError !== undefined)
@@ -130,6 +136,10 @@ export function githubPullUrl(owner: string, repo: string, pull: number) {
   return `https://github.com/${owner}/${repo}/pull/${String(pull)}`;
 }
 
+export function githubCommitUrl(owner: string, repo: string, sha: string) {
+  return `https://github.com/${owner}/${repo}/commit/${sha}`;
+}
+
 function isRepoName(value: string) {
   return (
     NAME_PATTERN.test(value) &&
@@ -141,14 +151,14 @@ function isRepoName(value: string) {
 
 function specPathError(specPath: string) {
   if (specPath.length === 0) {
-    return "A hosted spec URL needs a spec directory or markdown file after the pull or commit.";
+    return "The link needs a spec's directory or Markdown file after the pull request or commit.";
   }
   if (specPath.split("/").some((part) => part === "." || part === "..")) {
-    return "Spec path is not a repository file.";
+    return "The spec path isn't a file in the repository.";
   }
   const name = specPath.slice(specPath.lastIndexOf("/") + 1);
   if (name.includes(".", 1) && !MARKDOWN_EXT.test(name)) {
-    return "Spec path must be a .md or .mdx file, or a spec's directory.";
+    return "The link must end in a spec's directory or a .md or .mdx file.";
   }
   return undefined;
 }

@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
+  ActivityIndicator,
   borderColor,
   ChevronRight,
   colors,
@@ -13,6 +14,7 @@ import {
   motionDurationMs,
   motionEasing,
   text,
+  WarningTriangle,
 } from "maui";
 import { style, useStyles } from "purse-styles";
 import type { FileDiffMetadata } from "@pierre/diffs";
@@ -45,7 +47,8 @@ export function ChangesCard(
   const shell = useStyles(pierreShell, styles.shell);
   const header = useStyles(styles.header);
   const review = useStyles(styles.review);
-  const muted = useStyles(styles.muted);
+  const pending = useStyles(styles.status);
+  const failed = useStyles(styles.status, styles.failed);
   const range = useStyles(styles.range);
   const toggle = useStyles(styles.row, styles.toggle);
   const empty = useStyles(styles.empty);
@@ -64,9 +67,15 @@ export function ChangesCard(
       <div className={header}>
         <GitBranch size="sm" />
         <span className={range}>{revLabel(props.rev, changes)}</span>
-        {changes === undefined || changes instanceof Error ? (
-          <span className={muted}>
-            {changes === undefined ? "Loading changes…" : changes.message}
+        {changes === undefined ? (
+          <span className={pending} role="status">
+            <ActivityIndicator size="xs" variant="muted" />
+            Loading changes…
+          </span>
+        ) : changes instanceof Error ? (
+          <span className={failed} role="status">
+            <WarningTriangle size="sm" />
+            {changes.message}
           </span>
         ) : (
           <ChangesSummary changes={changes} />
@@ -418,6 +427,18 @@ const styles = {
     "&[aria-expanded='true'] > .stat": { opacity: 0 },
     "&:hover": { color: colors.gray[12] },
   }),
+  status: style(text({ size: "sm", color: "lowContrast" }), {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: "6px",
+    flex: "1 1 0",
+    minWidth: 0,
+    paddingBlock: "6px",
+    textAlign: "right",
+    "& > svg": { flexShrink: 0 },
+  }),
+  failed: style({ color: colors.amber[11] }),
   muted: style({ color: colors.gray[11] }),
   // Lines up with the file names: the row inset, a 16px icon, and the rows' 10px gap.
   empty: style(text({ size: "sm", color: "lowContrast" }), {

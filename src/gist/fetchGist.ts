@@ -6,6 +6,7 @@ import {
 } from "../changes.ts";
 import { findPage, makeSpec, type Spec, type SpecPage } from "../spec.ts";
 import type { HostFiles } from "../host/files.ts";
+import { responseFailure, type GitHubFailure } from "../host/githubFailure.ts";
 import { githubGistUrl, markdownFileNames, pickMarkdownFile } from "./route.ts";
 
 export type GistMarkdownFile = {
@@ -27,10 +28,8 @@ export type GistDocument = {
 
 export type GistLoadResult =
   | { status: "ok"; gist: GistDocument }
-  | { status: "not-found" }
-  | { status: "forbidden" }
   | { status: "no-markdown"; htmlUrl: string }
-  | { status: "error"; message: string };
+  | GitHubFailure;
 
 type GistApiFile = {
   filename?: string;
@@ -55,21 +54,11 @@ export async function loadGistMarkdown(
     signal,
   }).catch((cause: unknown) => cause);
 
-  if (response instanceof Error) {
-    if (response.name === "AbortError") throw response;
-    return { status: "error", message: "Failed to load this gist." };
-  }
-  if (!(response instanceof Response)) {
-    return { status: "error", message: "Failed to load this gist." };
-  }
-  if (response.status === 404) return { status: "not-found" };
-  if (response.status === 403) return { status: "forbidden" };
-  if (!response.ok) {
-    return {
-      status: "error",
-      message: `GitHub returned ${String(response.status)}.`,
-    };
-  }
+  if (response instanceof Error && response.name === "AbortError")
+    throw response;
+  if (!(response instanceof Response)) return { status: "offline" };
+  const failure = responseFailure(response);
+  if (failure !== undefined) return failure;
 
   const payload = (await response.json().catch(() => undefined)) as
     | GistApiResponse
