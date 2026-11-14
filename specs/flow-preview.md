@@ -1,50 +1,87 @@
-# Flow widget: bring flow-preview into diffmap
+# Flow widget: live UI journeys in a diffmap spec
 
-[flow-preview](https://github.com/tanishqkancharla/flow-preview) is an agent skill that turns a user journey into an interactive canvas of real UI states. This spec merges it into diffmap as a new interactive widget, a `flow` fence, so a spec can show the journey a change affects right beside the text that explains it. flow-preview stops being a separate skill: `generate-diffmap` and the guide it loads cover both.
+[flow-preview](https://github.com/tanishqkancharla/flow-preview) is an agent skill that turns a user journey into an interactive canvas of real UI states. This spec brings the idea into diffmap as an interactive widget, a `flow` fence, so a spec can show the journey a change affects right beside the text that explains it, running the app's real components with their real styles and animations.
 
-flow-preview's canvas is designed to fill a browser window, with an outline, a zoomable map, and a preview sidebar. A spec page is a single text column. So the widget is compact inside the page and expands to the full canvas on demand.
+The people using this build web apps. They already have a design system, a bundler, a dev server, and usually a preview deployment for each pull request. So diffmap does not build their components. It embeds their own app, on a small dev-only route, and draws the flow's controls around it.
 
 This spec is a single file because it was asked for at `specs/flow-preview.md`. A spec written with the guide today would be a `.diffmap/specs/<name>/` directory with one page per phase, as [[guide.md]] says; each phase below is written so it can later become its own page.
 
 ## Problem
 
-**What flow-preview does today.** An agent that is asked to preview a journey runs the skill's generator from the project root:
+**How flow-preview renders components today.** The skill's generator ([`scripts/generate.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/scripts/generate.mjs)) writes a second app to `tmp/<name>/`, with its own `package.json`, its own React, Maui, and Vite, and its own `npm install`. The agent's `scenario.tsx` imports the project's components by relative path, and that second Vite build compiles them, using a helper ([`assets/previewConfig.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/previewConfig.mjs)) that dedupes React and limits which folders the dev server may read.
 
-```sh
-node .agents/skills/flow-preview/scripts/generate.mjs preferences-flow 4180
-npm --prefix tmp/preferences-flow install --workspaces=false
-npm --prefix tmp/preferences-flow run dev
-```
+That second build knows nothing about the project's own build. Path aliases, Tailwind or PostCSS, CSS modules, SVG loaders, environment variables, global stylesheets, fonts, theme classes, and app-wide providers all have to be recreated by hand. flow-preview's [`SKILL.md`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/SKILL.md) spends a whole section telling the agent to load the app's global styles and fonts and to compare each state against the running app, because the copy drifts. The canvas, about 1,500 lines in [`assets/FlowCanvas.tsx`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/FlowCanvas.tsx), is built to fill a browser window, and the preview lives only in `tmp/` on the agent's machine, so a reviewer of the pull request never sees it.
 
-The generator ([`scripts/generate.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/scripts/generate.mjs)) writes a standalone Vite app to `tmp/<name>/` and copies in the canvas ([`assets/FlowCanvas.tsx`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/FlowCanvas.tsx), about 1,500 lines) and a Vite helper ([`assets/previewConfig.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/previewConfig.mjs)) that dedupes React and Maui and limits the dev server to the source folders the preview imports. The agent edits `scenario.tsx`: a `FlowScenario` of `FlowNode`s, where each node is a state with a parent, an incoming action, a note, and a `render` that adapts the project's real component with local fixtures.
-
-The canvas takes the whole window. An outline lists the states on the left, a pannable, zoomable map of thumbnails sits in the middle, and the selected state's live UI sits in a sidebar on the right, with breadcrumbs and next-step buttons. Each state has a review checkbox, stored in `localStorage` with a fingerprint of its thumbnail, so the tick clears when that state's UI changes. An opt-in `comparison` prop shows two revisions of a journey, with added, removed, and modified states marked. [`SKILL.md`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/SKILL.md) holds the authoring rules, the canvas's visual contract, and a verification checklist.
-
-**What diffmap does today.** [[skills/generate-diffmap/SKILL.md]] tells the agent to run `diffmap guide`, which prints [[guide.md]] from the installed package. For a UI change, the guide asks for one screenshot per state in a gallery, with Today captured from the base commit beside Proposed. `serve` sends the prebuilt viewer from `viewer-dist/` ([[vite.viewer.config.ts]]), and the same viewer renders specs on diffmap.dev, where it reads every file from the pull request's pinned commit.
-
-**Why this is a problem.** Both tools show a person what a UI change does, but they never meet:
-
-- A flow preview lives in `tmp/` on the agent's machine. It never reaches the pull request, so a reviewer reading the spec does not see it.
-- A spec shows a multi-step journey as a row of screenshots and describes in prose how the states connect, which is exactly what the flow map draws.
-- Two skills give overlapping and sometimes conflicting advice on capturing UI, Today and Proposed, and review marks. flow-preview's rules also assume Halo and Amp orbs, and it pins Maui 0.0.59 while the viewer uses 0.0.62.
+**What a diffmap spec shows today.** For a UI change, [[guide.md]] asks for one screenshot per state, with Today beside Proposed in a gallery. Screenshots are not interactive, show no animation, and leave the reader to piece together from prose how the states connect.
 
 ## Solution
 
-A spec page gets a `flow` fence that points at a scenario file inside the spec:
+The app gets one dev-only route, `/__flows`, that renders any state of any flow inside the app's real layout, providers, styles, and fonts. diffmap's viewer embeds that route in an iframe and draws everything else itself.
+
+```mermaid [The viewer draws the controls; the app renders the states]
+flowchart LR
+    S[Spec page with a flow fence] --> W[Flow widget in the viewer]
+    W -->|iframe and postMessage| R[App route /__flows]
+    R --> F[preferences.flow.tsx]
+    F --> C[The app's real components]
+    D[App dev server or preview deployment] --> R
+    %% ref node:W [[src/viewer/Fence.tsx#Fence]]
+```
+
+The agent writes the flow next to the app's code, in the app's own language and build:
+
+```tsx [src/flows/preferences.flow.tsx]
+import { defineFlow } from "@tanishqkancharla/diffmap/flow";
+import { Preferences } from "../settings/Preferences";
+
+export default defineFlow({
+  id: "preferences",
+  title: "Saving preferences",
+  initialState: "editing",
+  states: [
+    {
+      id: "editing",
+      title: "Editing",
+      note: "The form opens with the saved digest name.",
+      render: ({ go }) => <Preferences onSave={() => go("saved")} />,
+    },
+    {
+      id: "saved",
+      title: "Saved",
+      parent: "editing",
+      action: "Save preferences",
+      note: "The new name is saved, and a confirmation shows.",
+      render: () => <Preferences saved />,
+      enter: async (ui) => ui.click("Save preferences"),
+    },
+  ],
+});
+```
+
+The spec only names the flow:
 
 ````text
 ```flow [Saving preferences]
-flows/preferences.tsx
+preferences
 ```
 ````
 
-The file is the same `FlowScenario` flow-preview uses today, saved at `.diffmap/specs/<name>/flows/preferences.tsx` and committed with the spec. In the page, the fence renders a compact widget at the width of the text column:
+A repo-wide `.diffmap/flows.json` tells the viewer where the route lives, locally and on each pull request:
+
+```json
+{
+  "local": "http://localhost:5173/__flows",
+  "preview": "https://myapp-git-{branch}.vercel.app/__flows"
+}
+```
+
+In the page, the widget fits the text column. The selected state is the live iframe; everything around it is the viewer's own UI:
 
 ```text [Inline, in the spec column]
 +- Saving preferences -------------------------- [expand] -+
 | Editing  >  Saving  >  Saved              (breadcrumbs)  |
 | +------------------------------------------------------+ |
-| |   the selected state's real UI, in a dotted panel    | |
+| |   iframe: the app's /__flows route, selected state   | |
 | +------------------------------------------------------+ |
 | < Previous state                    Save preferences >   |
 | Note: what just happened, and what the user can do next  |
@@ -55,264 +92,199 @@ The file is the same `FlowScenario` flow-preview uses today, saved at `.diffmap/
 +----------------------------------------------------------+
 ```
 
-The compact widget keeps what a reader needs to follow the journey: the selected state's live UI, breadcrumbs, the previous and next-step buttons, the note, and a strip of thumbnails in journey order, each with its review checkbox. The strip follows the map's column order (parent depth, then `row`) and scrolls sideways. The zoomable map and the outline are left out, because they need room the column does not have.
-
-The expand button opens the full flow-preview canvas over the page, as diagrams and images already expand into a full-window dialog in [[src/viewer/MermaidBlock.tsx#MermaidBlock]] and [[src/viewer/Media.tsx]]:
+The expand button opens the full canvas over the page, with the outline, a zoomable map of every state, and the same live preview, as flow-preview lays it out today:
 
 ```text [Expanded, over the page]
 +- Saving preferences ------------------------------------- [close] -+
 | Outline     | Map: pan and zoom              | Live preview        |
 | Editing [x] |                                | breadcrumbs         |
-|  Saving     | [Editing] --> [Saving]         | dotted panel        |
+|  Saving     | [Editing] --> [Saving]         | iframe              |
 |   Saved     |                  |             | < Prev  Next >      |
 |   Error     |       [Error] <--+--> [Saved]  |                     |
 +--------------------------------------------------------------------+
 ```
 
-Expanding and collapsing keep the selected state, the journey's breadcrumbs, the review marks, and any text the reader typed into the live UI.
+**What this removes, compared with flow-preview**
 
-The widget gets its states from one of two places:
+- The second app in `tmp/`, its install step, and keeping its React and design-system versions in line with the project.
+- Copying global styles, fonts, and providers into a preview.
+- The dev-server folder allowlist, which existed only to fence in that second build.
+- Any new runtime dependency in diffmap's CLI: no Vite, React, or browser automation at `serve` time.
 
-```mermaid [Where a flow widget's states come from]
-flowchart TD
-    F[flow fence] --> M{Viewer}
-    M -->|local viewer| L[Live: serve compiles the scenario with Vite]
-    M -->|diffmap.dev or gist| C[Captured: flow.json and a screenshot per state]
-    L --> I[Canvas in an iframe, real components]
-    C --> V[Same canvas, each state drawn from its screenshot]
-    L -.->|agent screenshots capture pages| C
-    %% ref node:F [[src/parseFence.ts#parseFence]]
-    %% ref node:M [[src/viewer/viewerMode.ts#useViewerMode]]
-    %% ref node:C [[src/viewer/Media.tsx#MediaResolverContext]]
-```
+**What it costs**
 
-- **Live, in the local viewer.** `serve` compiles the scenario and the project components it imports with Vite, and the widget runs the canvas in an iframe served by the same local server. The iframe keeps the project's global styles and its React copy out of the viewer, and keeps the viewer's styles out of the product UI.
-- **Captured, on diffmap.dev and in gists.** No project code runs there. The spec commits the scenario's graph and a screenshot of every state, which the agent takes with its own browser tool from capture pages that `diffmap flow capture` lists. The hosted viewer draws the same canvas from those files, with each thumbnail and preview showing its screenshot. Nothing in a captured flow is interactive except navigation and review marks.
-
-Live flows follow the same rule as `html` fences, which render only in the local viewer ([[src/viewer/Fence.tsx#Fence]]): code in the repo runs only on the reader's own machine.
-
-**What merges into diffmap**
-
-- The canvas, its scenario API, the comparison mode, and the Vite boundaries from `previewConfig.mjs`. They move into `src/flow/` and are rebuilt around the two layouts.
-- flow-preview's authoring rules: derive states from the real UI, keep fixtures local, write notes about runtime state, and reach states through real controls. They move into a "Flows" section of [[guide.md]], without the Halo and Amp text.
-- Review marks. A state's checkbox uses the same storage pattern as reviewed files in [[src/viewer/reviewed.ts#useReviewedFiles]], keyed by spec, flow, and state.
-- Today and Proposed. A comparison becomes a `flow diff` fence whose Today side is built from the base commit, matching `mermaid diff` and `services diff`.
-
-**What goes away**
-
-- The `flow-preview` skill, its generator, and the `tmp/<name>/` apps. A flow lives in the spec and runs through `serve`.
-- The flow-preview repo's role as a source. Its README should point to diffmap (a separate PR there).
+- A one-time setup in the app: the dev-only route, added by the agent the first time it writes a flow.
+- A running dev server to see a flow locally, and a preview deployment to see it on a pull request.
+- `@tanishqkancharla/diffmap` as a dev dependency of the app, for `defineFlow` and the route's runtime.
 
 ## Goals
 
-- A spec page can show a journey's states as an interactive widget that fits the text column and expands to the full canvas.
-- The local viewer runs the project's real components in the widget, and diffmap.dev shows the same flow from committed screenshots.
-- A flow's states, notes, and review marks behave as they do in flow-preview today.
-- One skill and one guide cover specs and flows.
+- A spec page shows a journey as a live widget that fits the text column and expands to the full canvas.
+- Each state renders through the app's own build, so it looks and moves exactly as it does in the app.
+- Moving to the next state plays the app's own transitions.
+- A reviewer on diffmap.dev sees the same live widget, through the pull request's preview deployment.
+- No code from the repo runs in the viewer's own page, on diffmap.dev or locally.
 
 ## Non-goals
 
-- Running project code on diffmap.dev, in gists, or anywhere other than the reader's machine.
-- Flows for non-React projects. flow-preview supports React only.
-- Changing the `FlowScenario` API beyond what the two layouts and capturing need.
-- Keeping existing `tmp/<name>/` previews working through diffmap. They are standalone apps and keep running on their own.
+- Building or bundling the app's code in diffmap.
+- Comparing two revisions of a journey side by side, as flow-preview's `comparison` does. Showing Today needs a second dev server or the base branch's deployment; that is a later spec.
+- Shipping `/__flows` to production. The route exists in development and preview builds only.
 
-## Open questions
+## Phase 1: The `/__flows` route
 
-- **Runtime dependencies.** The live widget needs `vite` and `@vitejs/plugin-react` when `serve` runs, but today they are dev dependencies ([[package.json]]). Proposed: move them to `dependencies` and import them only when a spec has a `flow` fence, as `serve` already imports Vite only in dev mode ([[src/serve.ts#startServer]]). Ship the canvas prebuilt with Maui, `motion`, and `purse-styles` bundled in, and only React left external, so each project's components and the canvas share the project's React. This needs a size check against `npx` start-up time.
-- **React versions.** flow-preview was only tested with React 19. With React left external, a project on React 18 might fail when the widget loads.
-- **Testing the widget.** flow-preview's own browser tests use Playwright, as a dev dependency only; people who install flow-preview never get it. The same holds if those tests move here: npm never installs a package's dev dependencies for its users, so people using diffmap would not get Playwright. The cost falls only on contributors and CI. If that is still too much, the tests could cover the state model with `node --test` and leave the layouts to screenshots in each PR.
+Nothing in diffmap knows about flows yet. This phase gives an app a page that can render any state of any flow, and the messages diffmap will use to drive it.
+
+**Today**
+
+To preview a state, an agent builds a separate app in `tmp/` and recreates the project's styles and providers inside it.
+
+**Proposed**
+
+The package gains a small entry point, `@tanishqkancharla/diffmap/flow`, next to today's `.` export in [[package.json]]. It exports `defineFlow` and a `FlowRoute` component. The app mounts `FlowRoute` on a dev-only route, inside its normal root layout and providers. The agent picks the route's form from the app's framework. For a Vite app, it is an extra `flows.html` entry that Vite serves in dev and that the build leaves out:
+
+```tsx [src/flows/main.tsx]
+import { createRoot } from "react-dom/client";
+import { FlowRoute } from "@tanishqkancharla/diffmap/flow";
+import { AppProviders } from "../AppProviders";
+import "../styles/global.css";
+
+const flows = import.meta.glob("./*.flow.tsx", { eager: true });
+
+createRoot(document.getElementById("root")!).render(
+  <AppProviders>
+    <FlowRoute flows={flows} />
+  </AppProviders>,
+);
+```
+
+In a Next.js app, it is an `app/__flows/page.tsx` that returns `notFound()` in production. The guide carries both recipes.
+
+`FlowRoute` reads `?flow=` and `?state=` from the URL and renders that state's `render`, so a state can be opened on its own while the agent builds the flow. Inside the widget, it talks to the viewer with `postMessage`:
+
+```ts
+// route → viewer
+{ type: "flow-ready", protocol: 1, flow: { id, title, initialState, states: [{ id, title, parent, action, note }] } }
+{ type: "flow-size", width, height }
+{ type: "flow-state", state, fingerprint } // after each state renders
+// viewer → route
+{ type: "flow-show", state, how: "render" | "enter" }
+{ type: "flow-mode", mode: "preview" | "thumbnail" }
+// [!note fingerprint] A hash of the state's rendered HTML and classes, used for review marks.
+// [!note how] "enter" runs the state's steps on the live UI; Phase 3 adds it.
+```
+
+A state's `render` gets `go(stateId)`, so the real controls in a live state can move the flow on, as the Save button does in the example above. `FlowRoute` only answers messages from the viewer origins it allows: the local viewer on `127.0.0.1` and `https://www.diffmap.dev`. The route also sends a `frame-ancestors` policy that names the same origins, so other sites cannot frame it.
+
+```changes
+
+```
+
+## Phase 2: The inline flow widget
+
+[Phase 1](#phase-1-the-__flows-route) gave the app a route that renders flow states. This phase draws the widget in the spec.
+
+**Today**
+
+A spec shows a journey as screenshots in a gallery ([[src/viewer/Media.tsx]]).
+
+**Proposed**
+
+A `flow` fence renders the inline widget. The viewer reads `.diffmap/flows.json`, loads `<local>?flow=preferences` in an iframe, and waits for `flow-ready`. It then draws the breadcrumbs, previous and next-step buttons, note, and thumbnail strip itself, with Maui, as the other fences do.
+
+```callstack [Showing a flow fence]
+ view = Fence(fence) [[src/viewer/Fence.tsx#Fence]]
++└── return FlowWidget(fence)
++    ├── url = flowUrl(flowsConfig, viewerMode) # local, or the PR's preview
++    ├── live = iframe(url + "?flow=" + fence.flow)
++    ├── flow = await message("flow-ready")
++    ├── strip = flow.states.map(thumbnailFrame) # lazy, inert iframes
++    └── on select(state): live.post({ type: "flow-show", state, how: "render" })
+```
+
+`FlowWidget`, `flowUrl`, and `thumbnailFrame` are planned names. [[src/parseFence.ts#parseFence]] learns the `flow` kind, whose body is one flow ID.
+
+- **The live preview** is one iframe. It grows with `flow-size` up to a height cap, then scrolls.
+- **Thumbnails** are small iframes in `thumbnail` mode, scaled down, inert, and loaded only when they scroll into view, so a long flow does not start a dozen copies of the app at once.
+- **Review marks** sit on each thumbnail and are stored in `localStorage` per spec, flow, and state, keyed to the state's `fingerprint`, the same way [[src/viewer/reviewed.ts#useReviewedFiles]] keys reviewed files to their diff. A state whose UI changes needs reviewing again.
+- **When the route cannot be reached,** the widget says so in place, with the URL it tried, such as "Start your dev server at http://localhost:5173". `serve` adds the same message to its `warnings`.
+
+The local viewer's content security policy ([[src/serve.ts#contentSecurityPolicy]]) only restricts scripts, objects, and the base URL, so it does not block the iframe. `validate` checks that each `flow` fence names one ID and that `.diffmap/flows.json` exists; it does not reach the app.
+
+```changes
+
+```
+
+## Phase 3: Live transitions
+
+[Phase 2](#phase-2-the-inline-flow-widget) shows each state by rendering it. Selecting the next state swaps the UI at once, so the app's own transitions never play.
+
+**Today**
+
+flow-preview solves this with an optional `persistentPreview`, a single long-lived UI that the scenario drives between any two states, and the scenario has to track what it has applied so far.
+
+**Proposed**
+
+A state can declare `enter`, the steps a person takes from its parent to reach it. When the reader moves from a state to one of its children with the next-step button or the strip, the viewer sends `flow-show` with `how: "enter"`. The route keeps the live UI mounted and runs those steps on it, so menus open, heights animate, and messages appear as they do in the app. Any other jump, such as back or to a distant state, renders the target directly.
+
+```ts
+enter: async (ui) => {
+  await ui.type("Digest name", "Weekly digest");
+  await ui.click("Save preferences");
+};
+// [!note ui] Finds controls by their accessible name and acts on them at a pace a reader can follow.
+```
+
+`ui` is a few helpers in `@tanishqkancharla/diffmap/flow`, `click`, `type`, `select`, and `wait`. They are written for this route, not taken from a testing library, so the app gains no test dependency. Thumbnails always use `render`, so they stay fixed end states, and the reader's reduced-motion setting is passed through to the app.
+
+```changes
+
+```
+
+## Phase 4: Expand to the full canvas
+
+[Phase 2](#phase-2-the-inline-flow-widget) and [Phase 3](#phase-3-live-transitions) built the inline widget. This phase adds the expanded view.
+
+**Today**
+
+Diagrams and images expand into a full-window `Dialog` that draws a second copy of the content ([[src/viewer/MermaidBlock.tsx#MermaidBlock]]).
+
+**Proposed**
+
+The expand button, or Enter while the widget has focus, opens flow-preview's full layout over the page: the outline, a pannable and zoomable map of thumbnails joined by their actions, and the live preview with breadcrumbs. Escape, the close button, or a click outside it collapses it to the same state.
+
+A second copy would reload the app and lose what the reader typed, and moving an iframe to a new place in the page reloads it too. So the live iframe stays where it is. Expanding fixes its frame to the window over a scrim, traps focus, and lays the outline and map out around it. The map's layout, sidebar resizing, and selection styling come from flow-preview's canvas, which moves into `src/viewer/flow/` without the parts that rendered states: those now come from the route.
+
+```changes
+
+```
+
+## Phase 5: Flows on diffmap.dev, and the guide
+
+[Phase 2](#phase-2-the-inline-flow-widget) through [Phase 4](#phase-4-expand-to-the-full-canvas) work in the local viewer. This phase shows flows on a pull request, and tells agents how to write them.
+
+**Today**
+
+On diffmap.dev, a spec can only show what is committed: text, diagrams, and screenshots.
+
+**Proposed**
+
+On diffmap.dev, the widget fills `preview` in `.diffmap/flows.json` from the pull request and loads the app's preview deployment in the iframe, so the reviewer gets the same live widget. `{branch}`, `{sha}`, and `{pull}` come from the pull request that [[src/github/fetchRepo.ts]] already reads for its head SHA. If the repo has no `preview` URL, or the deployment is not ready yet, the widget says so and links to running the spec locally.
+
+[[guide.md]] gains a "Flows" section, linked from [Capture UI changes](../guide.md#capture-ui-changes):
+
+- Use a `flow` fence when a phase changes a journey of several states or a branch, and screenshots when it changes one or two states.
+- The first time, add the `/__flows` route inside the app's root providers and global styles, kept out of production, and write `.diffmap/flows.json`.
+- Write each flow next to the code it shows, from the real components, with local fixtures and no requests. Keep flow-preview's rules on notes and on reaching a state through the controls a person would use.
+- Open each state on its own, at `/__flows?flow=<id>&state=<id>`, and compare it with the running app before handing the spec back.
+
+[[skills/generate-diffmap/SKILL.md]] adds "previewing a user flow" to its description, so agents pick it for the requests that used to trigger flow-preview. The flow-preview repo's README points to diffmap (a separate PR in that repo).
+
+```changes
+
+```
 
 ## References
 
-- flow-preview at [`e9894aa`](https://github.com/tanishqkancharla/flow-preview/tree/e9894aa): [`SKILL.md`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/SKILL.md), [`assets/FlowCanvas.tsx`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/FlowCanvas.tsx), [`assets/previewConfig.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/previewConfig.mjs), [`test/`](https://github.com/tanishqkancharla/flow-preview/tree/e9894aa/test), [`NOTICE`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/NOTICE). flow-preview is Apache-2.0 and diffmap is MIT, so the code that moves keeps its license file and NOTICE.
-- diffmap: [[src/parseFence.ts#parseFence]], [[src/viewer/Fence.tsx#Fence]], [[src/viewer/MermaidBlock.tsx#MermaidBlock]], [[src/serve.ts#startServer]], [[src/github/fetchRepo.ts]].
-
-## Phase 1: A live `flow` fence in the local viewer
-
-Nothing in diffmap knows about flows yet. This phase adds the fence, serves its scenario live, and draws the compact widget.
-
-**Today**
-
-To show a journey, an agent builds a flow preview in `tmp/`, serves it separately, and adds screenshots of its states to the spec. The reader sees only the screenshots.
-
-**Proposed**
-
-The agent writes the scenario into the spec and adds a `flow` fence. When the reader opens that page in the local viewer, the compact widget runs the real components. They can click through the journey, type into the UI, and tick states as reviewed, without leaving the spec.
-
-The scenario file can also export the folders its imports come from. Vite serves only those folders and the spec's own directory, as flow-preview's `sourceRoots` did:
-
-```tsx [.diffmap/specs/preferences/flows/preferences.tsx]
-import type { FlowScenario } from "@tanishqkancharla/diffmap/flow";
-import { Preferences } from "../../../../src/Preferences.tsx";
-
-export const sourceRoots = ["../../../../src"];
-
-export const scenario: FlowScenario = {
-  id: "preferences",
-  title: "Saving preferences",
-  initialState: "editing",
-  nodes: [
-    {
-      id: "editing",
-      title: "Editing",
-      action: "Open preferences",
-      row: 0,
-      note: "The form loads with the saved digest name.",
-      render: () => <Preferences />,
-    },
-    // ...
-  ],
-};
-```
-
-`serve` sees the fence when it parses the page and starts Vite in middleware mode on the viewer's own server, under `/__diffmap/flow/`:
-
-```callstack [Opening a page with a flow fence]
- fences = parseViewerDocument(page) [[src/parseViewer.ts#parseViewerDocument]]
- ├── fence = parseFence("flow", "flows/preferences.tsx") [[src/parseFence.ts#parseFence]]
-+│   └── return { kind: "flow", file, title }
- server = startServer(spec) [[src/serve.ts#startServer]]
-+├── if spec has flow fences: vite = createFlowServer(specDir, sourceRoots)
-+│   └── fs.allow = [specDir, ...sourceRoots], deny like isServableMedia
-+└── GET /__diffmap/flow/<page>/<fence> → canvas page importing the scenario
- view = Fence(fence) [[src/viewer/Fence.tsx#Fence]]
-+└── return FlowWidget(fence) # iframe to /__diffmap/flow/..., compact layout
-```
-
-`createFlowServer` and `FlowWidget` are planned names. Vite's `fs.deny` repeats the files [[src/serve.ts#isServableMedia]] already refuses, and requests still pass [[src/serve.ts#isAllowedHost]].
-
-The canvas inside the iframe reports its height to the page with `postMessage`, so the iframe grows with the selected state, up to a cap where the panel scrolls. The thumbnail strip uses each node's `nodeWidth`, scaled down to fit about four across the column. Review marks are stored per spec, flow, and state, with flow-preview's fingerprint.
-
-`validate` checks that the fence names a `.tsx` file inside the spec. It does not compile it, because compiling would import project code. If the scenario fails to compile when served, the widget shows Vite's error in place of the canvas, and `serve` adds it to its `warnings`.
-
-The canvas moves from flow-preview into `src/flow/`, with its LICENSE and NOTICE, and is split into a shared state model (selection, journey, reviews, comparison) and a compact layout. The full layout comes in [Phase 2](#phase-2-expand-to-the-full-canvas). flow-preview's Playwright suite can move too, as a dev dependency run by `npm run test:flow`, outside `npm test`. It never reaches people who install diffmap; see [Open questions](#open-questions).
-
-```changes
-
-```
-
-## Phase 2: Expand to the full canvas
-
-[Phase 1](#phase-1-a-live-flow-fence-in-the-local-viewer) drew the compact widget. This phase adds the expanded view.
-
-**Today**
-
-The widget shows one state at a time and a strip of thumbnails. A branching journey's shape shows only in the strip's order.
-
-**Proposed**
-
-The reader presses the expand button in the widget's corner, or presses Enter while it has focus, and the full canvas fills the window: outline, zoomable map, and preview sidebar, as in flow-preview today. Escape, the close button, or clicking outside it collapses it back into the page, where it shows the same state.
-
-Diagrams expand by rendering a second copy inside a `Dialog` ([[src/viewer/MermaidBlock.tsx#MermaidBlock]]). A live flow cannot work that way: a second iframe would reload the reader's components and lose what they typed, and moving the iframe into a dialog reloads it too. Instead, the iframe stays where it is in the page. Expanding fixes its frame to the window over a scrim, traps focus inside it, and tells the canvas to switch layouts by `postMessage`. The canvas keeps the same React tree and changes only its layout.
-
-```diff [Fence.tsx]
-   if (fence.kind === "html") {
-     if (!trustedHtml) return <HtmlPlaceholder />;
-     return <HtmlBlock source={fence.source} />;
-   }
-+  if (fence.kind === "flow") return <FlowWidget fence={fence} />;
-```
-
-The full layout keeps flow-preview's sidebar widths in `localStorage` per scenario and its narrow stacked layout. Reduced motion removes the expand animation and keeps the crossfade.
-
-```changes
-
-```
-
-## Phase 3: Captured flows on diffmap.dev
-
-[Phase 1](#phase-1-a-live-flow-fence-in-the-local-viewer) and [Phase 2](#phase-2-expand-to-the-full-canvas) run flows only in the local viewer. This phase shows the same widget on a pull request.
-
-**Today**
-
-On diffmap.dev and in gists, a `flow` fence would show a placeholder like [[src/viewer/HtmlPlaceholder.tsx#HtmlPlaceholder]], because no project code can run there.
-
-**Proposed**
-
-diffmap does not drive a browser or depend on one. The guide already has the agent capture UI with whatever browser automation it has, such as agent-browser or a Playwright the project already uses ([Capture UI changes](../guide.md#capture-ui-changes)), and flows work the same way. diffmap only says what to capture and where to save it.
-
-When the live widget loads in the local viewer, the canvas already holds the scenario, so it posts the graph back to `serve`, which writes `flow.json`. No browser needs to run in Node, and importing the scenario in Node would risk running project code that expects a DOM. Before committing, the agent runs:
-
-```sh
-npx @tanishqkancharla/diffmap flow capture .diffmap/specs/preferences/
-```
-
-For every `flow` fence, this prints one capture URL and target file per state, and nothing else:
-
-```text
-http://127.0.0.1:<port>/__diffmap/flow/<page>/preferences/capture?state=editing  →  media/flows/preferences/editing.png
-http://127.0.0.1:<port>/__diffmap/flow/<page>/preferences/capture?state=saving   →  media/flows/preferences/saving.png
-...
-```
-
-A capture URL renders one state's thumbnail on its own, at its natural size, in the light theme. Once fonts and images have loaded, it sets `data-diffmap-ready` on its root, so the agent knows when to take the screenshot. The agent opens each URL with its browser tool and saves an element screenshot of that root at 2x. The spec then holds:
-
-```text
-.diffmap/specs/preferences/media/flows/preferences/
-  flow.json        ids, titles, parents, actions, rows, notes, dimensions, and a hash of the scenario file
-  editing.png      one screenshot per state
-  saving.png
-  saved.png
-```
-
-A reader of the pull request on diffmap.dev then sees the same compact widget and expanded canvas, with screenshots in place of live UI. They can move through the journey and tick states, but not type into the UI. The widget says "Captured" next to its title and links to running it locally.
-
-`validate` warns when a `flow` fence has no `flow.json`, or when its hash no longer matches the scenario file, so the screenshots cannot fall behind the code without warning. The hosted viewer finds the files through [[src/viewer/Media.tsx#MediaResolverContext]], at the same pinned commit as the page ([[src/github/fetchRepo.ts]]). `share` already refuses local media, and it refuses captured flows for the same reason until gists can carry images.
-
-```changes
-
-```
-
-## Phase 4: Today and Proposed with `flow diff`
-
-[Phase 3](#phase-3-captured-flows-on-diffmapdev) made flows readable on a pull request. This phase brings flow-preview's comparison mode into the widget.
-
-**Today**
-
-flow-preview compares two revisions when the agent imports each revision's components from its own git worktree and passes both scenarios to the canvas. A spec shows Today and Proposed only as screenshots side by side.
-
-**Proposed**
-
-````text
-```flow diff [Saving preferences]
-flows/preferences.tsx
-base: main
-```
-````
-
-The scenario file exports `today` and `proposed` scenarios, matched by state ID, plus the shared states whose UI changed in `modified`, as flow-preview's `comparison` works today. Imports that start with `today:` resolve against a worktree of `base`, which `serve` creates under the system's temp directory and removes when it stops:
-
-```tsx
-import { Preferences as TodayPreferences } from "today:src/Preferences.tsx";
-import { Preferences } from "../../../../src/Preferences.tsx";
-```
-
-The compact widget marks modified, added, and removed states in the strip with flow-preview's colors and `~`, `+`, and `-` marks. For a changed state, it shows Today above Proposed, since the column is too narrow to show them side by side. The expanded canvas shows them side by side, as flow-preview does. `flow capture` lists capture pages for both sides, so the comparison also reads on diffmap.dev.
-
-```changes
-
-```
-
-## Phase 5: One guide for specs and flows
-
-[Phase 1](#phase-1-a-live-flow-fence-in-the-local-viewer) through [Phase 4](#phase-4-today-and-proposed-with-flow-diff) built the widget. This phase tells agents when and how to use it, and retires the separate skill.
-
-**Today**
-
-[[guide.md]] says to take one screenshot per UI state. flow-preview's `SKILL.md` has its own rules, and agents pick it only when asked for a "flow preview".
-
-**Proposed**
-
-The guide gains a "Flows" section, linked from [Capture UI changes](../guide.md#capture-ui-changes):
-
-- Use a `flow` fence when a phase changes a journey of several states or a branch, and screenshots when it changes one or two states.
-- Write the scenario from the real UI, with local fixtures and no requests, using flow-preview's rules on notes, fixtures, real controls, and rendering exactly what the product renders.
-- Use `flow diff` for a change to an existing journey, instead of Today and Proposed galleries.
-- Before committing, run `diffmap flow capture`, screenshot each page it lists with your browser tool, and commit the screenshots with `flow.json`.
-
-[[skills/generate-diffmap/SKILL.md]] adds "previewing a user flow" to its description, so agents pick it for the requests that used to trigger flow-preview. The flow-preview repo's README says the skill now lives in diffmap (a separate PR in that repo).
-
-```changes
-
-```
+- flow-preview at [`e9894aa`](https://github.com/tanishqkancharla/flow-preview/tree/e9894aa): [`SKILL.md`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/SKILL.md), [`scripts/generate.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/scripts/generate.mjs), [`assets/FlowCanvas.tsx`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/FlowCanvas.tsx), [`assets/previewConfig.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/previewConfig.mjs), [`NOTICE`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/NOTICE). flow-preview is Apache-2.0 and diffmap is MIT, so code that moves keeps its license and NOTICE.
+- diffmap: [[src/viewer/Fence.tsx#Fence]], [[src/parseFence.ts#parseFence]], [[src/viewer/MermaidBlock.tsx#MermaidBlock]], [[src/viewer/reviewed.ts#useReviewedFiles]], [[src/serve.ts#contentSecurityPolicy]], [[src/github/fetchRepo.ts]].
