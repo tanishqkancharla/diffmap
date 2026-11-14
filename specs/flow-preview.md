@@ -1,6 +1,8 @@
-# Bring flow-preview into diffmap
+# Flow widget: bring flow-preview into diffmap
 
-[flow-preview](https://github.com/tanishqkancharla/flow-preview) is an agent skill that turns a user journey into an interactive canvas of real UI states. diffmap is the skill and viewer that explains a change as a living spec. Both tell an agent to show a person what a change does, both are built on React, Vite, and Maui, and both ship today as separate skills from separate repos. This spec moves flow-preview into the diffmap repo and npm package, and links each skill's guidance to the other.
+[flow-preview](https://github.com/tanishqkancharla/flow-preview) is an agent skill that turns a user journey into an interactive canvas of real UI states. This spec merges it into diffmap as a new interactive widget, a `flow` fence, so a spec can show the journey a change affects right beside the text that explains it. flow-preview stops being a separate skill: `generate-diffmap` and the guide it loads cover both.
+
+flow-preview's canvas is designed to fill a browser window, with an outline, a zoomable map, and a preview sidebar. A spec page is a single text column. So the widget is compact inside the page and expands to the full canvas on demand.
 
 This spec is a single file because it was asked for at `specs/flow-preview.md`. A spec written with the guide today would be a `.diffmap/specs/<name>/` directory with one page per phase, as [[guide.md]] says; each phase below is written so it can later become its own page.
 
@@ -14,222 +16,290 @@ npm --prefix tmp/preferences-flow install --workspaces=false
 npm --prefix tmp/preferences-flow run dev
 ```
 
-The generator ([`scripts/generate.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/scripts/generate.mjs)) writes `tmp/<name>/` with a private `package.json`, `index.html`, `main.tsx`, `vite.config.mjs`, and a starter `scenario.tsx`, and copies two assets beside them: the canvas ([`assets/FlowCanvas.tsx`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/FlowCanvas.tsx), about 1,500 lines) and a Vite helper ([`assets/previewConfig.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/previewConfig.mjs)) that dedupes React and Maui and limits the dev server to the source folders the preview imports. The preview's dependencies are copied from the skill's own `package.json`. The preview then never imports from the skill again, so it keeps working if the skill moves.
+The generator ([`scripts/generate.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/scripts/generate.mjs)) writes a standalone Vite app to `tmp/<name>/` and copies in the canvas ([`assets/FlowCanvas.tsx`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/FlowCanvas.tsx), about 1,500 lines) and a Vite helper ([`assets/previewConfig.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/previewConfig.mjs)) that dedupes React and Maui and limits the dev server to the source folders the preview imports. The agent edits `scenario.tsx`: a `FlowScenario` of `FlowNode`s, where each node is a state with a parent, an incoming action, a note, and a `render` that adapts the project's real component with local fixtures.
 
-The agent edits `scenario.tsx`: a `FlowScenario` of `FlowNode`s, each a state with a parent, an incoming action, a note, and a `render` that adapts the project's real component with local fixtures. The canvas draws the states as a map of thumbnails with an outline, breadcrumbs, and a live preview of the selected state. A reviewer ticks a checkbox per state; the tick is stored in `localStorage` with a fingerprint of the thumbnail, so it clears when that state's UI changes. An opt-in `comparison` prop shows two revisions of the same journey, with added, removed, and modified states marked. [`SKILL.md`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/SKILL.md) holds the authoring rules, much of the canvas's visual contract, and a verification checklist; its Playwright suite copies the skill into a throwaway project, generates a preview, deletes the skill copy, and drives the result.
+The canvas takes the whole window. An outline lists the states on the left, a pannable, zoomable map of thumbnails sits in the middle, and the selected state's live UI sits in a sidebar on the right, with breadcrumbs and next-step buttons. Each state has a review checkbox, stored in `localStorage` with a fingerprint of its thumbnail, so the tick clears when that state's UI changes. An opt-in `comparison` prop shows two revisions of a journey, with added, removed, and modified states marked. [`SKILL.md`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/SKILL.md) holds the authoring rules, the canvas's visual contract, and a verification checklist.
 
-**What diffmap does today.** [[skills/generate-diffmap/SKILL.md]] is a short pointer: it tells the agent to run `npx @tanishqkancharla/diffmap guide`, which prints [[guide.md]] from the installed package ([[src/cli.ts#cli]]). So the instructions always match the viewer that serves the spec. The package ships `bin.js`, `guide.md`, `lib`, and `viewer-dist` ([[package.json]]), not the skill itself; people install the skill with `npx skills add tanishqkancharla/diffmap --skill generate-diffmap`. A `diffmap install-skill` command that copies the skill out of the package was proposed in [#27](https://github.com/tanishqkancharla/diffmap/pull/27) and closed without merging, so it does not exist on `main`.
+**What diffmap does today.** [[skills/generate-diffmap/SKILL.md]] tells the agent to run `diffmap guide`, which prints [[guide.md]] from the installed package. For a UI change, the guide asks for one screenshot per state in a gallery, with Today captured from the base commit beside Proposed. `serve` sends the prebuilt viewer from `viewer-dist/` ([[vite.viewer.config.ts]]), and the same viewer renders specs on diffmap.dev, where it reads every file from the pull request's pinned commit.
 
-**Where they overlap.**
+**Why this is a problem.** Both tools show a person what a UI change does, but they never meet:
 
-| flow-preview                                               | diffmap                                                                                               |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Each state rendered from the real component                | [Capture UI changes](../guide.md#capture-ui-changes): one screenshot per state, default first         |
-| `comparison` of two revisions, each from its own worktree  | Today beside Proposed in a `side-by-side` gallery, Today captured from the base commit in a worktree  |
-| Per-state review checkbox, fingerprinted in `localStorage` | Per-file "reviewed" mark, keyed to a hash of the diff, in [[src/viewer/reviewed.ts#useReviewedFiles]] |
-| Map of states joined by incoming actions                   | `mermaid` flowcharts and `services` diagrams of the same journey                                      |
-| Per-state `note` explaining how the user got there         | `>` notes under diagram steps, and a sentence above each capture                                      |
-| Verify light, dark, narrow, keyboard; inspect screenshots  | Look at each capture with the expected result in mind; say which checks you ran                       |
-| Skill installed from its own repo, assets read from there  | Pointer skill installed from the diffmap repo, guide read from the npm package                        |
-
-The two skills disagree in places a person would notice. flow-preview's rules mention Halo, Amp orbs, and `.amp/in/artifacts/`, which mean nothing outside that monorepo. It pins Maui 0.0.59 while diffmap's viewer uses 0.0.62. And an agent writing a diffmap spec for a UI change has no reason to know flow-preview exists, so it captures single screenshots of a multi-step journey whose states it then has to describe in prose.
+- A flow preview lives in `tmp/` on the agent's machine. It never reaches the pull request, so a reviewer reading the spec does not see it.
+- A spec shows a multi-step journey as a row of screenshots and describes in prose how the states connect, which is exactly what the flow map draws.
+- Two skills give overlapping and sometimes conflicting advice on capturing UI, Today and Proposed, and review marks. flow-preview's rules also assume Halo and Amp orbs, and it pins Maui 0.0.59 while the viewer uses 0.0.62.
 
 ## Solution
 
-Keep flow-preview its own skill, with its own runtime, but ship it from the diffmap package the same way `generate-diffmap` ships: a short pointer skill, instructions printed by the CLI, and assets read from the installed package. Then make each guide name the other where their work meets: a spec phase that changes a journey points the agent to a flow preview, and the flow preview's captures and comparisons land in that phase's `media/` folder as Today and Proposed.
+A spec page gets a `flow` fence that points at a scenario file inside the spec:
 
-```mermaid diff [flow-preview ships from the diffmap package]
- flowchart TD
--    FPR[flow-preview repo] -->|skills add| FS[flow-preview skill]
--    FS -->|generate.mjs| TMP[Preview in tmp]
-+    PKG[diffmap package] -->|install-skill| FS[flow-preview skill]
-+    FS -->|flow guide| AG[Agent]
-+    AG -->|flow new| TMP[Preview in tmp]
-+    PKG -->|canvas and helper| TMP
-+    TMP -->|captures| MED[Spec media folder]
-     DMR[diffmap repo] -->|skills add| GS[generate-diffmap skill]
-     GS -->|guide| AG
-     %% ref node:PKG [[package.json]]
-     %% ref node:GS [[skills/generate-diffmap/SKILL.md]]
-     %% ref node:DMR [[guide.md]]
+````md
+```flow [Saving preferences]
+flows / preferences.tsx;
+```
+````
+
+The file is the same `FlowScenario` flow-preview uses today, saved at `.diffmap/specs/<name>/flows/preferences.tsx` and committed with the spec. In the page, the fence renders a compact widget at the width of the text column:
+
+```text [Inline, in the spec column]
+┌ Saving preferences ─────────────────────────────── [⤢] ┐
+│ Editing  ›  Saving  ›  Saved                            │  breadcrumbs
+│ ┌ dotted panel ───────────────────────────────────────┐ │
+│ │          the selected state's real UI               │ │  live preview
+│ └─────────────────────────────────────────────────────┘ │
+│ ← Previous state                      Save preferences → │
+│ note: what just happened and what the user can do next  │
+│ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐                    │
+│ │ ✓    │ │      │ │      │ │      │  ›                 │  thumbnail strip
+│ └Editing┘└Saving┘ └Saved─┘ └Error─┘                    │
+└─────────────────────────────────────────────────────────┘
 ```
 
-**What merges**
+The compact widget keeps what a reader needs to follow the journey: the selected state's live UI, breadcrumbs, the previous and next-step buttons, the note, and a strip of thumbnails in journey order, each with its review checkbox. The strip follows the map's column order (parent depth, then `row`) and scrolls sideways. The zoomable map and the outline are left out, because they need room the column does not have.
 
-- **Distribution.** The canvas, Vite helper, generator, tests, and rules move into this repo. One npm version carries both skills, and `diffmap update` updates both.
-- **The pointer pattern.** `skills/flow-preview/SKILL.md` keeps flow-preview's name and trigger description, so agents pick it for the same requests, but its body only says to run `diffmap flow guide`.
-- **Guidance where the skills meet.** The diffmap guide's [Capture UI changes](../guide.md#capture-ui-changes) section sends multi-state journeys to flow-preview. The flow guide sends its final screenshots to the spec's `media/<phase-slug>/` and maps a `comparison` onto Today and Proposed.
-- **Dependency pins.** The preview's React, Maui, Vite, `motion`, and `purse-styles` versions follow the viewer's, so a fix in one reaches the other in the same release.
+The expand button opens the full flow-preview canvas over the page, as diagrams and images already expand into a full-window dialog in [[src/viewer/MermaidBlock.tsx#MermaidBlock]] and [[src/viewer/Media.tsx]]:
 
-**What stays separate**
+```text [Expanded, over the page]
+┌──────────────────────────────────────────────────────────────────── [×] ┐
+│ outline        │  map of thumbnails, pan and zoom    │  live preview     │
+│ ▸ Editing  ✓   │  [Editing] ──▶ [Saving] ──▶ [Saved] │  breadcrumbs      │
+│   ▸ Saving     │                  └──▶ [Error]       │  dotted panel     │
+│     ▸ Saved    │                                     │  ← Prev   Next →  │
+└──────────────────────────────────────────────────────────────────────────┘
+```
 
-- **The canvas runtime.** A flow preview compiles and runs the project's own components, with the project's dependencies, in a Vite dev server the agent starts. The diffmap viewer is a prebuilt bundle (`viewer-dist`) served by [[src/serve.ts#startServer]], and it also runs on diffmap.dev, where no project code exists. The canvas cannot live inside the viewer, and the viewer does not depend on React or Vite at runtime: [[package.json]] lists them as dev dependencies only. The preview keeps its own private `package.json` and install step.
-- **Review marks.** Both skills fingerprint a review in `localStorage` so it clears when the reviewed thing changes, but one reviews UI states and the other reviews file diffs, in different origins. Neither reads the other's marks.
-- **The skill names and triggers.** "Preview this onboarding flow" and "write a spec for this change" are different requests. One skill that does both would load the full canvas contract into every spec, and every spec rule into every preview.
+Expanding and collapsing keep the selected state, the journey's breadcrumbs, the review marks, and any text the reader typed into the live UI.
+
+The widget gets its states from one of two places:
+
+```mermaid [Where a flow widget's states come from]
+flowchart TD
+    F[flow fence] --> M{Viewer}
+    M -->|local viewer| L[Live: serve compiles the scenario with Vite]
+    M -->|diffmap.dev or gist| C[Captured: flow.json and a screenshot per state]
+    L --> I[Canvas in an iframe, real components]
+    C --> V[Same canvas, each state drawn from its screenshot]
+    L -.->|diffmap flow capture| C
+    %% ref node:F [[src/parseFence.ts#parseFence]]
+    %% ref node:M [[src/viewer/viewerMode.ts#useViewerMode]]
+    %% ref node:C [[src/viewer/Media.tsx#MediaResolverContext]]
+```
+
+- **Live, in the local viewer.** `serve` compiles the scenario and the project components it imports with Vite, and the widget runs the canvas in an iframe served by the same local server. The iframe keeps the project's global styles and its React copy out of the viewer, and keeps the viewer's styles out of the product UI.
+- **Captured, on diffmap.dev and in gists.** No project code runs there. `diffmap flow capture` saves the scenario's graph and a screenshot of every state next to the spec. The hosted viewer draws the same canvas from those files, with each thumbnail and preview showing its screenshot. Nothing in a captured flow is interactive except navigation and review marks.
+
+Live flows follow the same rule as `html` fences, which render only in the local viewer ([[src/viewer/Fence.tsx#Fence]]): code in the repo runs only on the reader's own machine.
+
+**What merges into diffmap**
+
+- The canvas, its scenario API, the comparison mode, and the Vite boundaries from `previewConfig.mjs`. They move into `src/flow/` and are rebuilt around the two layouts.
+- flow-preview's authoring rules: derive states from the real UI, keep fixtures local, write notes about runtime state, and reach states through real controls. They move into a "Flows" section of [[guide.md]], without the Halo and Amp text.
+- Review marks. A state's checkbox uses the same storage pattern as reviewed files in [[src/viewer/reviewed.ts#useReviewedFiles]], keyed by spec, flow, and state.
+- Today and Proposed. A comparison becomes a `flow diff` fence whose Today side is built from the base commit, matching `mermaid diff` and `services diff`.
+
+**What goes away**
+
+- The `flow-preview` skill, its generator, and the `tmp/<name>/` apps. A flow lives in the spec and runs through `serve`.
+- The flow-preview repo's role as a source. Its README should point to diffmap (a separate PR there).
 
 ## Goals
 
-- An agent with the diffmap package installed can generate a flow preview without a second repo or skill source.
-- A spec phase that changes a UI journey shows that journey's states, captured from a flow preview, in the phase's media folder.
-- Generated previews still run on their own after the package updates or moves, and existing previews keep working untouched.
-- `diffmap install-skill` installs either skill from the package, at the package's version.
+- A spec page can show a journey's states as an interactive widget that fits the text column and expands to the full canvas.
+- The local viewer runs the project's real components in the widget, and diffmap.dev shows the same flow from committed screenshots.
+- A flow's states, notes, and review marks behave as they do in flow-preview today.
+- One skill and one guide cover specs and flows.
 
 ## Non-goals
 
-- Rendering a live flow preview inside the diffmap viewer. A local-only embed is possible later (the viewer's content security policy in [[src/serve.ts#contentSecurityPolicy]] does not block frames), but it would not work on diffmap.dev or in a shared gist, so captures come first.
-- A new fence kind for flows. A flow's map is already expressible as a `mermaid` flowchart, and its states as a gallery.
-- Changing the canvas's visual contract or its `FlowScenario` API.
-- Retiring the flow-preview repo. That repo is outside this change; Phase 4 only proposes a README note there.
+- Running project code on diffmap.dev, in gists, or anywhere other than the reader's machine.
+- Flows for non-React projects. flow-preview supports React only.
+- Changing the `FlowScenario` API beyond what the two layouts and capturing need.
+- Keeping existing `tmp/<name>/` previews working through diffmap. They are standalone apps and keep running on their own.
+
+## Open questions
+
+- **Runtime dependencies.** The live widget needs `vite` and `@vitejs/plugin-react` when `serve` runs, but today they are dev dependencies ([[package.json]]). Proposed: move them to `dependencies` and import them only when a spec has a `flow` fence, as `serve` already imports Vite only in dev mode ([[src/serve.ts#startServer]]). Ship the canvas prebuilt with Maui, `motion`, and `purse-styles` bundled in, and only React left external, so each project's components and the canvas share the project's React. This needs a size check against `npx` start-up time.
+- **React versions.** flow-preview was only tested with React 19. With React left external, a project on React 18 might fail when the widget loads.
+- **Capturing.** `diffmap flow capture` needs a Chromium. flow-preview's tests use Playwright with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Proposed: `playwright-core` as a dependency, using an installed Chrome, with an error that says how to install one.
 
 ## References
 
-- flow-preview at [`e9894aa`](https://github.com/tanishqkancharla/flow-preview/tree/e9894aa): [`SKILL.md`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/SKILL.md), [`scripts/generate.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/scripts/generate.mjs), [`assets/`](https://github.com/tanishqkancharla/flow-preview/tree/e9894aa/assets), [`test/`](https://github.com/tanishqkancharla/flow-preview/tree/e9894aa/test), [`NOTICE`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/NOTICE).
-- diffmap: [[guide.md]], [[skills/generate-diffmap/SKILL.md]], [[src/cli.ts]], [[src/update.ts#runUpdate]], [[src/viewer/Fence.tsx#Fence]], [[src/viewer/Media.tsx]].
-- [#27](https://github.com/tanishqkancharla/diffmap/pull/27), the closed `install-skill` proposal this spec revives.
+- flow-preview at [`e9894aa`](https://github.com/tanishqkancharla/flow-preview/tree/e9894aa): [`SKILL.md`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/SKILL.md), [`assets/FlowCanvas.tsx`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/FlowCanvas.tsx), [`assets/previewConfig.mjs`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/assets/previewConfig.mjs), [`test/`](https://github.com/tanishqkancharla/flow-preview/tree/e9894aa/test), [`NOTICE`](https://github.com/tanishqkancharla/flow-preview/blob/e9894aa/NOTICE). flow-preview is Apache-2.0 and diffmap is MIT, so the code that moves keeps its license file and NOTICE.
+- diffmap: [[src/parseFence.ts#parseFence]], [[src/viewer/Fence.tsx#Fence]], [[src/viewer/MermaidBlock.tsx#MermaidBlock]], [[src/serve.ts#startServer]], [[src/github/fetchRepo.ts]].
 
-## Phase 1: Import flow-preview into `flow/`
+## Phase 1: A live `flow` fence in the local viewer
 
-Nothing in diffmap knows about flow previews yet. This phase copies the flow-preview repo into a top-level `flow/` directory, unchanged in behavior, with its own checks.
+Nothing in diffmap knows about flows yet. This phase adds the fence, serves its scenario live, and draws the compact widget.
 
 **Today**
 
-flow-preview lives only in its own repo. An agent installs it with `npx skills add tanishqkancharla/flow-preview`.
+To show a journey, an agent builds a flow preview in `tmp/`, serves it separately, and adds screenshots of its states to the spec. The reader sees only the screenshots.
 
 **Proposed**
 
-Nothing changes for agents yet. The repo gains `flow/` with:
+The agent writes the scenario into the spec and adds a `flow` fence. When the reader opens that page in the local viewer, the compact widget runs the real components. They can click through the journey, type into the UI, and tick states as reviewed, without leaving the spec.
+
+The scenario file can also export the folders its imports come from. Vite serves only those folders and the spec's own directory, as flow-preview's `sourceRoots` did:
+
+```tsx [.diffmap/specs/preferences/flows/preferences.tsx]
+import type { FlowScenario } from "@tanishqkancharla/diffmap/flow";
+import { Preferences } from "../../../../src/Preferences.tsx";
+
+export const sourceRoots = ["../../../../src"];
+
+export const scenario: FlowScenario = {
+  id: "preferences",
+  title: "Saving preferences",
+  initialState: "editing",
+  nodes: [
+    {
+      id: "editing",
+      title: "Editing",
+      action: "Open preferences",
+      row: 0,
+      note: "The form loads with the saved digest name.",
+      render: () => <Preferences />,
+    },
+    // ...
+  ],
+};
+```
+
+`serve` sees the fence when it parses the page and starts Vite in middleware mode on the viewer's own server, under `/__diffmap/flow/`:
+
+```callstack [Opening a page with a flow fence]
+ fences = parseViewerDocument(page) [[src/parseViewer.ts#parseViewerDocument]]
+ ├── fence = parseFence("flow", "flows/preferences.tsx") [[src/parseFence.ts#parseFence]]
++│   └── return { kind: "flow", file, title }
+ server = startServer(spec) [[src/serve.ts#startServer]]
++├── if spec has flow fences: vite = createFlowServer(specDir, sourceRoots)
++│   └── fs.allow = [specDir, ...sourceRoots], deny like isServableMedia
++└── GET /__diffmap/flow/<page>/<fence> → canvas page importing the scenario
+ view = Fence(fence) [[src/viewer/Fence.tsx#Fence]]
++└── return FlowWidget(fence) # iframe to /__diffmap/flow/..., compact layout
+```
+
+`createFlowServer` and `FlowWidget` are planned names. Vite's `fs.deny` repeats the files [[src/serve.ts#isServableMedia]] already refuses, and requests still pass [[src/serve.ts#isAllowedHost]].
+
+The canvas inside the iframe reports its height to the page with `postMessage`, so the iframe grows with the selected state, up to a cap where the panel scrolls. The thumbnail strip uses each node's `nodeWidth`, scaled down to fit about four across the column. Review marks are stored per spec, flow, and state, with flow-preview's fingerprint.
+
+`validate` checks that the fence names a `.tsx` file inside the spec. It does not compile it, because compiling would import project code. If the scenario fails to compile when served, the widget shows Vite's error in place of the canvas, and `serve` adds it to its `warnings`.
+
+The canvas moves from flow-preview into `src/flow/`, with its LICENSE and NOTICE, and is split into a shared state model (selection, journey, reviews, comparison) and a compact layout. The full layout comes in [Phase 2](#phase-2-expand-to-the-full-canvas). flow-preview's Playwright suite moves too. It runs as `npm run test:flow`, outside `npm test`, because it needs Chromium.
+
+```changes
+
+```
+
+## Phase 2: Expand to the full canvas
+
+[Phase 1](#phase-1-a-live-flow-fence-in-the-local-viewer) drew the compact widget. This phase adds the expanded view.
+
+**Today**
+
+The widget shows one state at a time and a strip of thumbnails. A branching journey's shape shows only in the strip's order.
+
+**Proposed**
+
+The reader presses the expand button in the widget's corner, or presses Enter while it has focus, and the full canvas fills the window: outline, zoomable map, and preview sidebar, as in flow-preview today. Escape, the close button, or clicking outside it collapses it back into the page, where it shows the same state.
+
+Diagrams expand by rendering a second copy inside a `Dialog` ([[src/viewer/MermaidBlock.tsx#MermaidBlock]]). A live flow cannot work that way: a second iframe would reload the reader's components and lose what they typed, and moving the iframe into a dialog reloads it too. Instead, the iframe stays where it is in the page. Expanding fixes its frame to the window over a scrim, traps focus inside it, and tells the canvas to switch layouts by `postMessage`. The canvas keeps the same React tree and changes only its layout.
+
+```diff [Fence.tsx]
+   if (fence.kind === "html") {
+     if (!trustedHtml) return <HtmlPlaceholder />;
+     return <HtmlBlock source={fence.source} />;
+   }
++  if (fence.kind === "flow") return <FlowWidget fence={fence} />;
+```
+
+The full layout keeps flow-preview's sidebar widths in `localStorage` per scenario and its narrow stacked layout. Reduced motion removes the expand animation and keeps the crossfade.
+
+```changes
+
+```
+
+## Phase 3: Captured flows on diffmap.dev
+
+[Phase 1](#phase-1-a-live-flow-fence-in-the-local-viewer) and [Phase 2](#phase-2-expand-to-the-full-canvas) run flows only in the local viewer. This phase shows the same widget on a pull request.
+
+**Today**
+
+On diffmap.dev and in gists, a `flow` fence would show a placeholder like [[src/viewer/HtmlPlaceholder.tsx#HtmlPlaceholder]], because no project code can run there.
+
+**Proposed**
+
+Before committing, the agent runs:
+
+```sh
+npx @tanishqkancharla/diffmap flow capture .diffmap/specs/preferences/
+```
+
+For every `flow` fence, this serves the scenario, opens the canvas in a headless Chromium, and saves:
 
 ```text
-flow/
-  FlowCanvas.tsx        from assets/, copied into each preview
-  previewConfig.mjs     from assets/, copied into each preview
-  package.json          private; the preview's dependencies, not diffmap's
-  guide.md              SKILL.md's body, without front matter
-  tsconfig.json         typechecks the canvas against the preview's dependencies
-  playwright.config.ts
-  test/fixtures.ts
-  test/FlowCanvas.spec.ts
-  LICENSE               Apache-2.0, from flow-preview
-  NOTICE                attribution to Saffron Health and Halo PR #606
+.diffmap/specs/preferences/media/flows/preferences/
+  flow.json        ids, titles, parents, actions, rows, notes, dimensions, and a hash of the scenario file
+  editing.png      one screenshot per state, light theme, at 2x
+  saving.png
+  saved.png
 ```
 
-The canvas stays outside `src/` so [[tsconfig.build.json]] never compiles it into `lib/` and the viewer build never bundles it. flow-preview is Apache-2.0 and diffmap is MIT, so `flow/LICENSE` and `flow/NOTICE` travel with the files that carry that license, including in the npm tarball in [Phase 2](#phase-2-diffmap-flow-new-and-diffmap-flow-guide).
+A reader of the pull request on diffmap.dev then sees the same compact widget and expanded canvas, with screenshots in place of live UI. They can move through the journey and tick states, but not type into the UI. The widget says "Captured" next to its title and links to running it locally.
 
-`flow/package.json` takes flow-preview's dependency list, with versions moved to the viewer's: Maui from 0.0.59 to 0.0.62, and the others to the ranges in [[package.json]]. The root gets scripts that run the imported checks from `flow/`: `typecheck:flow`, and `test:flow` for the Playwright suite, which needs Chromium and so stays out of `npm test`. The Playwright fixture uses `await using`, which needs Node 24; `.github/workflows/publish.yml` already runs Node 24, while the package's `engines` stays at Node 22 because the generator itself only needs `node:fs`.
-
-`guide.md` drops the Halo and Amp orb text: the `amp orb service start` command, the portal URL rule, `.halo` and `.amp` in the deny list explanation, and `.amp/in/artifacts/`. It keeps every rule about the canvas and scenarios.
+`validate` warns when a `flow` fence has no `flow.json`, or when its hash no longer matches the scenario file, so the screenshots cannot fall behind the code without warning. The hosted viewer finds the files through [[src/viewer/Media.tsx#MediaResolverContext]], at the same pinned commit as the page ([[src/github/fetchRepo.ts]]). `share` already refuses local media, and it refuses captured flows for the same reason until gists can carry images.
 
 ```changes
 
 ```
 
-## Phase 2: `diffmap flow new` and `diffmap flow guide`
+## Phase 4: Today and Proposed with `flow diff`
 
-[Phase 1](#phase-1-import-flow-preview-into-flow) put the canvas and its rules in `flow/`. This phase lets an agent use them through the diffmap CLI, and adds the `flow-preview` pointer skill.
+[Phase 3](#phase-3-captured-flows-on-diffmapdev) made flows readable on a pull request. This phase brings flow-preview's comparison mode into the widget.
 
 **Today**
 
-The agent runs `node .agents/skills/flow-preview/scripts/generate.mjs <name> [port]`, which reads the assets and dependency list from the skill's folder and prints Amp orb commands.
+flow-preview compares two revisions when the agent imports each revision's components from its own git worktree and passes both scenarios to the canvas. A spec shows Today and Proposed only as screenshots side by side.
 
 **Proposed**
 
-The agent runs the same steps through diffmap, from the project root:
+````md
+```flow diff [Saving preferences]
+flows / preferences.tsx;
+base: main;
+```
+````
 
-```sh
-npx @tanishqkancharla/diffmap flow guide
-npx @tanishqkancharla/diffmap flow new preferences-flow --port 4180
-npm --prefix tmp/preferences-flow install --workspaces=false
-npm --prefix tmp/preferences-flow run dev
+The scenario file exports `today` and `proposed` scenarios, matched by state ID, plus the shared states whose UI changed in `modified`, as flow-preview's `comparison` works today. Imports that start with `today:` resolve against a worktree of `base`, which `serve` creates under the system's temp directory and removes when it stops:
+
+```tsx
+import { Preferences as TodayPreferences } from "today:src/Preferences.tsx";
+import { Preferences } from "../../../../src/Preferences.tsx";
 ```
 
-`flow` is an incur command group mounted on [[src/cli.ts#cli]], as incur's nested `Cli` supports. `flow new` is the generator ported to TypeScript, and it writes the same files with the same rules: a lowercase kebab-case name, a port from 1024 to 65535, and never overwriting an existing `tmp/<name>/`. It reads its assets and dependency list from the installed package rather than from a skill folder, and it prints the next commands instead of Amp ones.
-
-```callstack [diffmap flow new]
- result = flowNew(name, port) # in a new src/flow.ts
- ├── error = checkName(name) # same pattern as generate.mjs
- ├── dir = createPreviewDir(cwd, name) # mkdir tmp/name, fails if it exists
- ├── deps = readPreviewDependencies() # flow/package.json from the package root
- ├── copyAssets(dir) # FlowCanvas.tsx and previewConfig.mjs, COPYFILE_EXCL
- ├── writeStarter(dir, deps, port) # package.json, index.html, main.tsx, vite.config.mjs, scenario.tsx
- └── return { dir, next: ["npm install", "npm run dev"] }
-```
-
-None of these helpers exist yet; they are pseudocode for one function.
-
-`flow guide` prints `flow/guide.md`, just as `guide` prints [[guide.md]]. [[package.json]] adds `flow` to `files`, so the canvas, helper, guide, dependency list, `LICENSE`, and `NOTICE` ship in the tarball; `flow/test` and its Playwright config are excluded.
-
-The new `skills/flow-preview/SKILL.md` keeps flow-preview's name and description so agents trigger it for the same requests, and copies the pointer shape of [[skills/generate-diffmap/SKILL.md]]:
-
-```md
----
-name: flow-preview
-description: Generates interactive Maui user-flow canvases with linked states and persistent review checkboxes. Use when previewing, comparing, or reviewing a user journey across multiple UI states.
----
-
-Before you build a flow preview, run this from the project root and follow what it prints:
-
-    npx @tanishqkancharla/diffmap flow guide
-```
-
-The Playwright fixture switches from copying the skill folder to running `flow new` from a packed copy of diffmap, and still deletes that copy before driving the preview, so the test keeps proving that previews outlive what generated them.
+The compact widget marks modified, added, and removed states in the strip with flow-preview's colors and `~`, `+`, and `-` marks. For a changed state, it shows Today above Proposed, since the column is too narrow to show them side by side. The expanded canvas shows them side by side, as flow-preview does. `flow capture` saves both sides, so the comparison also reads on diffmap.dev.
 
 ```changes
 
 ```
 
-## Phase 3: `diffmap install-skill`
+## Phase 5: One guide for specs and flows
 
-[Phase 2](#phase-2-diffmap-flow-new-and-diffmap-flow-guide) added a second pointer skill. This phase lets an agent install either one from the package, so one `npm` install is all a project needs.
-
-**Today**
-
-Skills come only from GitHub, through the Skills CLI: `npx skills add tanishqkancharla/diffmap --skill generate-diffmap`. Nothing records which diffmap version a skill copy came from.
-
-**Proposed**
-
-```sh
-npx @tanishqkancharla/diffmap install-skill              # both skills, into ./.agents/skills/
-npx @tanishqkancharla/diffmap install-skill flow-preview # one skill
-npx @tanishqkancharla/diffmap install-skill --global     # into ~/.agents/skills/
-```
-
-This follows [#27](https://github.com/tanishqkancharla/diffmap/pull/27)'s design, extended to two skills: `skills/` joins `files` in [[package.json]], and the command copies each skill folder to where `npx skills add` would put it, writes the package version to `.diffmap-version` inside it, and reports each skill as installed, already current, or updated from one version to another. A copy from `npx skills add` has no marker, so the command replaces it. The command is not called `skills` because incur already owns `skills add`.
-
-Since both pointer skills fetch their instructions from the CLI, a skill copy only goes stale when its trigger description changes. [[src/update.ts#runUpdate]] does not touch skill copies; after an update, the agent can run `install-skill` again.
-
-```changes
-
-```
-
-## Phase 4: Connect the guides
-
-[Phase 2](#phase-2-diffmap-flow-new-and-diffmap-flow-guide) made the flow guide reachable from the CLI. This phase makes each guide send the agent to the other at the point where their work meets.
+[Phase 1](#phase-1-a-live-flow-fence-in-the-local-viewer) through [Phase 4](#phase-4-today-and-proposed-with-flow-diff) built the widget. This phase tells agents when and how to use it, and retires the separate skill.
 
 **Today**
 
-[[guide.md]] tells the agent to take one screenshot per state of a UI change. flow-preview's guide tells it to save final screenshots to an Amp folder or "the project's artifact directory". Neither mentions the other.
+[[guide.md]] says to take one screenshot per UI state. flow-preview's `SKILL.md` has its own rules, and agents pick it only when asked for a "flow preview".
 
 **Proposed**
 
-An agent writing a spec phase that changes a journey of more than two or three states builds a flow preview of it, then captures the states the phase changes from the preview into `media/<phase-slug>/`. When the phase is a change to an existing journey, it builds the preview with a `comparison` of the base commit and the working tree, and the paired Before and After panels become the phase's Today and Proposed `side-by-side` gallery. The spec carries static captures, so it still reads on GitHub and diffmap.dev; the live preview stays a local tool the agent can point the reader to.
+The guide gains a "Flows" section, linked from [Capture UI changes](../guide.md#capture-ui-changes):
 
-```mermaid [A spec phase that changes a journey]
-flowchart LR
-    G[diffmap guide] -->|journey with many states| F[diffmap flow guide]
-    F -->|flow new and scenario.tsx| P[Flow preview]
-    P -->|comparison of base and working tree| C[Before and After panels]
-    C -->|screenshots| M[media folder]
-    M -->|side-by-side gallery| S[Spec phase page]
-    %% ref node:G [[guide.md]]
-    %% ref node:S [[src/viewer/Media.tsx]]
-```
+- Use a `flow` fence when a phase changes a journey of several states or a branch, and screenshots when it changes one or two states.
+- Write the scenario from the real UI, with local fixtures and no requests, using flow-preview's rules on notes, fixtures, real controls, and rendering exactly what the product renders.
+- Use `flow diff` for a change to an existing journey, instead of Today and Proposed galleries.
+- Run `diffmap flow capture` before committing, and commit what it writes.
 
-The edits:
-
-- [[guide.md]], Capture UI changes: one bullet that sends multi-state journeys and before-and-after journey comparisons to `diffmap flow guide`.
-- `flow/guide.md`, Review and verify: save final captures under the spec's `media/<phase-slug>/` when the preview supports a spec, otherwise in the project's artifact directory; label Before and After as Today and Proposed in the spec.
-- `README.md`: a short flow-preview section next to the generate-diffmap install line.
-- The flow-preview repo's README (outside this repo, so a separate PR there): say that flow-preview now ships with diffmap and how to install it.
+[[skills/generate-diffmap/SKILL.md]] adds "previewing a user flow" to its description, so agents pick it for the requests that used to trigger flow-preview. The flow-preview repo's README says the skill now lives in diffmap (a separate PR in that repo).
 
 ```changes
 
