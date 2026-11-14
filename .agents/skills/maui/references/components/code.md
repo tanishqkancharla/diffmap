@@ -8,7 +8,7 @@ Gallery: `/components/code`. Import from `"maui"`.
 <CodeBlock lang="ts">{`const n = 1`}</CodeBlock>
 ```
 
-`CodeBlock` highlights with Shiki using the resolved theme. `lang` is required. Unsupported langs / pending highlight render a plain `<pre>`.
+`CodeBlock` highlights with Shiki's JavaScript engine using the resolved theme. `lang` is required. Unsupported langs / pending highlight render a plain `<pre>`.
 
 ## Styles
 

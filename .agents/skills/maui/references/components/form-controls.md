@@ -72,7 +72,7 @@ Controlled: `selected` + `onChange`. **`label` is required.**
 **TextField** — `textFieldStyles`
 
 - `root` — field wrapper around the input and error.
-- `input({ size, keyboardHint })` — RAC `Input`; `:hover`, `:disabled`, `aria-invalid`, `:focus-visible`, `::placeholder`.
+- `input({ size, keyboardHint })` — RAC `Input`; `:disabled`, `aria-invalid`, `:focus-visible`, `::placeholder`.
 - `frame` — relative wrapper around the input when a keyboard hint is shown.
 - `keyboardHint` — Maui `Kbd variant="quiet"` inside `frame`.
 - `error` — RAC `FieldError`.
@@ -86,7 +86,7 @@ Controlled: `selected` + `onChange`. **`label` is required.**
 **NumberField** — `numberFieldStyles`
 
 - `root` — RAC `Group`; `:has(:focus-visible)`, `:has(input:disabled)`, `:has(input[aria-invalid='true'])`; styles the stepper `button`s inside a `.number-stepper` wrapper, so it needs that markup.
-- `input` — RAC `Input`; `:hover`, `:disabled`, `::placeholder`.
+- `input` — RAC `Input`; `:disabled`, `::placeholder`.
 
 **QuietTextField** — `quietTextFieldStyles`
 

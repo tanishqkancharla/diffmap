@@ -1,6 +1,6 @@
 # Maui design conventions
 
-Prefer the Maui skill for composition knowledge: how to assemble tokens, components, patterns, and apps. Read every matching reference linked from `SKILL.md` before designing or implementing UI, and reuse its structure, tokens, and interactions. Reach for package source under `"maui/src/patterns"`, `"maui/src/apps"`, or an installed `node_modules` package only when the references do not cover a needed detail.
+Use the matching skill references for Maui's design choices, composition rules, and reusable token patterns. Inspect the installed package's source for tactical questions about props, defaults, state styling, or exact values. Source ships under `node_modules/maui/src/` with the documented npm alias, or `node_modules/@tanishqkancharla/maui/src/` without it. Follow components into their token definitions as needed; current implementation is not a guarantee of contrast or design intent.
 
 Patterns, demo apps, and the gallery `Panel` preview frame are not package components. `Panel` is not on the `"maui"` barrel, in `src/components`, or in the JSX editor catalog. Rebuild reference recipes with barrel exports such as `Button`, `Flex`, and `text(...)`.
 
@@ -24,32 +24,73 @@ State styles key off React Aria attributes (`data-hovered`, `data-selected`, `da
 
 ## Composition
 
-- Use Maui's `Text` component instead of raw `<span>` elements for inline text. Set typography through its `size`, `fontWeight`, `color`, `monospace`, and `tabular` props; see [Text](components/text.md). Keep semantic elements such as headings, paragraphs, labels, and links for their respective roles.
+- Use Maui's `Text` component for standalone inline typography; see [Text](components/text.md). `Text` and `text(...)` set an explicit color by default, overriding inherited variant, selected, or disabled colors. Prefer plain Button labels so the Button controls its foreground. Keep semantic elements such as headings, paragraphs, labels, and links for their respective roles.
 - Hover backgrounds have no transitions. Hover fills such as `backgroundColor.elementHover`, quiet-button washes, and list or row highlights snap instantly. Do not animate `background` or `background-color` on hover with `motion.standard(...)` or a CSS `transition`. Other motion, including tooltips and transforms, is allowed.
 - Simple apps default to a prose column: `style(proseContainerStyle, { width: "100%", marginInline: "auto" })`. `sizing.contentWidth` is that same style. Use it for single-column tools, settings, forms, and reading layouts. Multi-pane or full-bleed apps such as inboxes, calendars, and IDEs are exceptions.
 - Design an intentional empty composition for every list, inbox, search result, or collection. Include copy and, when useful, an action. Do not leave a blank panel.
 
+## Decorative edge strips
+
+When a rounded surface uses a colored edge for emphasis, use a full-height rectangular strip inside a `position: relative; overflow: hidden` container. Keep the radius on the container, not the strip: a CSS left border follows the corners and curls inward. This is a composition recipe for custom UI, not a new component or a change to existing component borders. Keep using `border()` for outlines and dividers.
+
+```tsx
+const surface = style(radius.md, spacing.padding({ all: 6 }), {
+  position: "relative",
+  overflow: "hidden",
+  backgroundColor: colors.orange[3],
+});
+const strip = style({
+  position: "absolute",
+  insetBlock: 0,
+  left: 0,
+  width: "3px",
+  backgroundColor: colors.orange[9],
+  pointerEvents: "none",
+});
+
+function DecoratedSurface() {
+  const surfaceClass = useStyles(surface);
+  const stripClass = useStyles(strip);
+  return (
+    <div className={surfaceClass}>
+      <div aria-hidden="true" className={stripClass} />
+      <Text>Surface content</Text>
+    </div>
+  );
+}
+```
+
 ## Shadows
 
-Use `shadow.control` for interactive control surfaces. It combines two inset
-highlights with a compact outer edge. Use the three-level elevation scale for
-other raised surfaces:
+Use `shadow.control` for interactive control surfaces. Use the three-level elevation scale for other raised surfaces:
 
 - `shadow.subtle` — cards and ordinary raised surfaces
-- `shadow.medium` — tooltips and larger floating panels
+- `shadow.medium` — larger floating panels
 - `shadow.strong` — dropdowns, popovers, and dominant overlays
 
-All three include a 1px ring. Do not also apply `border()`, `borderColor.outline`, or another ring to the same element.
+These shadows include their own edge or ring. Do not also apply `border()`, `borderColor.outline`, or another ring to the same element. Not every floating component uses elevation: reuse its exported styles rather than inferring a shadow from its placement.
 
 Buttons and form-control surfaces use `shadow.control` by default. For compound controls, apply it once to the outer control boundary instead of to every internal button or segment.
 
 ## Focus
 
-`focusRing()` applies a theme-aware Radix blue shadow with a `blueAlpha[8]` hard edge and `blueAlpha[5]` glow. Do not add a competing outline or box shadow for keyboard focus.
+Use `focusRing()` for Maui's theme-aware keyboard-focus treatment rather than adding a competing outline or box shadow.
+
+**Control safe area.** Input and form-control shadows paint outside the component's layout box; reserve room for the resting, hovered, and keyboard-focused states, even when hover does not change the background. Use `spacing.padding(4)` as a starting inset between controls and clipping edges, and leave gaps between neighboring controls. Keep overflow visible on immediate wrappers; when a panel, rounded container, or scroll viewport must clip, put the safe inset inside that clipping boundary, not outside it as margin. Check the first and last controls at scroll edges, including checkbox, radio, switch, and slider focus states. Do not remove shadows or focus rings to fit a tight layout.
+
+```tsx
+// Keep the control's visual overflow inside the scrolling boundary.
+<div style={{ overflow: "auto" }}>
+  <Flex column padding={4} gap={4}>
+    <TextField aria-label="Name" />
+    <Select aria-label="Plan">{/* options */}</Select>
+  </Flex>
+</div>
+```
 
 ## Layout utilities
 
-`Flex` and `Gap` take spacing scale steps (`1 | 2 | 3 | 4 | 6 | 8 | 12 | 16`), not raw pixels. For example, `<Flex row gap={4} padding={4}>` has a 9px gap and 9px inset.
+`Flex` and `Gap` take spacing scale steps, not raw pixels. For example, `<Flex row gap={4} padding={4}>` uses the same token for its gap and inset.
 
 Put padding on `Flex` with `padding` or `p`, `px`, `py`, `pt`, `pr`, `pb`, and `pl`; there is no `Padding` component. `alignItems` and `justifyContent` use the same tokens as `flex()` (`start`, `center`, `end`, and others; `justifyContent` also supports `between`, `around`, and `evenly`). `background` is a surface token such as `app`, `element`, or `accent`. `Spacer` grows to fill leftover flex space. `Divider` is a horizontal rule.
 
