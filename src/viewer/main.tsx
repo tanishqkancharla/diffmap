@@ -1,8 +1,6 @@
 import { StrictMode, useEffect, useEffectEvent, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  ActivityIndicator,
-  Banner,
   FileError,
   FileSearch,
   Flex,
@@ -25,10 +23,7 @@ import {
 } from "./StatusPage.tsx";
 import { localMediaUrl, MediaResolverContext } from "./Media.tsx";
 import { enableViewerTelemetry, trackViewerEvent } from "./telemetry.ts";
-import {
-  setServerConnection,
-  useServerConnection,
-} from "./serverConnection.ts";
+import { setServerConnection } from "./serverConnection.ts";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -276,7 +271,6 @@ function LocalViewer(props: { initialPage: PageLoad; spec: Spec | undefined }) {
         document={load.viewerDocument}
         mode="local"
         pageLoading={pageLoading}
-        notice={<DisconnectedNotice />}
         spec={
           spec === undefined || current === undefined
             ? undefined
@@ -297,23 +291,6 @@ function LocalViewer(props: { initialPage: PageLoad; spec: Spec | undefined }) {
         }
       />
     </MediaResolverContext.Provider>
-  );
-}
-
-function DisconnectedNotice() {
-  const connection = useServerConnection();
-  if (connection !== "disconnected") return undefined;
-  return (
-    <Banner
-      tone="warning"
-      layout="stacked"
-      role="status"
-      icon={<ActivityIndicator variant="primary" aria-label="Reconnecting" />}
-      title="The diffmap server stopped"
-    >
-      You can keep reading. Run diffmap serve again and this page reloads with
-      the latest spec.
-    </Banner>
   );
 }
 

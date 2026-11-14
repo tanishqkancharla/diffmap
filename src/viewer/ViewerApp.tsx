@@ -20,7 +20,10 @@ import { ComarkView } from "./ComarkView.tsx";
 import { SourceDiffPanel, type SourceSelection } from "./SourceDiffPanel.js";
 import { CloseServerButton } from "./CloseServerButton.tsx";
 import { StatusPage } from "./StatusPage.tsx";
-import { setServerConnection } from "./serverConnection.ts";
+import {
+  setServerConnection,
+  useServerConnection,
+} from "./serverConnection.ts";
 import {
   SpecContext,
   PageLinks,
@@ -57,8 +60,6 @@ export function ViewerApp(props: {
   spec?: SpecNav;
   /** Another page of the spec is loading; this one stays up until it is ready. */
   pageLoading?: boolean;
-  /** A Banner above the page, such as a stopped server. */
-  notice?: ReactNode;
 }) {
   const viewerDocument = props.document;
   const meta = useViewerMeta(props.mode === "local");
@@ -122,7 +123,8 @@ export function ViewerApp(props: {
   const comments = useCommentStore(
     commentsKey(spec?.href(spec.current) ?? window.location.pathname),
   );
-  const notice = useStyles(styles.notice);
+  const reconnecting = useStyles(styles.reconnecting);
+  const disconnected = useServerConnection() === "disconnected";
   const pageLoading = useDelayed(props.pageLoading === true, 150);
   const stage = useStyles(styles.stage);
   const articleRef = useRef<HTMLElement>(null);
@@ -194,7 +196,17 @@ export function ViewerApp(props: {
                   />
                 )}
                 {props.headerActions}
-                {props.mode === "local" && (
+                {local && disconnected && (
+                  <div
+                    className={reconnecting}
+                    role="status"
+                    title="The diffmap server stopped. This page reloads when diffmap serve runs again."
+                  >
+                    <ActivityIndicator size="xs" variant="muted" />
+                    Server stopped · reconnecting
+                  </div>
+                )}
+                {local && !disconnected && (
                   <CloseServerButton
                     onClick={() => {
                       trackViewerEvent({ event: "server_closed" });
@@ -207,9 +219,6 @@ export function ViewerApp(props: {
                 )}
               </div>
             </header>
-            {props.notice !== undefined && (
-              <div className={notice}>{props.notice}</div>
-            )}
             <div className={stage}>
               <div className={body} data-has-source-diffs={diffPanelOpen}>
                 <article ref={articleRef} className={article}>
@@ -416,13 +425,9 @@ const styles = {
       content: "none",
     },
   }),
-  notice: style(
-    spacing.padding({ x: 6, y: 4 }),
-    flexItem({ size: "hug" }),
-    border(["bottom"], "border"),
-    {
-      backgroundColor: backgroundColor.app,
-      "&:empty": { display: "none" },
-    },
+  reconnecting: style(
+    flex({ direction: "row", alignItems: "center", gap: 3 }),
+    text({ size: "sm", color: "lowContrast" }),
+    { whiteSpace: "nowrap" },
   ),
 };
