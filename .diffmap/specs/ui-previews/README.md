@@ -92,33 +92,15 @@ The `previews` key in the repo's `.diffmap/config.json` tells the viewer where t
 }
 ```
 
-In the page, both blocks fit the text column. The live UI is an iframe; everything around it is the viewer's own UI:
+This is how the two blocks look in a spec page. Each frame is the app's own page, rendering the story live; the header, captions, breadcrumbs, buttons, and review marks around the frames are the viewer's own UI. The blocks below are mockups drawn into today's viewer around live frames of the example's stories; in the real blocks, clicking in a frame uses the real form.
 
-```text [A preview block, inline]
-+- The digest name field ------------------------ [expand] -+
-| +-------------------------+  +-------------------------+ |
-| | iframe: Editing          |  | iframe: Empty name      | |
-| +-------------------------+  +-------------------------+ |
-|  Editing                       Empty name                 |
-|                                Saving waits until ...     |
-+-----------------------------------------------------------+
-```
+![A preview block: two stories side by side](media/preview-block.png)
 
-```text [A flow block, inline]
-+- Saving preferences --------------------------- [expand] -+
-| Editing  >  Saved                          (breadcrumbs)  |
-| +-------------------------------------------------------+ |
-| |   iframe: the selected story, live                    | |
-| +-------------------------------------------------------+ |
-| < Editing                   A confirmation slides in.     |
-| +--------+  +--------+  +--------+                        |
-| | [x]    |  | [ ]    |  | [ ]    |                        |
-| +--------+  +--------+  +--------+                        |
-|  Editing     Empty name  Saved                            |
-+-----------------------------------------------------------+
-```
+![A flow block on its Saved state](media/flow-block.png)
 
-A flow's expand button opens the full canvas over the page, with the outline, a zoomable map of every state, and the same live preview, as flow-preview lays it out today.
+A flow's expand button opens the full canvas over the page, as flow-preview lays it out today: the outline, a zoomable map of every state joined by its actions, and the same live preview.
+
+![The flow expanded over the page](media/flow-expanded.png)
 
 **What this removes, compared with flow-preview**
 
