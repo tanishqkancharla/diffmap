@@ -72,21 +72,28 @@ trackPageError(initialPage);
 const reloadToken =
   document.querySelector<HTMLMetaElement>('meta[name="diffmap-reload-token"]')
     ?.content ?? "";
-const reloadSocket = new WebSocket(
-  `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/__diffmap/events?${new URLSearchParams({ token: reloadToken })}`,
-);
-reloadSocket.addEventListener("message", (event) => {
-  if (event.data === "pages" || event.data === shownFile)
-    window.location.reload();
-});
-// Like Vite's client: once the server goes away, reload when one answers on this port again.
-let reloadSocketOpened = false;
-reloadSocket.addEventListener("open", () => {
-  reloadSocketOpened = true;
-});
-reloadSocket.addEventListener("close", () => {
-  if (reloadSocketOpened) setTimeout(reloadWhenServerAnswers, 1000);
-});
+const reloadUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/__diffmap/events?${new URLSearchParams({ token: reloadToken })}`;
+let reloadSocketEverOpened = false;
+openReloadSocket();
+
+// A closed socket does not mean the server restarted: proxies, port forwards, and sleep drop idle sockets while the same server runs.
+// So the page reconnects, and reloads only when a server answers but refuses this page's token, which a restarted server does.
+function openReloadSocket() {
+  const socket = new WebSocket(reloadUrl);
+  let opened = false;
+  socket.addEventListener("message", (event) => {
+    if (event.data === "pages" || event.data === shownFile)
+      window.location.reload();
+  });
+  socket.addEventListener("open", () => {
+    opened = true;
+    reloadSocketEverOpened = true;
+  });
+  socket.addEventListener("close", () => {
+    if (opened) setTimeout(openReloadSocket, 1000);
+    else if (reloadSocketEverOpened) setTimeout(reloadWhenServerAnswers, 1000);
+  });
+}
 
 function reloadWhenServerAnswers() {
   // oxlint-disable-next-line typescript/no-floating-promises -- A timer owns this poll.

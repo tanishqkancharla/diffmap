@@ -522,6 +522,46 @@ test(
 );
 
 test(
+  "startServer pings the reload socket so idle proxies keep it open",
+  { timeout: 30_000 },
+  async () => {
+    await withTempSpecs(async (spec) => {
+      const server = assertStarted(
+        await startServer({
+          filePath: spec,
+          workspaceRoot: packageRoot,
+          pingIntervalMs: 50,
+        }),
+      );
+      try {
+        const frame = await new Promise<Buffer>((resolve, reject) => {
+          http
+            .get(`${server.url}/__diffmap/events`, {
+              headers: {
+                connection: "Upgrade",
+                upgrade: "websocket",
+                "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==",
+                "sec-websocket-version": "13",
+              },
+            })
+            .on("upgrade", (_res, upgraded) => {
+              upgraded.once("data", (data: Buffer) => {
+                upgraded.destroy();
+                resolve(data);
+              });
+            })
+            .on("error", reject);
+        });
+        assert.deepEqual([...frame.subarray(0, 2)], [0x89, 0x00]);
+      } finally {
+        await server.shutdown();
+        await waitForClosed(server);
+      }
+    });
+  },
+);
+
+test(
   "startServer serves each page of a spec and names what changed",
   { timeout: 30_000 },
   async () => {

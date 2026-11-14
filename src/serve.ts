@@ -67,7 +67,14 @@ export type StartServerInput = {
   port?: number;
   /** Called for each event the viewer page reports; the CLI forwards them to telemetry. */
   onViewerEvent?: (event: ViewerEvent) => void;
+  /** How often the reload socket pings each page. */
+  pingIntervalMs?: number;
 };
+
+// Proxies and port forwards close a WebSocket that carries nothing for about a minute, and the reload socket is quiet until a page changes.
+const RELOAD_PING_MS = 25_000;
+/** A WebSocket ping frame with no payload; browsers answer it on their own. */
+const PING_FRAME = Buffer.from([0x89, 0x00]);
 
 const packageRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 /** Written by `npm run build:viewer`; published with the package. */
@@ -149,6 +156,10 @@ export async function startServer(input: StartServerInput) {
   // As with Vite's HMR token, only a page this server sent can open the reload socket from a browser.
   const reloadToken = randomBytes(16).toString("base64url");
   let reloadTimer: ReturnType<typeof setTimeout> | undefined;
+  const pingTimer = setInterval(() => {
+    for (const client of reloadClients) client.write(PING_FRAME);
+  }, input.pingIntervalMs ?? RELOAD_PING_MS);
+  pingTimer.unref();
   let watcher: FSWatcher | undefined;
   let outline = pageOutline(read.spec.pages);
   const changedPages = new Set<string>();
@@ -228,6 +239,7 @@ export async function startServer(input: StartServerInput) {
     shuttingDown = true;
     clearTimeout(inactivityTimer);
     clearTimeout(reloadTimer);
+    clearInterval(pingTimer);
     watcher?.close();
     for (const client of reloadClients) client.destroy();
     if (vite !== undefined) await vite.close();
