@@ -24,17 +24,17 @@ It should not have shown a `changes` fence with an `ignore:` line or the `warnin
 
 1. Branch from `main`. Commit the change, then bump the version in its own commit as `AGENTS.md` describes under Releasing (minor for new behavior, patch for fixes).
 2. For anything a reader sees, capture the rendered diffmap. Serve a small spec that shows each affected state, then take element screenshots with `agent-browser screenshot '<selector>' <path>` at 2x scale.
-3. Host the screenshots on the orphan `pr-assets` branch under `<issue or PR number>/`. The bot token cannot create gists, and the images must not land on `main`. Add them in a worktree checked out on `pr-assets`, push, and embed each image by its pinned commit URL, so later pushes never change it:
+3. Attach the screenshots to the PR; don't commit them or keep them on a branch. Save them under `/opt/cursor/artifacts/` and embed each by that path in the description. The PR tool uploads it as an attachment and rewrites the path:
 
    ```html
    <img
-     src="https://raw.githubusercontent.com/tanishqkancharla/diffmap/<pr-assets sha>/<n>/<file>.png"
+     src="/opt/cursor/artifacts/<file>.png"
      width="712"
      alt="What the image shows"
    />
    ```
 
-   Never delete `pr-assets`; merged PRs embed images from it.
+   A spec's own screenshots already live in its `media/` folder; embed those by their raw URL at the PR's head commit instead of attaching copies.
 
 4. Write the description for the person reading diffmaps, as above: what changes for them, then screenshots, then the version it ships in. Put `Closes #<n>` on the first line.
 5. Merge with `gh pr merge <n> --rebase --delete-branch` so the release commit stays separate on `main`. Vercel is the check that matters; Cursor Bugbot is optional and often slow.
