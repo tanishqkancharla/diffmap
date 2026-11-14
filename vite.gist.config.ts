@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type UserConfig } from "vite";
 
@@ -28,7 +29,23 @@ export function gistAppConfig(): UserConfig {
         "md4x/standalone",
       ],
     },
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        name: "productdoc-static-pages",
+        apply: "build",
+        closeBundle() {
+          execFileSync(
+            process.execPath,
+            ["--import", "tsx", "src/website/build.tsx"],
+            {
+              cwd: packageRoot,
+              stdio: "inherit",
+            },
+          );
+        },
+      },
+    ],
     appType: "spa",
     resolve: {
       alias: {
@@ -49,6 +66,12 @@ export function gistAppConfig(): UserConfig {
       port: 4178,
     },
     build: {
+      rollupOptions: {
+        input: {
+          viewer: path.join(gistRoot, "index.html"),
+          website: path.join(gistRoot, "website.html"),
+        },
+      },
       outDir: path.join(packageRoot, "dist"),
       emptyOutDir: true,
     },

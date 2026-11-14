@@ -165,6 +165,7 @@ function EmptyFrame() {
 const DEMO_URL = "diffmap.dev/acme/api/pull/42/specs/sessions-in-postgres.md";
 
 function LoadedDemo(props: { document: ViewerDocument }) {
+  const [pageTitle] = useState(() => document.title);
   const track = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -182,8 +183,8 @@ function LoadedDemo(props: { document: ViewerDocument }) {
 
   // The viewer names the tab after its spec; this page keeps its own. Runs after the viewer's own effect.
   useEffect(() => {
-    document.title = "diffmap";
-  }, []);
+    document.title = pageTitle;
+  }, [pageTitle]);
 
   useEffect(() => {
     const article = frame.current!.querySelector("article")!;

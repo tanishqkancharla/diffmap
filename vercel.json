@@ -5,24 +5,37 @@
   "buildCommand": "npx vite build",
   "outputDirectory": "dist",
   "trailingSlash": false,
+  "functions": {
+    "api/docs.ts": { "includeFiles": "dist/{pages/**,404.html}" }
+  },
   "rewrites": [
-    { "source": "/g", "destination": "/index.html" },
-    { "source": "/g/:path*", "destination": "/index.html" },
+    { "source": "/", "destination": "/api/docs?path=/" },
+    { "source": "/index.md", "destination": "/api/docs?path=/index.md" },
+    { "source": "/docs/:path*", "destination": "/api/docs?path=/docs/:path*" },
+    {
+      "source": "/examples/:path*",
+      "destination": "/api/docs?path=/examples/:path*"
+    },
+    { "source": "/privacy", "destination": "/api/docs?path=/privacy" },
+    { "source": "/privacy.md", "destination": "/api/docs?path=/privacy.md" },
+    { "source": "/pages/:path*", "destination": "/api/docs?path=/404" },
+    { "source": "/g", "destination": "/viewer.html" },
+    { "source": "/g/:path*", "destination": "/viewer.html" },
     {
       "source": "/:owner/:repo/pull/:n",
-      "destination": "/index.html"
+      "destination": "/viewer.html"
     },
     {
       "source": "/:owner/:repo/pull/:n/:path*",
-      "destination": "/index.html"
+      "destination": "/viewer.html"
     },
     {
       "source": "/:owner/:repo/commit/:sha",
-      "destination": "/index.html"
+      "destination": "/viewer.html"
     },
     {
       "source": "/:owner/:repo/commit/:sha/:path*",
-      "destination": "/index.html"
+      "destination": "/viewer.html"
     }
   ]
 }
