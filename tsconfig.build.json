@@ -9,5 +9,5 @@
     "outDir": "lib",
     "types": ["node"]
   },
-  "include": ["src/cli.ts", "src/index.ts"]
+  "include": ["src/cli.ts", "src/index.ts", "src/flow/index.ts"]
 }
