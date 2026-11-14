@@ -64,12 +64,14 @@ preferences
 ```
 ````
 
-A repo-wide `.diffmap/flows.json` tells the viewer where the route lives, locally and on each pull request:
+The `userFlows` key in the repo's `.diffmap/config.json` tells the viewer where the route lives, locally and on each pull request. It is diffmap's single config file, so later settings become sibling keys rather than more files:
 
 ```json
 {
-  "local": "http://localhost:5173/__flows",
-  "preview": "https://myapp-git-{branch}.vercel.app/__flows"
+  "userFlows": {
+    "local": "http://localhost:5173/__flows",
+    "preview": "https://myapp-git-{branch}.vercel.app/__flows"
+  }
 }
 ```
 
