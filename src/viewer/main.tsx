@@ -101,10 +101,11 @@ const reloadToken =
     ?.content ?? "";
 const reloadUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/__diffmap/events?${new URLSearchParams({ token: reloadToken })}`;
 let reloadSocketEverOpened = false;
+let reconnectDelay = 1000;
 openReloadSocket();
 
 // A closed socket does not mean the server restarted: proxies, port forwards, and sleep drop idle sockets while the same server runs.
-// So the page reconnects, and reloads only when a server answers but refuses this page's token, which a restarted server does.
+// So the page reconnects, and reloads only when the server that answers holds a different token, which a restarted server does.
 function openReloadSocket() {
   const socket = new WebSocket(reloadUrl);
   let opened = false;
@@ -115,15 +116,36 @@ function openReloadSocket() {
   socket.addEventListener("open", () => {
     opened = true;
     reloadSocketEverOpened = true;
+    reconnectDelay = 1000;
     setServerConnection("connected");
   });
   socket.addEventListener("close", () => {
     if (opened) {
       setServerConnection("disconnected");
       setTimeout(openReloadSocket, 1000);
-    } else if (reloadSocketEverOpened)
-      setTimeout(reloadWhenServerAnswers, 1000);
+    } else if (reloadSocketEverOpened) setTimeout(checkServer, 1000);
   });
+}
+
+function checkServer() {
+  // oxlint-disable-next-line typescript/no-floating-promises -- A timer owns this poll.
+  void fetch("/__diffmap/meta")
+    .then((response) =>
+      response.ok
+        ? (response.json() as Promise<{ reloadToken?: string }>)
+        : undefined,
+    )
+    .then(
+      (meta) => {
+        if (meta === undefined) setTimeout(checkServer, 1000);
+        else if (meta.reloadToken !== reloadToken) window.location.reload();
+        else {
+          setTimeout(openReloadSocket, reconnectDelay);
+          reconnectDelay = Math.min(reconnectDelay * 2, 10_000);
+        }
+      },
+      () => setTimeout(checkServer, 1000),
+    );
 }
 
 function reloadWhenServerAnswers() {

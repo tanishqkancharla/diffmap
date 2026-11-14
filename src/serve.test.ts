@@ -496,6 +496,11 @@ test(
           page,
         )?.[1];
         assert.ok(token !== undefined);
+        // A page compares this with its own token to tell a dropped socket from a restarted server.
+        const meta = (await (
+          await fetch(`${server.url}/__diffmap/meta`)
+        ).json()) as { reloadToken?: string };
+        assert.equal(meta.reloadToken, token);
         assert.equal(await upgrade(""), undefined);
         assert.equal(await upgrade(`?token=${token}`), 101);
         const message = new Promise<unknown>((resolve) => {

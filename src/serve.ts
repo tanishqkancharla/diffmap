@@ -337,6 +337,7 @@ export async function startServer(input: StartServerInput) {
         workspaceRoot,
         title,
         filePath,
+        reloadToken,
         shutdown,
         res,
       });
@@ -803,6 +804,7 @@ async function handleDiffmapRequest(input: {
   workspaceRoot: string;
   title: string;
   filePath: string;
+  reloadToken: string;
   shutdown: () => Promise<void>;
   res: DiffmapResponse;
 }) {
@@ -890,6 +892,8 @@ async function handleDiffmapRequest(input: {
         title,
         file: input.filePath,
         pid: process.pid,
+        // The page holds the token from its HTML; a different one means this is a new server, so the page reloads.
+        reloadToken: input.reloadToken,
       }),
     );
     return;
