@@ -22,6 +22,10 @@
     ".": {
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./preview": {
+      "types": "./lib/preview/index.d.ts",
+      "default": "./lib/preview/index.js"
     }
   },
   "publishConfig": {
@@ -38,7 +42,7 @@
     "prepublishOnly": "npm run typecheck && npm run lint && npm run format:check",
     "release": "npm publish",
     "pretest": "npm run build:viewer && npm run build:lib",
-    "test": "DIFFMAP_TELEMETRY=0 tsx --test src/spec.test.ts src/cli.test.ts src/update.test.ts src/parseViewer.test.ts src/git.test.ts src/serve.test.ts src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts src/viewer/comments.test.ts",
+    "test": "DIFFMAP_TELEMETRY=0 tsx --test src/spec.test.ts src/cli.test.ts src/update.test.ts src/parseViewer.test.ts src/git.test.ts src/serve.test.ts src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts src/viewer/comments.test.ts src/preview/preview.test.tsx",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "build:gist": "vite build",
@@ -54,6 +58,7 @@
     "md4x": "^0.0.29"
   },
   "devDependencies": {
+    "@storybook/react": "^10.6.7",
     "@types/node": "^22.20.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
@@ -67,12 +72,23 @@
     "react": "^19.2.8",
     "react-aria-components": "^1.22.1",
     "react-dom": "^19.2.8",
+    "storybook": "^10.6.7",
     "tsx": "^4.23.13",
     "typescript": "7.0.2",
     "vite": "^8.2.2"
   },
   "peerDependencies": {
+    "@storybook/react": ">=8",
+    "react": ">=18",
     "typescript": "^7.0.2"
+  },
+  "peerDependenciesMeta": {
+    "@storybook/react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22"
