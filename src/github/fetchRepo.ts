@@ -13,6 +13,11 @@ import {
 } from "../spec.ts";
 import { WORKING, type Changes, type Rev } from "../changes.ts";
 import { githubChangedFiles, type GitHubFile } from "./patch.ts";
+import {
+  GitHubRequestError,
+  responseFailure,
+  type GitHubFailure,
+} from "../host/githubFailure.ts";
 
 const GITHUB_API = "https://api.github.com";
 const GITHUB_JSON = {
@@ -39,9 +44,7 @@ export type PinnedSpec = {
 
 export type GitHubSpecResult =
   | { status: "ok"; spec: PinnedSpec }
-  | { status: "not-found" }
-  | { status: "forbidden" }
-  | { status: "error"; message: string };
+  | GitHubFailure;
 
 type PullApi = {
   html_url?: string;
@@ -106,11 +109,8 @@ export async function loadPinnedSpec(input: {
 
   const pin = { owner: input.owner, repo: input.repo, sha };
   const page = await loadPinnedPage(pin, input.path, input.signal);
-  if (page instanceof Error) {
-    if (page.message === "not-found") return { status: "not-found" };
-    if (page.message === "forbidden") return { status: "forbidden" };
-    return { status: "error", message: page.message };
-  }
+  if (page instanceof GitHubRequestError) return page.failure;
+  if (page instanceof Error) return { status: "error", message: page.message };
 
   return {
     status: "ok",
@@ -196,9 +196,7 @@ async function readSpecDirectory(
     `/repos/${encodeURIComponent(pin.owner)}/${encodeURIComponent(pin.repo)}/contents/${encodedDir}?ref=${encodeURIComponent(pin.sha)}`,
     signal,
   );
-  if (response.status === "not-found") return new Error("not-found");
-  if (response.status === "forbidden") return new Error("forbidden");
-  if (response.status === "error") return new Error(response.message);
+  if (response.status !== "ok") return new GitHubRequestError(response);
   const payload = (await response.body.json().catch(() => undefined)) as
     | ContentsApi
     | ContentsApi[]
@@ -275,9 +273,7 @@ async function resolvePullHead(
   signal?: AbortSignal,
 ): Promise<
   | { status: "ok"; sha: string; baseSha: string | undefined; htmlUrl: string }
-  | { status: "not-found" }
-  | { status: "forbidden" }
-  | { status: "error"; message: string }
+  | GitHubFailure
 > {
   const response = await githubFetch(
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${String(pull)}`,
@@ -347,9 +343,7 @@ async function readGitHubChanges(
       return new Error(
         `GitHub has no commit ${rev} in ${repo.owner}/${repo.repo}.`,
       );
-    if (response.status === "forbidden")
-      return new Error("GitHub rate-limited this request. Wait and refresh.");
-    if (response.status === "error") return new Error(response.message);
+    if (response.status !== "ok") return new GitHubRequestError(response);
     const payload = (await response.body.json().catch(() => undefined)) as
       | (CommitApi & CompareApi)
       | undefined;
@@ -395,9 +389,7 @@ async function readContents(
     `/repos/${encodeURIComponent(pin.owner)}/${encodeURIComponent(pin.repo)}/contents/${encodedPath}?ref=${encodeURIComponent(pin.sha)}`,
     signal,
   );
-  if (response.status === "not-found") return new Error("not-found");
-  if (response.status === "forbidden") return new Error("forbidden");
-  if (response.status === "error") return new Error(response.message);
+  if (response.status !== "ok") return new GitHubRequestError(response);
   const payload = (await response.body.json().catch(() => undefined)) as
     | ContentsApi
     | ContentsApi[]
@@ -443,25 +435,16 @@ function decodeBase64(value: string) {
   }
 }
 
-async function githubFetch(path: string, signal?: AbortSignal) {
+async function githubFetch(
+  path: string,
+  signal?: AbortSignal,
+): Promise<{ status: "ok"; body: Response } | GitHubFailure> {
   const response = await fetch(`${GITHUB_API}${path}`, {
     headers: GITHUB_JSON,
     signal,
   }).catch((cause: unknown) => cause);
-  if (response instanceof Error) {
-    if (response.name === "AbortError") throw response;
-    return { status: "error" as const, message: "Failed to reach GitHub." };
-  }
-  if (!(response instanceof Response)) {
-    return { status: "error" as const, message: "Failed to reach GitHub." };
-  }
-  if (response.status === 404) return { status: "not-found" as const };
-  if (response.status === 403) return { status: "forbidden" as const };
-  if (!response.ok) {
-    return {
-      status: "error" as const,
-      message: `GitHub returned ${String(response.status)}.`,
-    };
-  }
-  return { status: "ok" as const, body: response };
+  if (response instanceof Error && response.name === "AbortError")
+    throw response;
+  if (!(response instanceof Response)) return { status: "offline" };
+  return responseFailure(response) ?? { status: "ok", body: response };
 }

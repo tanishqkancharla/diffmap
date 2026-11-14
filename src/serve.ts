@@ -724,7 +724,14 @@ async function serveDocument(input: {
 }) {
   const page = await readPage(input.filePath, input.page);
   if (page instanceof Error) {
-    sendJson(input.res, JSON.stringify({ parseError: page.message }));
+    sendJson(
+      input.res,
+      JSON.stringify(
+        page instanceof DiffmapServeError
+          ? { missingPage: input.page }
+          : { specError: page.message },
+      ),
+    );
     return;
   }
   let cached = input.cache.get(page.file);

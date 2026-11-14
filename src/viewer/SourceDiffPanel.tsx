@@ -24,6 +24,7 @@ import {
   spacing,
   text,
   useTheme,
+  Banner,
 } from "maui";
 import { style, useStyles } from "purse-styles";
 import { Checkbox } from "react-aria-components";
@@ -199,17 +200,21 @@ export function SourceDiffPanel(props: {
     (resolvedFile !== undefined && changes !== undefined && !inChanges
       ? resolvedFile
       : undefined);
-  const status =
+  const problem =
     navigation.request instanceof Error
-      ? navigation.request.message
+      ? navigation.request
       : source instanceof Error
-        ? source.message
+        ? source
         : // A shown file replaces the changes, so their error is moot, as in a gist without uncommitted changes.
           changes instanceof Error && file === undefined
-          ? changes.message
-          : changes !== undefined && items.length === 0 && file === undefined
-            ? "No changes."
-            : undefined;
+          ? changes
+          : undefined;
+  const status: { tone: "warning" | "neutral"; message: string } | undefined =
+    problem !== undefined
+      ? { tone: "warning", message: problem.message }
+      : changes !== undefined && items.length === 0 && file === undefined
+        ? { tone: "neutral", message: "No changes." }
+        : undefined;
   const selectedLines = useMemo<CodeViewLineSelection | null>(() => {
     if (file !== undefined)
       return { id: file.path, range: { start: file.start, end: file.end } };
@@ -616,7 +621,11 @@ export function SourceDiffPanel(props: {
             {pin.label}
           </a>
         )}
-        {status !== undefined && <span role="status">{status}</span>}
+        {status !== undefined && (
+          <Banner tone={status.tone} role="status">
+            {status.message}
+          </Banner>
+        )}
         {selection !== undefined &&
           selection.annotation.references.length > 1 && (
             <div className={links} aria-label="Linked changes">

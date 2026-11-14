@@ -1,7 +1,7 @@
 import { P, flex } from "maui";
 import { style, useStyles } from "purse-styles";
 import { fetchGitHubChanges } from "../github/fetchRepo.ts";
-import { GistStatus } from "../gist/GistStatus.tsx";
+import { SpecErrorPage } from "../viewer/StatusPage.tsx";
 import { HostFilesContext } from "../host/files.ts";
 import {
   SESSION_STORE_REV,
@@ -40,9 +40,13 @@ export function Landing(props: { mesh?: { header: Blob[]; footer: Blob[] } }) {
 
   if (demo instanceof Error)
     return (
-      <GistStatus title="Could not parse the demo">
-        <P>{demo.message}</P>
-      </GistStatus>
+      <SpecErrorPage
+        title="The demo has an error"
+        file="demo.md"
+        message={demo.message}
+      >
+        <P>diffmap.dev's own example walkthrough didn't parse.</P>
+      </SpecErrorPage>
     );
 
   // The page draws before the demo is ready; the demo's window holds its place.

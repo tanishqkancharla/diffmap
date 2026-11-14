@@ -56,12 +56,14 @@ function Row({ children }: { children: React.ReactNode }) {
 
 `colors` is Radix Scales with a brand `accent` (teal in light, violet in dark). Each scale has steps **1–12**. Alpha scales are `colors.grayAlpha`, `colors.accentAlpha`, `colors.blueAlpha`, …
 
+The scale roles below are a starting point, not a contrast guarantee or a state recipe for every component. Use text roles for labels rather than copying a solid fill's step. Check the actual foreground/background pair in light and dark themes, including selected and disabled states; preserve non-color cues for state and status.
+
 | Steps | Use                             |
 | ----- | ------------------------------- |
 | 1–2   | App / subtle surfaces           |
 | 3–5   | Interactive washes              |
 | 6–8   | Borders / strong lines          |
-| 9–10  | Solid fills (9 rest, 10 hover)  |
+| 9–10  | Solid fills                     |
 | 11–12 | Text (11 secondary, 12 primary) |
 
 ```ts
@@ -74,6 +76,8 @@ colors.blueAlpha[8];
 
 `colorNames` is `"accent"` plus every Radix palette name. `paletteNames` omits `"accent"`. `"blue"` as a `variantColor` is the Radix blue scale, not CSS `blue`.
 
+Brand accent, semantic status, and decorative identity serve different roles. Prefer a component's variant or tone before assembling custom colors; follow the matching component's source when composing similar UI. For example, [Banner](components/banner.md) owns status tones, while [Avatar](components/avatar.md) uses paired decorative colors, not status meanings.
+
 Prefer semantic surfaces over raw scale steps for chrome:
 
 ```ts
@@ -81,14 +85,14 @@ import { background, backgroundColor } from "maui";
 
 backgroundColor.app; // page
 backgroundColor.element; // raised control / card
-backgroundColor.elementHover; // 3.5% gray-12 wash over element
-backgroundColor.elementActive; // 7% wash
+backgroundColor.elementHover; // hovered element surface
+backgroundColor.elementActive; // active element surface
 background.app; // style objects of the same values
 background.element;
 background.accent; // accent[9]
 ```
 
-Hover/active washes use `color-mix` in oklch (`surfaceWash`, transparent by default). **Do not transition `background` / `background-color` on hover.** Quiet `Button` uses `surfaceMixPercent` (6% light / 9% dark, press 2×) with Alpha[9]. Raised `elementHover` is still 3.5% gray-12 over the element surface.
+Alpha washes depend on their backdrop. A quiet control's transparent overlay is not interchangeable with `elementHover`, which is precomposed over the element surface. Reuse the matching component styles rather than recreating its wash. Hover fills snap instantly; see [design conventions](design_conventions.md#composition).
 
 ## Text
 
@@ -115,7 +119,7 @@ text({
 
 Sizes step up on the **Large platform scale** (`:root[data-scale="large"]`, driven by `(pointer: coarse)` under the system preference): `md` is 14px/22px on desktop and 17px/26px on coarse pointers. See `useScale` / `ScaleProvider`.
 
-- `lowContrast` → `gray[11]`, `highContrast` → `gray[12]`, `accent` → `accent[11]`, `onAccent` → white.
+- `lowContrast` → `gray[11]`, `highContrast` → `gray[12]`, `accent` → `accent[11]`, `onAccent` → white. `onAccent` is literal white, not an adaptive foreground for every solid fill.
 - UI sans: `fontFamily` (system ui-sans-serif stack). Mono: Commit Mono with `ss05` smart kerning (`monoFontStyle` / `monospace`).
 - `tabular: true` → `font-variant-numeric: tabular-nums`. NumberField, TableHead, and TableCell turn this on by default. Body copy and Prose stay off.
 - `baseTextStyle` is md / 400 / highContrast — already on `html, body`.
@@ -188,13 +192,12 @@ shadowVars.control | .subtle | .medium | .strong // raw box-shadow strings
 tintedSubtle(color)                             // subtle ring+blur tinted from a fill
 ```
 
-`shadow.control` is a small drop over a 0.5px edge: gray A6 (`grayAlpha[6]`) in light mode, 80% black in dark mode so the control looks cut into the surface. Dark mode also adds a 0.5px top highlight. Every elevation
-already includes a 1px ring. **Do not also `border()` the same element.**
+For elevation choice, compound control boundaries, and avoiding doubled rings, follow the [shadow conventions](design_conventions.md#shadows).
 
 `border(sides, color)`:
 
 - `sides`: `[]` for all sides, or `"top" | "right" | "bottom" | "left"`
-- `color`: `"border"` (gray-12 @ 5%) | `"outline"` (10%) | `"accent"` (`accent[8]`)
+- `color`: `"border"` (subtle separator) | `"outline"` (stronger edge) | `"accent"` (accent edge)
 
 `borderColor.border` / `borderColor.outline` are the raw color strings (hairlines, `borderBottom`).
 
@@ -205,20 +208,14 @@ already includes a 1px ring. **Do not also `border()` the same element.**
 ## Motion
 
 ```ts
-motionDurationMs; // 80
-motionStreamDurationMs; // 80 — Streamdown word fade
-motionEasing; // "ease-in-out"
-motion.standard("opacity", "transform"); // 80ms ease-in-out on those properties
-overlayMotion; // shared tooltip, dialog, backdrop, and reduced timings
+motion.standard("opacity", "transform"); // shared transition style
+motionDurationMs; // standard duration
+motionStreamDurationMs; // streaming text duration
+motionEasing; // standard easing
+overlayMotion; // overlay and reduced-motion presets
 ```
 
-Use `motion.standard` for opacity, transform, box-shadow, color. **Never** for hover `background` / `background-color`.
-
-`overlayMotion` defines tooltip enter (120ms entrance curve), tooltip exit
-(80ms ease-in), dialog enter (200ms entrance curve), dialog exit (120ms
-ease-in), backdrop (100ms), and opacity-only reduced motion (80ms). Crossfade
-enter is a 0.3s spring (`bounce` 0.2); exit uses `motionDurationMs` /
-ease-in-out. Streaming markdown uses `motionStreamDurationMs`.
+Use `motion.standard` for opacity, transform, box-shadow, and color, not hover fills; see [design conventions](design_conventions.md#composition). Reuse `overlayMotion` for custom overlay enter/exit and reduced-motion handling; inspect the matching component for how it applies those presets.
 
 ## Sizing and icons
 
@@ -239,7 +236,7 @@ Stroke/fill is `currentColor`. Pass `size` on the icon component; optional `widt
 
 ## Avatar tokens
 
-`avatar.green` / `avatar.orange` / `avatar.pink` each have `background` and `foreground`. The `Avatar` component also uses `accent[4]`/`[11]`. You rarely need these tokens directly.
+`avatar.green` / `avatar.orange` / `avatar.pink` each provide a paired `background` and `foreground`; keep the pair together when using these decorative tokens. Prefer `Avatar` for identity UI rather than choosing its colors manually.
 
 ## Prose tokens
 

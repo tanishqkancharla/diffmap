@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react";
-import { Link, P } from "maui";
+import { Flex, Link, LinkBreak, P } from "maui";
 import { init } from "md4x/standalone";
 import type { SpecPage } from "../spec.ts";
 import { parseViewerDocument } from "../parseViewer.ts";
 import type { ViewerDocument } from "../parseViewer.ts";
 import { ViewerApp } from "../viewer/ViewerApp.tsx";
-import { GistLoading, GistStatus } from "../gist/GistStatus.tsx";
+import {
+  SpecErrorPage,
+  StatusCode,
+  StatusLink,
+  StatusLoading,
+  StatusPage,
+} from "../viewer/StatusPage.tsx";
+import { GitHubFailurePage } from "../host/GitHubFailurePage.tsx";
+import type { GitHubFailure } from "../host/githubFailure.ts";
 import {
   ChangesLoaderContext,
   type ChangesLoader,
@@ -20,6 +28,7 @@ import { MediaResolverContext } from "../viewer/Media.tsx";
 import {
   githubBlobUrl,
   githubCommitPath,
+  githubCommitUrl,
   githubPullUrl,
   parseGitHubPath,
   type GitHubRoute,
@@ -38,10 +47,8 @@ function readyParser() {
 }
 
 type GitHubView =
-  | { kind: "not-found" }
-  | { kind: "forbidden" }
-  | { kind: "error"; message: string }
-  | { kind: "parse-error"; htmlUrl: string; message: string }
+  | { kind: "failed"; failure: GitHubFailure }
+  | { kind: "parse-error"; htmlUrl: string; path: string; message: string }
   | {
       kind: "ready";
       spec: PinnedSpec;
@@ -74,11 +81,14 @@ export function GitHubApp() {
         setLoaded({
           key,
           view: {
-            kind: "error",
-            message:
-              cause instanceof Error
-                ? cause.message
-                : "Failed to load this spec.",
+            kind: "failed",
+            failure: {
+              status: "error",
+              message:
+                cause instanceof Error
+                  ? cause.message
+                  : "Failed to load this spec.",
+            },
           },
         });
       },
@@ -88,20 +98,23 @@ export function GitHubApp() {
 
   if (route.kind === "github-invalid") {
     return (
-      <GistStatus title="Not a hosted spec">
-        <P>{route.message}</P>
-        <P>
-          Use{" "}
-          <code>
-            /&lt;owner&gt;/&lt;repo&gt;/pull/&lt;n&gt;/&lt;path.md&gt;
-          </code>{" "}
-          or{" "}
-          <code>
-            /&lt;owner&gt;/&lt;repo&gt;/commit/&lt;sha&gt;/&lt;path.md&gt;
-          </code>
-          .
-        </P>
-      </GistStatus>
+      <StatusPage
+        tone="neutral"
+        icon={LinkBreak}
+        title="This isn't a spec link"
+        detailTitle="diffmap.dev opens specs from links like"
+        detail={
+          <Flex column gap={2}>
+            <StatusCode>diffmap.dev/owner/repo/pull/12/specs/name/</StatusCode>
+            <StatusCode>
+              diffmap.dev/owner/repo/commit/a1b2c3d/specs/name/
+            </StatusCode>
+          </Flex>
+        }
+        actions={<StatusLink href="/">Go to diffmap.dev</StatusLink>}
+      >
+        <P>{route.message} Check that the whole link was copied.</P>
+      </StatusPage>
     );
   }
 
@@ -110,45 +123,60 @@ export function GitHubApp() {
     loaded === undefined ||
     (loaded.key !== routeKey && loaded.view.kind !== "ready")
   ) {
-    return <GistLoading title="Loading spec…" />;
+    return (
+      <StatusLoading
+        label={
+          route.kind === "github-pull"
+            ? `Loading ${route.owner}/${route.repo}#${String(route.pull)}`
+            : `Loading ${route.owner}/${route.repo}@${route.sha.slice(0, 7)}`
+        }
+      />
+    );
   }
   const view = loaded.view;
-  if (view.kind === "not-found") {
+  if (view.kind === "failed") {
+    const where =
+      route.kind === "github-pull"
+        ? `pull request #${String(route.pull)} of ${route.owner}/${route.repo}`
+        : `commit ${route.sha.slice(0, 7)} of ${route.owner}/${route.repo}`;
     return (
-      <GistStatus title="Spec not found">
-        <P>
-          GitHub has no public file at this pull or commit. Private repos are
-          out of scope.
-        </P>
-      </GistStatus>
-    );
-  }
-  if (view.kind === "forbidden") {
-    return (
-      <GistStatus title="Failed to load">
-        <P>
-          GitHub refused this request. Unauthenticated API calls are limited to
-          60 per hour per IP. Wait and refresh, or open the file on GitHub.
-        </P>
-      </GistStatus>
-    );
-  }
-  if (view.kind === "error") {
-    return (
-      <GistStatus title="Failed to load">
-        <P>{view.message}</P>
-      </GistStatus>
+      <GitHubFailurePage
+        failure={view.failure}
+        noun="spec"
+        githubUrl={
+          route.kind === "github-pull"
+            ? githubPullUrl(route.owner, route.repo, route.pull)
+            : githubCommitUrl(route.owner, route.repo, route.sha)
+        }
+        githubLabel={
+          route.kind === "github-pull"
+            ? "Open pull request on GitHub"
+            : "Open commit on GitHub"
+        }
+        notFound={
+          <P>
+            GitHub has no public {route.path} in {where}. Check the path, and
+            that the repository is public: diffmap.dev can't open private
+            repositories.
+          </P>
+        }
+      />
     );
   }
   if (view.kind === "parse-error") {
     return (
-      <GistStatus
-        title="Could not parse this walkthrough"
-        gistUrl={view.htmlUrl}
-        linkLabel="Open file on GitHub"
+      <SpecErrorPage
+        file={view.path}
+        message={view.message}
+        actions={
+          <StatusLink href={view.htmlUrl}>Open file on GitHub</StatusLink>
+        }
       >
-        <P>{view.message}</P>
-      </GistStatus>
+        <P>
+          diffmap couldn't show this spec. Ask the agent that wrote it to fix
+          the problem below and push again.
+        </P>
+      </SpecErrorPage>
     );
   }
 
@@ -172,6 +200,7 @@ export function GitHubApp() {
             key={`${spec.owner}/${spec.repo}@${spec.sha}:${spec.path}`}
             document={view.document}
             mode="github"
+            pageLoading={loaded.key !== routeKey}
             spec={
               pinned !== undefined && current !== undefined
                 ? {
@@ -229,11 +258,7 @@ async function loadView(
     pull: route.kind === "github-pull" ? route.pull : undefined,
     signal,
   });
-  if (loaded.status === "not-found") return { kind: "not-found" };
-  if (loaded.status === "forbidden") return { kind: "forbidden" };
-  if (loaded.status === "error") {
-    return { kind: "error", message: loaded.message };
-  }
+  if (loaded.status !== "ok") return { kind: "failed", failure: loaded };
 
   // The pull request a commit was pinned from, so its other pages, opened by commit URL, keep the PR link and diff.
   const spec =
@@ -258,6 +283,7 @@ async function loadView(
     return {
       kind: "parse-error",
       htmlUrl: spec.htmlUrl,
+      path: spec.path,
       message: parsed.message,
     };
   }
@@ -274,7 +300,7 @@ function readGitHubRoute(): GitHubRoute {
   if (parsed.kind === "home") {
     return {
       kind: "github-invalid",
-      message: "Not a GitHub-hosted spec URL.",
+      message: "This isn't a link to a spec on GitHub.",
     };
   }
   return parsed;

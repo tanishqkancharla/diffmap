@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Link, P } from "maui";
+import { Button, FileSearch, FileText, Link, LinkBreak, P } from "maui";
 import { style, useStyles } from "purse-styles";
 import { init } from "md4x/standalone";
 import { parseViewerDocument } from "../parseViewer.ts";
@@ -18,8 +18,17 @@ import {
 import { GistPinContext } from "./pin.ts";
 import { Landing } from "../landing/Landing.tsx";
 import { HostFilesContext } from "../host/files.ts";
-import { GistLoading, GistStatus } from "./GistStatus.tsx";
 import {
+  SpecErrorPage,
+  StatusCode,
+  StatusLink,
+  StatusLoading,
+  StatusPage,
+} from "../viewer/StatusPage.tsx";
+import { GitHubFailurePage } from "../host/GitHubFailurePage.tsx";
+import type { GitHubFailure } from "../host/githubFailure.ts";
+import {
+  githubGistUrl,
   gistPath,
   parseGistPath,
   rewritePiGistUrl,
@@ -34,10 +43,8 @@ function readyGistParser() {
 }
 
 type GistView =
-  | { kind: "not-found"; gistId: string }
-  | { kind: "forbidden"; gistId: string }
-  | { kind: "no-markdown"; gistId: string; htmlUrl: string }
-  | { kind: "error"; gistId: string; message: string }
+  | { kind: "failed"; failure: GitHubFailure }
+  | { kind: "no-markdown"; htmlUrl: string }
   | { kind: "ready"; gist: GistDocument; loadChanges: ChangesLoader };
 
 export function GistApp() {
@@ -65,12 +72,14 @@ export function GistApp() {
         setLoaded({
           gistId,
           view: {
-            kind: "error",
-            gistId,
-            message:
-              cause instanceof Error
-                ? cause.message
-                : "Failed to load this gist.",
+            kind: "failed",
+            failure: {
+              status: "error",
+              message:
+                cause instanceof Error
+                  ? cause.message
+                  : "Failed to load this gist.",
+            },
           },
         });
       },
@@ -81,49 +90,56 @@ export function GistApp() {
   if (route.kind === "home") return <Landing />;
   if (route.kind === "invalid") {
     return (
-      <GistStatus title="Not a gist id">
+      <StatusPage
+        tone="neutral"
+        icon={LinkBreak}
+        title="This isn't a gist link"
+        detail={<StatusCode>{`diffmap.dev/g/${route.value}`}</StatusCode>}
+        actions={<StatusLink href="/">Go to diffmap.dev</StatusLink>}
+      >
         <P>
-          <code>{route.value}</code> is not a 32-character GitHub gist id. Use
-          the path <code>/g/&lt;gistId&gt;</code>.
+          A gist link ends in the 32-character id from the gist's GitHub
+          address, such as diffmap.dev/g/1a2b3c…. This one has something else
+          there, so check that the whole link was copied.
         </P>
-      </GistStatus>
+      </StatusPage>
     );
   }
 
   if (route.kind !== "gist" || loaded === undefined || loaded.gistId !== gistId)
-    return <GistLoading />;
+    return <StatusLoading label="Loading gist from GitHub" />;
   const view = loaded.view;
-  if (view.kind === "not-found") {
+  if (view.kind === "failed") {
     return (
-      <GistStatus title="Gist not found" gistId={view.gistId}>
-        <P>GitHub has no gist with this id, or it is no longer available.</P>
-      </GistStatus>
-    );
-  }
-  if (view.kind === "forbidden") {
-    return (
-      <GistStatus title="Failed to load" gistId={view.gistId}>
-        <P>
-          GitHub refused this request. Unauthenticated API calls are limited to
-          60 per hour per IP. Wait and refresh, or open the gist on GitHub.
-        </P>
-      </GistStatus>
+      <GitHubFailurePage
+        failure={view.failure}
+        noun="gist"
+        githubUrl={githubGistUrl(route.gistId)}
+        githubLabel="Open gist on GitHub"
+        notFound={
+          <P>
+            GitHub has no public gist with this id. It may have been deleted, or
+            the link may be missing characters.
+          </P>
+        }
+      />
     );
   }
   if (view.kind === "no-markdown") {
     return (
-      <GistStatus title="No markdown" gistUrl={view.htmlUrl}>
+      <StatusPage
+        tone="neutral"
+        icon={FileText}
+        title="Nothing to show in this gist"
+        actions={
+          <StatusLink href={view.htmlUrl}>Open gist on GitHub</StatusLink>
+        }
+      >
         <P>
-          This gist has no <code>.md</code> or <code>.mdx</code> file.
+          diffmap shows a gist's Markdown files, and this one has no .md or .mdx
+          file.
         </P>
-      </GistStatus>
-    );
-  }
-  if (view.kind === "error") {
-    return (
-      <GistStatus title="Failed to load" gistId={view.gistId}>
-        <P>{view.message}</P>
-      </GistStatus>
+      </StatusPage>
     );
   }
   return (
@@ -170,22 +186,36 @@ function GistPage(props: {
 
   if (chosen === undefined || document === undefined) {
     return (
-      <GistStatus title="File not found" gistUrl={gist.htmlUrl}>
+      <StatusPage
+        tone="neutral"
+        icon={FileSearch}
+        title="File not found"
+        actions={
+          <StatusLink href={gist.htmlUrl}>Open gist on GitHub</StatusLink>
+        }
+        footer={<FileLinks gistId={gist.id} files={gist.files} />}
+      >
         <P>
-          <code>{props.file}</code> is not a markdown file in this gist.
+          This gist has no Markdown file named {props.file}. Open one of its
+          files below instead.
         </P>
-        <FileLinks gistId={gist.id} files={gist.files} />
-      </GistStatus>
+      </StatusPage>
     );
   }
   if (document instanceof Error) {
     return (
-      <GistStatus
-        title="Could not parse this walkthrough"
-        gistUrl={gist.htmlUrl}
+      <SpecErrorPage
+        file={chosen.name}
+        message={document.message}
+        actions={
+          <StatusLink href={gist.htmlUrl}>Open gist on GitHub</StatusLink>
+        }
       >
-        <P>{document.message}</P>
-      </GistStatus>
+        <P>
+          diffmap couldn't show this walkthrough. Ask the agent that wrote it to
+          fix the problem below, then share it again.
+        </P>
+      </SpecErrorPage>
     );
   }
   const spec = gist.spec;
@@ -240,14 +270,10 @@ async function loadView(
 ): Promise<GistView> {
   await readyGistParser();
   const loaded = await loadGistMarkdown(gistId, signal);
-  if (loaded.status === "not-found") return { kind: "not-found", gistId };
-  if (loaded.status === "forbidden") return { kind: "forbidden", gistId };
-  if (loaded.status === "error") {
-    return { kind: "error", gistId, message: loaded.message };
-  }
   if (loaded.status === "no-markdown") {
-    return { kind: "no-markdown", gistId, htmlUrl: loaded.htmlUrl };
+    return { kind: "no-markdown", htmlUrl: loaded.htmlUrl };
   }
+  if (loaded.status !== "ok") return { kind: "failed", failure: loaded };
   const snapshot = loaded.gist.changes;
   return {
     kind: "ready",

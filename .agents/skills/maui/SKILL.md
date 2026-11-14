@@ -5,10 +5,8 @@ description: Conventions for installing, updating, and consuming the Maui design
 
 # Maui
 
-Read the reference for the work you are doing:
-
 - When installing or updating the Maui package, read [installing_maui.md](references/installing_maui.md).
-- When designing, implementing, or reviewing UI with Maui, read [design_conventions.md](references/design_conventions.md), then open every matching component, pattern, or app reference below.
+- For Maui UI work, read [design_conventions.md](references/design_conventions.md) and all matching references below.
 
 Use Maui components. When one can't do what you need, build from the matching `react-aria-components` element with that component's exported styles (`buttonStyles`, `listBoxStyles`, …).
 
@@ -18,12 +16,17 @@ Use Maui components. When one can't do what you need, build from the matching `r
 | --------------------------------------------- | --------------------------------- |
 | Tokens, `purse-styles`, motion, layout, theme | [tokens.md](references/tokens.md) |
 
+## Interactions
+
+- [Pressable](references/interactions/pressable.md) — custom press handling and trigger targets.
+
 ## Components
 
 | Page                    | Reference                                                                                    |
 | ----------------------- | -------------------------------------------------------------------------------------------- |
 | Avatar                  | [avatar.md](references/components/avatar.md)                                                 |
 | Badge                   | [badge.md](references/components/badge.md)                                                   |
+| Banner                  | [banner.md](references/components/banner.md)                                                 |
 | Buttons                 | [buttons.md](references/components/buttons.md) (`Button`, `Overlay`, `Dialog`)               |
 | Tab bar                 | [tab-bar.md](references/components/tab-bar.md)                                               |
 | Drawer                  | [drawer.md](references/components/drawer.md)                                                 |
@@ -38,7 +41,7 @@ Use Maui components. When one can't do what you need, build from the matching `r
 | Select                  | [select.md](references/components/select.md)                                                 |
 | List box                | [list-box.md](references/components/list-box.md)                                             |
 | Table                   | [table.md](references/components/table.md)                                                   |
-| Menu                    | [menu.md](references/components/menu.md)                                                     |
+| Menu / context menu     | [menu.md](references/components/menu.md)                                                     |
 | Tooltip                 | [tooltip.md](references/components/tooltip.md)                                               |
 | Layout utilities        | [layout-utilities.md](references/components/layout-utilities.md)                             |
 | FuzzyString             | [fuzzy-string.md](references/components/fuzzy-string.md)                                     |
