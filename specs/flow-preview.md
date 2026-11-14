@@ -19,7 +19,7 @@ That second build knows nothing about the project's own build. Path aliases, Tai
 The app gets one dev-only route, `/__flows`, that renders any state of any flow inside the app's real layout, providers, styles, and fonts. diffmap's viewer embeds that route in an iframe and draws everything else itself.
 
 ```mermaid [The viewer draws the controls; the app renders the states]
-flowchart LR
+flowchart TD
     S[Spec page with a flow fence] --> W[Flow widget in the viewer]
     W -->|iframe and postMessage| R[App route /__flows]
     R --> F[preferences.flow.tsx]
