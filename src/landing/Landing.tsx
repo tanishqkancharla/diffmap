@@ -127,9 +127,15 @@ const styles = {
   ledeWidth: style({
     maxWidth: "620px",
     mixBlendMode: "multiply",
-    opacity: 0.8,
-    "@supports (mix-blend-mode: plus-darker)": { mixBlendMode: "plus-darker" },
-    '&:is(:root[data-theme="dark"] *)': { mixBlendMode: "plus-lighter" },
+    opacity: 1,
+    "@supports (mix-blend-mode: plus-darker)": {
+      mixBlendMode: "plus-darker",
+      opacity: 0.8,
+    },
+    '&:is(:root[data-theme="dark"] *)': {
+      mixBlendMode: "plus-lighter",
+      opacity: 0.8,
+    },
   }),
   cta: style(
     promptCode,
