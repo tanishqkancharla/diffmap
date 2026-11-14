@@ -80,14 +80,14 @@ flowchart TD
     M -->|diffmap.dev or gist| C[Captured: flow.json and a screenshot per state]
     L --> I[Canvas in an iframe, real components]
     C --> V[Same canvas, each state drawn from its screenshot]
-    L -.->|diffmap flow capture| C
+    L -.->|agent screenshots capture pages| C
     %% ref node:F [[src/parseFence.ts#parseFence]]
     %% ref node:M [[src/viewer/viewerMode.ts#useViewerMode]]
     %% ref node:C [[src/viewer/Media.tsx#MediaResolverContext]]
 ```
 
 - **Live, in the local viewer.** `serve` compiles the scenario and the project components it imports with Vite, and the widget runs the canvas in an iframe served by the same local server. The iframe keeps the project's global styles and its React copy out of the viewer, and keeps the viewer's styles out of the product UI.
-- **Captured, on diffmap.dev and in gists.** No project code runs there. `diffmap flow capture` saves the scenario's graph and a screenshot of every state next to the spec. The hosted viewer draws the same canvas from those files, with each thumbnail and preview showing its screenshot. Nothing in a captured flow is interactive except navigation and review marks.
+- **Captured, on diffmap.dev and in gists.** No project code runs there. The spec commits the scenario's graph and a screenshot of every state, which the agent takes with its own browser tool from capture pages that `diffmap flow capture` lists. The hosted viewer draws the same canvas from those files, with each thumbnail and preview showing its screenshot. Nothing in a captured flow is interactive except navigation and review marks.
 
 Live flows follow the same rule as `html` fences, which render only in the local viewer ([[src/viewer/Fence.tsx#Fence]]): code in the repo runs only on the reader's own machine.
 
@@ -121,7 +121,7 @@ Live flows follow the same rule as `html` fences, which render only in the local
 
 - **Runtime dependencies.** The live widget needs `vite` and `@vitejs/plugin-react` when `serve` runs, but today they are dev dependencies ([[package.json]]). Proposed: move them to `dependencies` and import them only when a spec has a `flow` fence, as `serve` already imports Vite only in dev mode ([[src/serve.ts#startServer]]). Ship the canvas prebuilt with Maui, `motion`, and `purse-styles` bundled in, and only React left external, so each project's components and the canvas share the project's React. This needs a size check against `npx` start-up time.
 - **React versions.** flow-preview was only tested with React 19. With React left external, a project on React 18 might fail when the widget loads.
-- **Capturing.** `diffmap flow capture` needs a Chromium. flow-preview's tests use Playwright with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Proposed: `playwright-core` as a dependency, using an installed Chrome, with an error that says how to install one.
+- **Testing the widget.** flow-preview's own browser tests use Playwright, as a dev dependency only; people who install flow-preview never get it. The same holds if those tests move here: npm never installs a package's dev dependencies for its users, so people using diffmap would not get Playwright. The cost falls only on contributors and CI. If that is still too much, the tests could cover the state model with `node --test` and leave the layouts to screenshots in each PR.
 
 ## References
 
@@ -186,7 +186,7 @@ The canvas inside the iframe reports its height to the page with `postMessage`, 
 
 `validate` checks that the fence names a `.tsx` file inside the spec. It does not compile it, because compiling would import project code. If the scenario fails to compile when served, the widget shows Vite's error in place of the canvas, and `serve` adds it to its `warnings`.
 
-The canvas moves from flow-preview into `src/flow/`, with its LICENSE and NOTICE, and is split into a shared state model (selection, journey, reviews, comparison) and a compact layout. The full layout comes in [Phase 2](#phase-2-expand-to-the-full-canvas). flow-preview's Playwright suite moves too. It runs as `npm run test:flow`, outside `npm test`, because it needs Chromium.
+The canvas moves from flow-preview into `src/flow/`, with its LICENSE and NOTICE, and is split into a shared state model (selection, journey, reviews, comparison) and a compact layout. The full layout comes in [Phase 2](#phase-2-expand-to-the-full-canvas). flow-preview's Playwright suite can move too, as a dev dependency run by `npm run test:flow`, outside `npm test`. It never reaches people who install diffmap; see [Open questions](#open-questions).
 
 ```changes
 
@@ -230,18 +230,28 @@ On diffmap.dev and in gists, a `flow` fence would show a placeholder like [[src/
 
 **Proposed**
 
-Before committing, the agent runs:
+diffmap does not drive a browser or depend on one. The guide already has the agent capture UI with whatever browser automation it has, such as agent-browser or a Playwright the project already uses ([Capture UI changes](../guide.md#capture-ui-changes)), and flows work the same way. diffmap only says what to capture and where to save it.
+
+When the live widget loads in the local viewer, the canvas already holds the scenario, so it posts the graph back to `serve`, which writes `flow.json`. No browser needs to run in Node, and importing the scenario in Node would risk running project code that expects a DOM. Before committing, the agent runs:
 
 ```sh
 npx @tanishqkancharla/diffmap flow capture .diffmap/specs/preferences/
 ```
 
-For every `flow` fence, this serves the scenario, opens the canvas in a headless Chromium, and saves:
+For every `flow` fence, this prints one capture URL and target file per state, and nothing else:
+
+```text
+http://127.0.0.1:<port>/__diffmap/flow/<page>/preferences/capture?state=editing  →  media/flows/preferences/editing.png
+http://127.0.0.1:<port>/__diffmap/flow/<page>/preferences/capture?state=saving   →  media/flows/preferences/saving.png
+...
+```
+
+A capture URL renders one state's thumbnail on its own, at its natural size, in the light theme. Once fonts and images have loaded, it sets `data-diffmap-ready` on its root, so the agent knows when to take the screenshot. The agent opens each URL with its browser tool and saves an element screenshot of that root at 2x. The spec then holds:
 
 ```text
 .diffmap/specs/preferences/media/flows/preferences/
   flow.json        ids, titles, parents, actions, rows, notes, dimensions, and a hash of the scenario file
-  editing.png      one screenshot per state, light theme, at 2x
+  editing.png      one screenshot per state
   saving.png
   saved.png
 ```
@@ -278,7 +288,7 @@ import { Preferences as TodayPreferences } from "today:src/Preferences.tsx";
 import { Preferences } from "../../../../src/Preferences.tsx";
 ```
 
-The compact widget marks modified, added, and removed states in the strip with flow-preview's colors and `~`, `+`, and `-` marks. For a changed state, it shows Today above Proposed, since the column is too narrow to show them side by side. The expanded canvas shows them side by side, as flow-preview does. `flow capture` saves both sides, so the comparison also reads on diffmap.dev.
+The compact widget marks modified, added, and removed states in the strip with flow-preview's colors and `~`, `+`, and `-` marks. For a changed state, it shows Today above Proposed, since the column is too narrow to show them side by side. The expanded canvas shows them side by side, as flow-preview does. `flow capture` lists capture pages for both sides, so the comparison also reads on diffmap.dev.
 
 ```changes
 
@@ -299,7 +309,7 @@ The guide gains a "Flows" section, linked from [Capture UI changes](../guide.md#
 - Use a `flow` fence when a phase changes a journey of several states or a branch, and screenshots when it changes one or two states.
 - Write the scenario from the real UI, with local fixtures and no requests, using flow-preview's rules on notes, fixtures, real controls, and rendering exactly what the product renders.
 - Use `flow diff` for a change to an existing journey, instead of Today and Proposed galleries.
-- Run `diffmap flow capture` before committing, and commit what it writes.
+- Before committing, run `diffmap flow capture`, screenshot each page it lists with your browser tool, and commit the screenshots with `flow.json`.
 
 [[skills/generate-diffmap/SKILL.md]] adds "previewing a user flow" to its description, so agents pick it for the requests that used to trigger flow-preview. The flow-preview repo's README says the skill now lives in diffmap (a separate PR in that repo).
 
