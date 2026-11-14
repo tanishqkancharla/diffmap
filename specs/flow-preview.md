@@ -32,26 +32,27 @@ The canvas takes the whole window. An outline lists the states on the left, a pa
 
 A spec page gets a `flow` fence that points at a scenario file inside the spec:
 
-````md
+````text
 ```flow [Saving preferences]
-flows / preferences.tsx;
+flows/preferences.tsx
 ```
 ````
 
 The file is the same `FlowScenario` flow-preview uses today, saved at `.diffmap/specs/<name>/flows/preferences.tsx` and committed with the spec. In the page, the fence renders a compact widget at the width of the text column:
 
 ```text [Inline, in the spec column]
-┌ Saving preferences ─────────────────────────────── [⤢] ┐
-│ Editing  ›  Saving  ›  Saved                            │  breadcrumbs
-│ ┌ dotted panel ───────────────────────────────────────┐ │
-│ │          the selected state's real UI               │ │  live preview
-│ └─────────────────────────────────────────────────────┘ │
-│ ← Previous state                      Save preferences → │
-│ note: what just happened and what the user can do next  │
-│ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐                    │
-│ │ ✓    │ │      │ │      │ │      │  ›                 │  thumbnail strip
-│ └Editing┘└Saving┘ └Saved─┘ └Error─┘                    │
-└─────────────────────────────────────────────────────────┘
++- Saving preferences -------------------------- [expand] -+
+| Editing  >  Saving  >  Saved              (breadcrumbs)  |
+| +------------------------------------------------------+ |
+| |   the selected state's real UI, in a dotted panel    | |
+| +------------------------------------------------------+ |
+| < Previous state                    Save preferences >   |
+| Note: what just happened, and what the user can do next  |
+| +--------+  +--------+  +--------+  +--------+           |
+| | [x]    |  | [ ]    |  | [ ]    |  | [ ]    |   >       |
+| +--------+  +--------+  +--------+  +--------+           |
+|  Editing     Saving      Saved       Error               |
++----------------------------------------------------------+
 ```
 
 The compact widget keeps what a reader needs to follow the journey: the selected state's live UI, breadcrumbs, the previous and next-step buttons, the note, and a strip of thumbnails in journey order, each with its review checkbox. The strip follows the map's column order (parent depth, then `row`) and scrolls sideways. The zoomable map and the outline are left out, because they need room the column does not have.
@@ -59,12 +60,13 @@ The compact widget keeps what a reader needs to follow the journey: the selected
 The expand button opens the full flow-preview canvas over the page, as diagrams and images already expand into a full-window dialog in [[src/viewer/MermaidBlock.tsx#MermaidBlock]] and [[src/viewer/Media.tsx]]:
 
 ```text [Expanded, over the page]
-┌──────────────────────────────────────────────────────────────────── [×] ┐
-│ outline        │  map of thumbnails, pan and zoom    │  live preview     │
-│ ▸ Editing  ✓   │  [Editing] ──▶ [Saving] ──▶ [Saved] │  breadcrumbs      │
-│   ▸ Saving     │                  └──▶ [Error]       │  dotted panel     │
-│     ▸ Saved    │                                     │  ← Prev   Next →  │
-└──────────────────────────────────────────────────────────────────────────┘
++- Saving preferences ------------------------------------- [close] -+
+| Outline     | Map: pan and zoom              | Live preview        |
+| Editing [x] |                                | breadcrumbs         |
+|  Saving     | [Editing] --> [Saving]         | dotted panel        |
+|   Saved     |                  |             | < Prev  Next >      |
+|   Error     |       [Error] <--+--> [Saved]  |                     |
++--------------------------------------------------------------------+
 ```
 
 Expanding and collapsing keep the selected state, the journey's breadcrumbs, the review marks, and any text the reader typed into the live UI.
@@ -262,10 +264,10 @@ flow-preview compares two revisions when the agent imports each revision's compo
 
 **Proposed**
 
-````md
+````text
 ```flow diff [Saving preferences]
-flows / preferences.tsx;
-base: main;
+flows/preferences.tsx
+base: main
 ```
 ````
 
