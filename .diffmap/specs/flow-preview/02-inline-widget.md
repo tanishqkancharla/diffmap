@@ -8,14 +8,15 @@ A spec shows a journey as screenshots in a gallery ([[src/viewer/Media.tsx]]).
 
 **Proposed**
 
-A `flow` fence renders the inline widget. The viewer reads `userFlows` from `.diffmap/config.json`, loads `<userFlows.local>?flow=preferences` in an iframe, and waits for `flow-ready`. It then draws the breadcrumbs, previous and next-step buttons, note, and thumbnail strip itself, with Maui, as the other fences do.
+A `flow` fence renders the inline widget. The viewer reads `userFlows` from `.diffmap/config.json`, loads `<userFlows.local>?flow=preferences` in an iframe, connects as [Phase 1](01-flows-route.md) describes, and waits for `flow-ready`. It then draws the breadcrumbs, previous and next-step buttons, note, and thumbnail strip itself, with Maui, as the other fences do.
 
 ```callstack [Showing a flow fence]
  view = Fence(fence) [[src/viewer/Fence.tsx#Fence]]
 +└── return FlowWidget(fence)
 +    ├── url = flowUrl(flowsConfig, viewerMode) # local, or the PR's preview
 +    ├── live = iframe(url + "?flow=" + fence.flow)
-+    ├── flow = await message("flow-ready")
++    ├── live.post({ type: "flow-connect" }) # on load, and on flow-hello
++    ├── flow = await message("flow-ready") # or flow-error: show its message
 +    ├── strip = flow.states.map(thumbnailFrame) # lazy, inert iframes
 +    └── on select(state): live.post({ type: "flow-show", state, how: "render" })
 ```
