@@ -8,7 +8,7 @@ A spec shows a journey as screenshots in a gallery ([[src/viewer/Media.tsx]]).
 
 **Proposed**
 
-A `flow` fence renders the inline widget. The viewer reads `.diffmap/flows.json`, loads `<local>?flow=preferences` in an iframe, and waits for `flow-ready`. It then draws the breadcrumbs, previous and next-step buttons, note, and thumbnail strip itself, with Maui, as the other fences do.
+A `flow` fence renders the inline widget. The viewer reads `userFlows` from `.diffmap/config.json`, loads `<userFlows.local>?flow=preferences` in an iframe, and waits for `flow-ready`. It then draws the breadcrumbs, previous and next-step buttons, note, and thumbnail strip itself, with Maui, as the other fences do.
 
 ```callstack [Showing a flow fence]
  view = Fence(fence) [[src/viewer/Fence.tsx#Fence]]
@@ -27,7 +27,7 @@ A `flow` fence renders the inline widget. The viewer reads `.diffmap/flows.json`
 - **Review marks** sit on each thumbnail and are stored in `localStorage` per spec, flow, and state, keyed to the state's `fingerprint`, the same way [[src/viewer/reviewed.ts#useReviewedFiles]] keys reviewed files to their diff. A state whose UI changes needs reviewing again.
 - **When the route cannot be reached,** the widget says so in place, with the URL it tried, such as "Start your dev server at http://localhost:5173". `serve` adds the same message to its `warnings`.
 
-The local viewer's content security policy ([[src/serve.ts#contentSecurityPolicy]]) only restricts scripts, objects, and the base URL, so it does not block the iframe. `validate` checks that each `flow` fence names one ID and that `.diffmap/flows.json` exists; it does not reach the app.
+The local viewer's content security policy ([[src/serve.ts#contentSecurityPolicy]]) only restricts scripts, objects, and the base URL, so it does not block the iframe. `validate` checks that each `flow` fence names one ID and that `.diffmap/config.json` has a `userFlows` key; it does not reach the app.
 
 ```changes
 
