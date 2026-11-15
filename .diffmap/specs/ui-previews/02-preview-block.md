@@ -32,11 +32,11 @@ design-button--alerts
 +        ├── post preview-connect on load and on preview-hello
 +        ├── preview-ready: the catalog, for the story's name and description
 +        ├── preview-size: the frame grows to the story's height
-+        ├── preview-state: the story's fingerprint, for its review mark
++        ├── preview-state: the story's fingerprint, which a flow keys its review marks to
 +        └── no ready within 8 seconds: say the page is unreachable, with Retry
 ```
 
-The frames sit in a grid that puts them side by side when they fit the column and wraps them when they do not. Above each frame is the story's name with a **Reviewed** checkbox in the right corner, and under it is the story's description. The checkbox is [[src/viewer/ReviewedCheckbox.tsx#ReviewedCheckbox]], the same one, with the same tooltip, that marks a file reviewed in the diff panel. Review marks are stored in `localStorage` per spec page, keyed to the story's fingerprint, as [[src/viewer/reviewed.ts#useReviewedFiles]] keys reviewed files to their diff, so a story whose UI changes needs reviewing again ([[d982acf:src/viewer/previews/reviewedStates.ts#L45-L63]]).
+The frames sit in a grid that puts them side by side when they fit the column and wraps them when they do not. Above each frame is the story's name, and under it is the story's description. A preview block has nothing to review: it shows a component, so review marks belong to a flow's states in [Phase 3](03-flow-block.md).
 
 **When there is no page to show.** Outside `serve`, the block says live previews show when the spec runs with `diffmap serve`; [Phase 6](06-diffmap-dev-and-guide.md) adds the pull request's deployment. Without `previews.local`, it says what to add to `.diffmap/config.json`. When the dev server is not running, each frame says it cannot reach the page at its URL, with a Retry button.
 
@@ -44,7 +44,7 @@ The frames sit in a grid that puts them side by side when they fit the column an
 
 The iframe is sandboxed with `allow-scripts allow-same-origin`. That pair would let a same-origin frame lift its own sandbox, but the app always runs at its own origin, apart from the viewer's, and its fake server is a service worker, which needs an origin to register.
 
-Checked in Chrome against [`fixtures/previews-app`](07-examples.md): four button and alert stories side by side, each with its name, description, and review mark; and with the dev server stopped, every frame's unreachable message, then Retry connecting once the server was back.
+Checked in Chrome against [`fixtures/previews-app`](07-examples.md): four button and alert stories side by side, each with its name and description; and with the dev server stopped, every frame's unreachable message, then Retry connecting once the server was back.
 
 ```changes
 2df4c53..8031163

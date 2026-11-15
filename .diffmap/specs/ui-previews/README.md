@@ -108,7 +108,7 @@ The repo's `.diffmap/config.json` holds both blocks' settings, in two keys. `pre
 
 This is how the blocks look in a spec page. The frames are the app's own page, rendering the story live; the header, captions, breadcrumbs, buttons, and review marks around them are the viewer's own UI.
 
-![A flow block on the Wrong Password state, with its states as a text tree beside the frame](media/flow-block.png)
+![A flow block with its states as a text tree beside the frame, two reviewed, and the Wrong Password state previewed on hover](media/flow-block.png)
 
 ![A preview block: four stories side by side](media/preview-block.png)
 
