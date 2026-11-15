@@ -33,11 +33,14 @@ The page learns paths. `preview-show` carries `path`, the story IDs from the sta
 // [!note path] Stories from the flow's start to this state. Without it, the page renders the story alone, as in Phase 1.
 ```
 
-The block is one live frame, with the viewer's controls around it ([[8031163:src/viewer/previews/FlowBlock.tsx#L48-L436]]):
+The block is one live frame, with the viewer's controls around it ([[c5df8c8:src/viewer/previews/FlowBlock.tsx#L49-L503]]):
 
 - **The header** has breadcrumbs from the starting state to the selected one, each a button back to that state, and in its right corner the state's **Reviewed** checkbox, keyed to the path and the state's fingerprint. It and the tree's checkboxes below are the diff panel's [[src/viewer/ReviewedCheckbox.tsx#ReviewedCheckbox]].
 - **Under the frame,** Back sits on the left, then the state's note, from the story's description. On the right is a segmented next-step button. Its main half follows the first state listed under this one, so **a fence lists the happy path first**, and is labeled with that action, such as "Fill in email and password". The arrow beside it opens a menu of the state's other steps. A state with no children says it is the end of the path.
-- **"Show all states"** opens every state as a tree under the frame: the same layout as the expanded map in [Phase 5](05-expanded-flow.md), each state to the right of the one it follows, with the path to the selected state drawn in the accent color. Each card is the app rendered at 720 pixels wide and scaled down, inert, captioned with the action that reaches it, and clicking it jumps to that state. Each has its own Reviewed checkbox in its corner; a reviewed card fades and shows a green check circle, as flow-preview's canvas does. The live frame never shows the circle. Thumbnails load only while the tree is open, and the tree scrolls to the selected state.
+- **"Show all states"** opens every state under the frame, as a **sequence** by default or as a **tree**, picked with a switch beside the toggle. Both show the same cards: the app rendered at 720 pixels wide and scaled down, inert, captioned with the action that reaches it, and clicking one jumps to that state. Each has its own Reviewed checkbox in its corner; a reviewed card fades and shows a green check circle, as flow-preview's canvas does. The live frame never shows the circle. Thumbnails load only while the states are open.
+  - **The sequence** is one row of every state in the order the fence lists them, so the happy path comes first and each branch follows the state it leaves. A line joins a card to the next one when that is its next step, and a gap shows where a new branch starts. The line into each state on the path to the selected one is drawn in the accent color.
+  - **The tree** is the same layout as the expanded view's in [Phase 5](05-expanded-flow.md): each state to the right of the one it follows, joined by curved edges, with the path to the selected state in the accent color. It is as tall as the tree, so the page scrolls it up and down, and it scrolls sideways a column at a time, snapping to the columns rather than panning freely.
+  - Both scroll to the selected state as the reader moves.
 - **Arrow keys** move down the happy path and back to the parent while the block has focus.
 
 ```callstack [Showing a flow fence]
@@ -54,7 +57,7 @@ Before the page has answered, states read as names made from their IDs, so `auth
 Checked in Chrome against [`fixtures/previews-app`](07-examples.md) with five flows on one page: log-in, sign-up, checkout, search, and upload. All 37 frames reached their states, including the ones that need the server's answer (wrong password, locked, two-factor, email taken, card declined, search results, no results, file too large, connection dropped). Jumping from `Wrong Password` to `Reset Sent` rendered the reset screen from scratch. Reviewing a state from the header and from its card in the tree marked the same state, since both frames report the same fingerprint.
 
 ```changes
-2df4c53..8031163
+2df4c53..c5df8c8
 src/parseFence.ts
 src/parseViewer.ts
 src/preview/protocol.ts

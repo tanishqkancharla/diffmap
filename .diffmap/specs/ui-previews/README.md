@@ -3,7 +3,7 @@
 A spec for a UI change should let the reader see the change, not a description or a still of it. This spec adds two interactive blocks to diffmap, both running the app's real components with their real styles and animations:
 
 - A **`preview`** block shows components or new designs on their own: one story, or several variants side by side.
-- A **`flow`** block shows a user journey: a set of those stories joined by what the user does to move between them, with breadcrumbs, next-step buttons, and a map. It brings [flow-preview](https://github.com/tanishqkancharla/flow-preview) into diffmap.
+- A **`flow`** block shows a user journey: a set of those stories joined by what the user does to move between them, with breadcrumbs, next-step buttons, and every state shown as a sequence or a tree. It brings [flow-preview](https://github.com/tanishqkancharla/flow-preview) into diffmap.
 
 The people using this build web apps. They already have a design system, a bundler, a dev server, and usually a preview deployment for each pull request. Many already write [Storybook](https://storybook.js.org) stories. So diffmap does not build their components, and it does not invent a format for describing them. Each piece of UI is a story in Storybook's format, rendered by Storybook's own library inside the app, and diffmap draws its controls around it.
 
@@ -108,13 +108,13 @@ The repo's `.diffmap/config.json` holds both blocks' settings, in two keys. `pre
 
 This is how the blocks look in a spec page. The frames are the app's own page, rendering the story live; the header, captions, breadcrumbs, buttons, and review marks around them are the viewer's own UI.
 
-![A flow block on the Wrong Password state, with all states open as a tree and two of them reviewed](media/flow-block.png)
+![A flow block on the Wrong Password state, with all states open as a sequence](media/flow-block.png)
 
 ![A preview block: four stories side by side](media/preview-block.png)
 
 A flow's expand button opens it over the page: the outline of every state, the live screen at the configured window size, and a map of thumbnails joined by their actions, with the path taken highlighted.
 
-![The checkout flow expanded, on its Declined state](media/flow-expanded.png)
+![The checkout flow expanded on its Declined state, with the states as a tree beside the live screen](media/flow-expanded.png)
 
 **What this removes, compared with flow-preview**
 
