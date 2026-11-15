@@ -298,16 +298,16 @@ export function FlowBlock(props: {
               }}
             />
             <div className={controls}>
+              <Button
+                size="sm"
+                isDisabled={parent === undefined}
+                onClick={() => parent !== undefined && select(parent)}
+              >
+                <ArrowLeft size="xs" />
+                Back
+              </Button>
               <div className={noteClass}>{note}</div>
               <div className={actions}>
-                <Button
-                  size="sm"
-                  isDisabled={parent === undefined}
-                  onClick={() => parent !== undefined && select(parent)}
-                >
-                  <ArrowLeft size="xs" />
-                  Back
-                </Button>
                 {children.length === 0 ? (
                   <span className={endNote}>End of this path</span>
                 ) : (
@@ -571,8 +571,7 @@ const styles = {
     display: "flex",
     flexWrap: "wrap",
     alignItems: "center",
-    justifyContent: "space-between",
-    columnGap: spacing.value(6),
+    columnGap: spacing.value(4),
     rowGap: spacing.value(3),
     borderTop: `1px solid ${colors.gray[4]}`,
     backgroundColor: colors.gray[1],
