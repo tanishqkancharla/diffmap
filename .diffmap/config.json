@@ -1,0 +1,9 @@
+{
+  "previews": {
+    "local": "http://127.0.0.1:5200/previews.html"
+  },
+  "flows": {
+    "transitions": "play",
+    "viewport": { "width": 1024, "height": 720 }
+  }
+}
