@@ -13,7 +13,7 @@ On diffmap.dev, both blocks fill `previews.preview` in `.diffmap/config.json` fr
 [[guide.md]] gains a "Live previews" section, linked from [Capture UI changes](../../../guide.md#capture-ui-changes):
 
 - Use a `preview` block for a component or design, a `flow` block for a journey of several states or a branch, and screenshots only for UI that has no story, such as a whole page that needs a backend.
-- The first time, add the `/__previews` page with the project's Storybook preview applied, kept out of production, and add the `previews` key to `.diffmap/config.json`. If the app has no Storybook, install `@storybook/react` and `storybook` as dev dependencies; no Storybook server or config is needed.
+- The first time, add the `/__previews` page with the project's Storybook preview applied, kept out of production, and add the `previews` key to `.diffmap/config.json`. Add a `flows` key only to change a flow's defaults. If the app has no Storybook, install `@storybook/react` and `storybook` as dev dependencies; no Storybook server or config is needed.
 - Reuse the team's stories where they exist. Write new ones next to the component, with a `title`, local fixtures, and no live requests.
 - For a flow, write each child's `play` to start from what its parent shows, using the controls a person would use, and keep flow-preview's rules on notes, now each story's description.
 - Open each story on its own, at `/__previews?story=<id>`, and compare it with the running app before handing the spec back.

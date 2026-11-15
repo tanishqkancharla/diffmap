@@ -20,6 +20,8 @@ onMessage(preview-show, how: "play")
 
 This works when the child's `play` starts from what the parent shows, which is how a flow's stories are written. The guide says so, and asks for `play` steps paced so a reader can follow them, such as `userEvent.setup({ delay })`. If `play` throws, the page posts `preview-error`, and the viewer renders the child from scratch instead.
 
+`flows.transitions` in `.diffmap/config.json` turns this off: `"render"` renders every state from scratch, as Phase 3 does, for an app whose stories do not chain. It defaults to `"play"`.
+
 Thumbnails always render from scratch, so they stay fixed end states. The reader's reduced-motion setting reaches the app through the iframe, as it does in a browser tab.
 
 ```changes

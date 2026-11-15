@@ -81,13 +81,17 @@ settings-preferences--editing
 
 The stories stay plain Storybook stories, with nothing diffmap-specific in them. The journey belongs to the spec, so the same stories can appear in several flows, and a team's existing Storybook keeps working unchanged.
 
-The `previews` key in the repo's `.diffmap/config.json` tells the viewer where the page lives, locally and on each pull request. It is diffmap's single config file, so later settings become sibling keys rather than more files:
+The repo's `.diffmap/config.json` holds both blocks' settings, in two keys. `previews` tells the viewer where the page lives, locally and on each pull request; both blocks need it. `flows` holds settings that only flows use, and is optional: whether moving to the next state plays it on the live UI ([Phase 4](04-live-transitions.md)), and the window size the expanded flow renders at ([Phase 5](05-expanded-flow.md)). It is diffmap's single config file, so later settings become sibling keys rather than more files:
 
 ```json
 {
   "previews": {
     "local": "http://localhost:5173/__previews",
     "preview": "https://myapp-git-{branch}.vercel.app/__previews"
+  },
+  "flows": {
+    "transitions": "play",
+    "viewport": { "width": 1280, "height": 800 }
   }
 }
 ```

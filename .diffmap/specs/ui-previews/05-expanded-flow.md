@@ -12,6 +12,8 @@ The expand button, or Enter while the block has focus, opens flow-preview's full
 
 A second copy would reload the app and lose what the reader typed, and moving an iframe to a new place in the page reloads it too. So the live frame stays where it is. Expanding fixes its frame to the window over a scrim, traps focus, and lays the outline and map out around it. The map's layout, sidebar resizing, and selection styling come from flow-preview's canvas in `src/viewer/flow/`.
 
+Inline, the frame takes the text column's width. Expanded, it renders at `flows.viewport` from `.diffmap/config.json`, scaled down to fit the window when the window is smaller, so a desktop layout shows as it does at full width. Without the setting, the frame fills the space the outline and map leave.
+
 ```changes
 
 ```
