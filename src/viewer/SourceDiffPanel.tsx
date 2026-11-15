@@ -915,6 +915,17 @@ const styles = {
         flexShrink: 0,
       },
       "& .status": { fontFamily: "inherit", fontSize: "inherit" },
+      // Trimmed to their capitals, the sans name and mono stat center on the
+      // checkbox; their line boxes put the glyphs at different heights per font.
+      "& :is(.file-name, .head, .tail), & .stat > span": {
+        textBox: "trim-both cap alphabetic",
+      },
+      // Trimmed glyphs paint above and below their boxes; clip only sideways, for the ellipsis.
+      "& [title], & :is(.file-name, .file-folder, .head, .tail)": {
+        overflow: "visible",
+        overflowX: "clip",
+        minWidth: 0,
+      },
       "& [data-reviewed]": { cursor: "default" },
       "& .status[data-status='new']": {
         backgroundColor: colors.greenAlpha[3],
