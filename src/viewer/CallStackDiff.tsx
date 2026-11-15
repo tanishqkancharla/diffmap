@@ -241,7 +241,7 @@ const styles = {
         position: "absolute",
         left: "7px",
         insetBlock: 0,
-        borderLeft: `1px solid ${colors.gray[9]}`,
+        borderLeft: `1px solid ${colors.gray[6]}`,
       },
       "& .stack-guide[data-elbow]::after": {
         content: "''",
@@ -250,8 +250,8 @@ const styles = {
         right: 0,
         top: 0,
         bottom: "50%",
-        borderLeft: `1px solid ${colors.gray[9]}`,
-        borderBottom: `1px solid ${colors.gray[9]}`,
+        borderLeft: `1px solid ${colors.gray[6]}`,
+        borderBottom: `1px solid ${colors.gray[6]}`,
         borderBottomLeftRadius: "5px",
       },
       "& .stack-guide[data-elbow][data-continued]::after": {

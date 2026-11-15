@@ -74,7 +74,11 @@ export function Signup() {
         />
         <Field
           label="Password"
-          type="password"
+          type="text"
+          className="masked"
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />

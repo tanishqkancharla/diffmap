@@ -797,7 +797,7 @@ const styles = {
       position: "absolute",
       left: "7px",
       insetBlock: 0,
-      borderLeft: `1px solid ${colors.gray[8]}`,
+      borderLeft: `1px solid ${colors.gray[6]}`,
     },
     "&[data-elbow]::after": {
       content: "''",
@@ -806,8 +806,8 @@ const styles = {
       right: 0,
       top: 0,
       bottom: "50%",
-      borderLeft: `1px solid ${colors.gray[8]}`,
-      borderBottom: `1px solid ${colors.gray[8]}`,
+      borderLeft: `1px solid ${colors.gray[6]}`,
+      borderBottom: `1px solid ${colors.gray[6]}`,
       borderBottomLeftRadius: "5px",
     },
     "&[data-elbow][data-continued]::after": {

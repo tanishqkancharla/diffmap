@@ -115,8 +115,11 @@ function LogIn(props: {
         />
         <Field
           label="Password"
-          type="password"
-          autoComplete="current-password"
+          type="text"
+          className="masked"
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
