@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ToggleButton, ToggleButtonGroup } from "react-aria-components";
 import {
-  buttonStyles,
   ActivityIndicator,
   ArrowLeft,
   ArrowRight,
@@ -31,6 +29,7 @@ import {
   layoutFlow,
   stateAncestry,
   stateChildren,
+  stateDepth,
   statePath,
 } from "./flowTree.ts";
 import { usePreviewPage } from "./PreviewBlock.tsx";
@@ -66,8 +65,6 @@ export function FlowBlock(props: {
   const [catalog, setCatalog] = useState<Map<string, PreviewStoryInfo>>();
   const [fingerprints, setFingerprints] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState(false);
-  const [showAll, setShowAll] = useState(false);
-  const [statesView, setStatesView] = useState<"sequence" | "tree">("sequence");
   const [lockedHeight, setLockedHeight] = useState<number | undefined>();
   const seq = useRef(0);
   const wrapper = useRef<HTMLDivElement>(null);
@@ -118,27 +115,20 @@ export function FlowBlock(props: {
   }, [expanded]);
 
   useEffect(() => {
-    if (!expanded && !showAll) return;
+    if (!expanded) return;
     const container = stripRef.current;
     const card = container?.querySelector(`[data-state='${selected}']`);
     if (container === null || card === null || card === undefined) return;
     const box = container.getBoundingClientRect();
     const at = card.getBoundingClientRect();
-    const offsetLeft = container.scrollLeft + at.left - box.left;
-    const besideItsNextSteps =
-      offsetLeft - parseFloat(getComputedStyle(container).scrollPaddingLeft);
     container.scrollTo({
-      left: !expanded
-        ? offsetLeft - (box.width - at.width) / 2
-        : statesView === "tree"
-          ? besideItsNextSteps
-          : undefined,
-      top: expanded
-        ? container.scrollTop + at.top - box.top - (box.height - at.height) / 2
-        : undefined,
-      behavior: expanded ? "instant" : "smooth",
+      left:
+        container.scrollLeft + at.left - box.left - (box.width - at.width) / 2,
+      top:
+        container.scrollTop + at.top - box.top - (box.height - at.height) / 2,
+      behavior: "instant",
     });
-  }, [selected, expanded, showAll, statesView]);
+  }, [selected, expanded]);
 
   const layout = layoutFlow(states);
   const ancestry = stateAncestry(states, selected);
@@ -147,7 +137,6 @@ export function FlowBlock(props: {
   const playing = catalog !== undefined && reached !== selected;
   const note = catalog?.get(states[selected]!.story)?.description;
 
-  const showStates = expanded || showAll;
   const stateReviewed = (index: number) =>
     isReviewed(reviewKey(index), fingerprints[states[index]!.story]);
   const markReviewed = (index: number, value: boolean) => {
@@ -172,31 +161,10 @@ export function FlowBlock(props: {
   const noteClass = useStyles(styles.note);
   const actions = useStyles(styles.actions);
   const endNote = useStyles(styles.endNote);
-  const toggle = useStyles(styles.toggle);
-  const toggleChevron = useStyles(
-    styles.toggleChevron,
-    showAll && styles.toggleChevronOpen,
-  );
-  const statesPanel = useStyles(
-    styles.statesPanel,
-    expanded && styles.expandedStatesPanel,
-  );
-  const statesBar = useStyles(styles.statesBar);
-  const expandedStatesBar = useStyles(
-    styles.statesBar,
-    styles.expandedStatesBar,
-  );
-  const viewSwitch = useStyles(styles.viewSwitch);
-  const viewOption = useStyles(
-    buttonStyles.root({ variant: "quiet", size: "sm" }),
-    styles.viewOption,
-  );
-  const map = useStyles(styles.map, expanded && styles.expandedMap);
-  const sequence = useStyles(
-    styles.sequence,
-    expanded && styles.expandedSequence,
-  );
-  const sequenceEdge = useStyles(styles.sequenceEdge);
+  const sidebar = useStyles(styles.sidebar);
+  const outline = useStyles(styles.outline);
+  const outlineItem = useStyles(styles.outlineItem);
+  const map = useStyles(styles.map);
   const mapCard = useStyles(styles.mapCard);
   const thumbFrame = useStyles(styles.thumbFrame);
   const thumbLabel = useStyles(styles.thumbLabel);
@@ -225,26 +193,6 @@ export function FlowBlock(props: {
   const mapHeight =
     layout.rows * (MAP_CARD.height + MAP_CARD.gapY) - MAP_CARD.gapY;
 
-  const viewPicker = (
-    <ToggleButtonGroup
-      className={viewSwitch}
-      aria-label="Show the states as"
-      selectionMode="single"
-      disallowEmptySelection
-      selectedKeys={[statesView]}
-      onSelectionChange={(keys) => {
-        const [key] = keys;
-        if (key === "sequence" || key === "tree") setStatesView(key);
-      }}
-    >
-      <ToggleButton id="sequence" className={viewOption}>
-        Sequence
-      </ToggleButton>
-      <ToggleButton id="tree" className={viewOption}>
-        Tree
-      </ToggleButton>
-    </ToggleButtonGroup>
-  );
   const stateCard = (index: number, position?: CSSProperties) => {
     const state = states[index]!;
     const reviewed = stateReviewed(index);
@@ -408,92 +356,64 @@ export function FlowBlock(props: {
                 )}
               </div>
             </div>
-            {!expanded && (
-              <div className={statesBar}>
-                <button
-                  type="button"
-                  className={toggle}
-                  aria-expanded={showAll}
-                  onClick={() => setShowAll(!showAll)}
-                >
-                  <span className={toggleChevron}>
-                    <ChevronRight size="xs" />
-                  </span>
-                  {showAll ? "Hide states" : `Show all ${states.length} states`}
-                </button>
-                {showAll && viewPicker}
-              </div>
-            )}
           </div>
-          {showStates && (
-            <div className={statesPanel}>
-              {expanded && (
-                <div className={expandedStatesBar}>{viewPicker}</div>
-              )}
-              {statesView === "sequence" ? (
-                <div
-                  ref={stripRef}
-                  className={sequence}
-                  role="list"
-                  aria-label="States in order"
-                >
-                  {states.map((state, index) => (
-                    <div key={state.story} role="listitem">
-                      {index > 0 && (
-                        <div
-                          className={sequenceEdge}
-                          data-step={state.parent === index - 1 || undefined}
-                          data-active={
-                            (state.parent === index - 1 &&
-                              ancestry.includes(index)) ||
-                            undefined
-                          }
-                          aria-hidden
-                        />
-                      )}
-                      {stateCard(index)}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div ref={stripRef} className={map}>
-                  <div
-                    aria-hidden
-                    style={{
-                      width: `calc(${mapWidth}px + 2 * ${spacing.value(6)})`,
-                      height: `calc(${mapHeight}px + 2 * ${spacing.value(6)})`,
-                    }}
-                  />
-                  <svg className={edges} aria-hidden>
-                    {states.map((state, index) => {
-                      if (state.parent === undefined) return undefined;
-                      const from = layout.placements[state.parent]!;
-                      const to = layout.placements[index]!;
-                      const x1 =
-                        from.column * (MAP_CARD.width + MAP_CARD.gapX) +
-                        MAP_CARD.width;
-                      const y1 =
-                        from.row * (MAP_CARD.height + MAP_CARD.gapY) +
-                        MAP_CARD.height / 2;
-                      const x2 = to.column * (MAP_CARD.width + MAP_CARD.gapX);
-                      const y2 =
-                        to.row * (MAP_CARD.height + MAP_CARD.gapY) +
-                        MAP_CARD.height / 2;
-                      const mid = (x1 + x2) / 2;
-                      return (
-                        <path
-                          key={state.story}
-                          d={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`}
-                          data-active={ancestry.includes(index) || undefined}
-                        />
-                      );
-                    })}
-                  </svg>
-                  {states.map((_, index) =>
-                    stateCard(index, mapPosition(index)),
-                  )}
-                </div>
-              )}
+          {expanded ? (
+            <div ref={stripRef} className={map}>
+              <div
+                aria-hidden
+                style={{
+                  width: `calc(${mapWidth}px + 2 * ${spacing.value(6)})`,
+                  height: `calc(${mapHeight}px + 2 * ${spacing.value(6)})`,
+                }}
+              />
+              <svg className={edges} aria-hidden>
+                {states.map((state, index) => {
+                  if (state.parent === undefined) return undefined;
+                  const from = layout.placements[state.parent]!;
+                  const to = layout.placements[index]!;
+                  const x1 =
+                    from.column * (MAP_CARD.width + MAP_CARD.gapX) +
+                    MAP_CARD.width;
+                  const y1 =
+                    from.row * (MAP_CARD.height + MAP_CARD.gapY) +
+                    MAP_CARD.height / 2;
+                  const x2 = to.column * (MAP_CARD.width + MAP_CARD.gapX);
+                  const y2 =
+                    to.row * (MAP_CARD.height + MAP_CARD.gapY) +
+                    MAP_CARD.height / 2;
+                  const mid = (x1 + x2) / 2;
+                  return (
+                    <path
+                      key={state.story}
+                      d={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`}
+                      data-active={ancestry.includes(index) || undefined}
+                    />
+                  );
+                })}
+              </svg>
+              {states.map((_, index) => stateCard(index, mapPosition(index)))}
+            </div>
+          ) : (
+            <div className={sidebar}>
+              <nav className={outline} aria-label="Every state">
+                {states.map((state, index) => (
+                  <button
+                    key={state.story}
+                    type="button"
+                    className={outlineItem}
+                    aria-current={index === selected ? "step" : undefined}
+                    data-on-path={ancestry.includes(index) || undefined}
+                    style={{ paddingLeft: 8 + stateDepth(states, index) * 12 }}
+                    title={state.action}
+                    onClick={() => select(index)}
+                  >
+                    <span>{label(index)}</span>
+                    {stateReviewed(index) && (
+                      <Check size="xs" aria-label="Reviewed" />
+                    )}
+                  </button>
+                ))}
+              </nav>
             </div>
           )}
         </div>
@@ -593,13 +513,13 @@ const styles = {
   }),
   body: style({
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr)",
+    gridTemplateColumns: "minmax(0, 1fr) 200px",
     minHeight: 0,
   }),
   expandedBody: style({
     flex: 1,
-    gridTemplateColumns: `calc(${2 * MAP_CARD.width + MAP_CARD.gapX}px + 2 * ${spacing.value(6)} + 12px) minmax(0, 1fr)`,
-    gridTemplateAreas: "'map stage'",
+    gridTemplateColumns: "minmax(0, 3fr) minmax(0, 2fr)",
+    gridTemplateAreas: "'stage map'",
   }),
   stage: style({
     display: "flex",
@@ -645,112 +565,55 @@ const styles = {
       marginLeft: "1px",
     },
   }),
-  toggle: style(
-    text({ size: "xs", color: "lowContrast" }),
-    spacing.padding({ x: 6, y: 2 }),
-    focusRing(),
-    {
-      display: "flex",
-      alignItems: "center",
-      gap: spacing.value(2),
-      width: "100%",
-      minHeight: "32px",
-      border: 0,
-      borderTop: `1px solid ${colors.gray[4]}`,
-      backgroundColor: colors.gray[1],
-      cursor: "pointer",
-      textAlign: "left",
-      "&:hover": { color: colors.gray[12] },
-    },
-  ),
-  toggleChevron: style({ display: "flex", transition: "transform 120ms" }),
-  toggleChevronOpen: style({ transform: "rotate(90deg)" }),
-  statesBar: style({
-    display: "flex",
-    alignItems: "center",
-    borderTop: `1px solid ${colors.gray[4]}`,
+  sidebar: style({
+    position: "relative",
+    minWidth: 0,
+    borderLeft: `1px solid ${colors.gray[4]}`,
     backgroundColor: colors.gray[1],
-    "& > button": { borderTop: 0 },
   }),
-  expandedStatesBar: style({
-    justifyContent: "flex-end",
-    borderTop: 0,
-    borderBottom: `1px solid ${colors.gray[4]}`,
-  }),
-  viewSwitch: style({
-    display: "flex",
-    gap: "2px",
-    padding: "2px",
-    borderRadius: "8px",
-    backgroundColor: colors.gray[3],
-    flexShrink: 0,
-    margin: `${spacing.value(1)} ${spacing.value(4)}`,
-  }),
-  viewOption: style({
-    "&[data-selected]": {
-      backgroundColor: colors.gray[1],
-      color: colors.gray[12],
-      boxShadow: "0 1px 2px rgb(0 0 0 / 0.12)",
-    },
-  }),
-  statesPanel: style({
+  outline: style({
+    position: "absolute",
+    inset: 0,
     display: "flex",
     flexDirection: "column",
-    minWidth: 0,
-    minHeight: 0,
-    borderTop: `1px solid ${colors.gray[4]}`,
-    backgroundColor: colors.gray[2],
+    gap: "1px",
+    padding: spacing.value(2),
+    overflowY: "auto",
   }),
-  expandedStatesPanel: style({
-    gridArea: "map",
-    borderTop: 0,
-    borderRight: `1px solid ${colors.gray[4]}`,
+  outlineItem: style(text({ size: "xs" }), focusRing(), {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.value(2),
+    flexShrink: 0,
+    paddingBlock: "4px",
+    paddingRight: "8px",
+    border: 0,
+    borderRadius: "4px",
+    background: "none",
+    color: colors.gray[11],
+    textAlign: "left",
+    cursor: "pointer",
+    "& > span": {
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    },
+    "& > svg": { flexShrink: 0, color: colors.green[9] },
+    "&[data-on-path]": { color: colors.gray[12] },
+    "&:hover": { backgroundColor: colors.gray[3] },
+    "&[aria-current='step']": {
+      backgroundColor: colors.accent[3],
+      color: colors.gray[12],
+      fontWeight: 600,
+    },
   }),
   map: style({
+    gridArea: "map",
     position: "relative",
-    overflowX: "auto",
-    overflowY: "hidden",
-    scrollSnapType: "x mandatory",
-    scrollPaddingInline: spacing.value(6),
-    "& [data-state]": { scrollSnapAlign: "start" },
-  }),
-  expandedMap: style({ flex: 1, overflowY: "auto" }),
-  sequence: style(spacing.padding({ x: 6, y: 6 }), {
-    display: "flex",
-    overflowX: "auto",
-    scrollSnapType: "x mandatory",
-    scrollPaddingInline: spacing.value(6),
-    "& > [role='listitem']": { display: "flex", alignItems: "center" },
-    "& [data-state]": { scrollSnapAlign: "start" },
-  }),
-  expandedSequence: style({
-    flex: 1,
-    flexDirection: "column",
-    alignItems: "center",
-    overflowX: "hidden",
-    overflowY: "auto",
-    scrollSnapType: "y mandatory",
-    scrollPaddingBlock: spacing.value(6),
-    "& > [role='listitem']": { flexDirection: "column" },
-    "& [data-step]::before": { width: "1.5px", height: "100%" },
-    "& [data-active]::before": { width: "2px" },
-  }),
-  sequenceEdge: style({
-    flexShrink: 0,
-    width: `${MAP_CARD.gapX}px`,
-    height: `${MAP_CARD.gapX}px`,
-    display: "grid",
-    placeItems: "center",
-    "&[data-step]::before": {
-      content: "''",
-      width: "100%",
-      height: "1.5px",
-      backgroundColor: colors.gray[7],
-    },
-    "&[data-active]::before": {
-      backgroundColor: colors.accent[9],
-      height: "2px",
-    },
+    overflow: "auto",
+    borderLeft: `1px solid ${colors.gray[4]}`,
+    backgroundColor: colors.gray[2],
   }),
   mapCard: style(radius.md, shadow.subtle, {
     position: "relative",
