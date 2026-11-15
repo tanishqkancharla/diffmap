@@ -112,7 +112,7 @@ This is how the blocks look in a spec page. The frames are the app's own page, r
 
 ![A preview block: four stories side by side](media/preview-block.png)
 
-A flow's expand button opens it over the page: the outline of every state, the live screen at the configured window size, and a map of thumbnails joined by their actions, with the path taken highlighted.
+A flow's expand button opens it over the page: its states, as a sequence or a tree, beside the live screen at the configured window size, with the path taken highlighted.
 
 ![The checkout flow expanded on its Declined state, with the states as a tree beside the live screen](media/flow-expanded.png)
 
