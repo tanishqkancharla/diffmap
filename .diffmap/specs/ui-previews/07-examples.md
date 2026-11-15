@@ -2,7 +2,7 @@
 
 These blocks are live. They load `fixtures/previews-app`, a small React app with a log-in screen, sign-up, checkout, docs search, and a file upload. Each screen has Storybook stories, and each story that needs the server answers from its own `msw` handlers, such as a 401 for a wrong password or a 413 for a file over 10 MB. To see them, run `npm install && npm run dev` in `fixtures/previews-app`, then `npm run cli -- serve .diffmap/specs/ui-previews` from the repo root.
 
-Each state lists its happy path first, so the next-step button follows it; the arrow beside it opens the other steps. Clicking one plays that step on the live screen. "Show all states" opens every state as a sequence, or as a tree with the switch beside it, and clicking a state jumps straight to it, as the breadcrumbs do. The expand button in each flow's header puts the states beside the live screen.
+Each state lists its happy path first, so the next-step button follows it; the arrow beside it opens the other steps. Clicking one plays that step on the live screen. The sidebar lists every state as a tree, and clicking one jumps straight to it, as the breadcrumbs do. The expand button in each flow's header shows the live screen beside a tree of thumbnails.
 
 ## Log in
 
