@@ -21,6 +21,7 @@ import {
   spacing,
   text,
   Tooltip,
+  tooltipStyles,
 } from "maui";
 import { style, useStyles } from "purse-styles";
 import type { FlowState } from "../../parseFence.js";
@@ -171,6 +172,11 @@ export function FlowBlock(props: {
   };
 
   const showPeek = (index: number, row: HTMLElement) => {
+    setWarm(true);
+    if (index === selected) {
+      hidePeek();
+      return;
+    }
     const at = row.getBoundingClientRect();
     const sidebar = row
       .closest("[data-states-sidebar]")!
@@ -184,7 +190,6 @@ export function FlowBlock(props: {
       PEEK_GAP,
       Math.min(at.top, window.innerHeight - PEEK_MIN_ROOM),
     );
-    setWarm(true);
     window.clearTimeout(peekTimer.current);
     if (peekOpen.current) {
       setPeek({ index, top, left });
@@ -228,7 +233,7 @@ export function FlowBlock(props: {
   const outlineLabel = useStyles(styles.outlineLabel);
   const guides = useStyles(styles.guides);
   const guide = useStyles(styles.guide);
-  const peekCard = useStyles(styles.peekCard);
+  const peekCard = useStyles(tooltipStyles.root, styles.peekCard);
   const peekFrames = useStyles(styles.peekFrames);
   const peekFrame = useStyles(styles.peekFrame);
   const map = useStyles(styles.map);
@@ -511,7 +516,10 @@ export function FlowBlock(props: {
                           type="button"
                           className={outlineLabel}
                           aria-current={index === selected ? "step" : undefined}
-                          onClick={() => select(index)}
+                          onClick={() => {
+                            hidePeek();
+                            select(index);
+                          }}
                           onFocus={(event) =>
                             showPeek(index, event.currentTarget.parentElement!)
                           }
@@ -740,37 +748,28 @@ const styles = {
       marginLeft: "1px",
     },
   }),
-  peekCard: style(
-    text({ size: "xs" }),
-    radius.sm,
-    shadow.subtle,
-    spacing.padding({ x: 2, y: 2 }),
-    {
-      position: "fixed",
-      zIndex: 40,
-      width: `${PEEK_WIDTH}px`,
-      boxSizing: "border-box",
-      display: "flex",
-      flexDirection: "column",
-      gap: "2px",
-      visibility: "hidden",
-      border: `1px solid ${colors.gray[5]}`,
-      backgroundColor: colors.gray[1],
-      color: colors.gray[12],
-      pointerEvents: "none",
-      "&[data-open]": { visibility: "visible" },
-      "& > strong": { marginTop: spacing.value(1), fontWeight: 600 },
-      "& > [data-description]": {
-        color: colors.gray[11],
-        marginTop: "2px",
-        lineHeight: 1.45,
-      },
+  peekCard: style({
+    position: "fixed",
+    width: `${PEEK_WIDTH}px`,
+    maxWidth: "none",
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    padding: spacing.value(2),
+    visibility: "hidden",
+    pointerEvents: "none",
+    "&[data-open]": { visibility: "visible" },
+    "& > strong": { marginTop: spacing.value(1), fontWeight: 600 },
+    "& > [data-description]": {
+      color: colors.gray[11],
+      marginTop: "2px",
+      lineHeight: 1.45,
     },
-  ),
+  }),
   peekFrames: style(radius.sm, {
     position: "relative",
     overflow: "hidden",
-    border: `1px solid ${colors.gray[4]}`,
   }),
   peekFrame: style({
     position: "absolute",
