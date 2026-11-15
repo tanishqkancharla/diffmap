@@ -496,6 +496,11 @@ test(
           page,
         )?.[1];
         assert.ok(token !== undefined);
+        // A page compares this with its own token to tell a dropped socket from a restarted server.
+        const meta = (await (
+          await fetch(`${server.url}/__diffmap/meta`)
+        ).json()) as { reloadToken?: string };
+        assert.equal(meta.reloadToken, token);
         assert.equal(await upgrade(""), undefined);
         assert.equal(await upgrade(`?token=${token}`), 101);
         const message = new Promise<unknown>((resolve) => {
@@ -514,6 +519,46 @@ test(
         assert.match(JSON.stringify(document.viewerDocument), /Edited spec/);
       } finally {
         socket.close();
+        await server.shutdown();
+        await waitForClosed(server);
+      }
+    });
+  },
+);
+
+test(
+  "startServer pings the reload socket so idle proxies keep it open",
+  { timeout: 30_000 },
+  async () => {
+    await withTempSpecs(async (spec) => {
+      const server = assertStarted(
+        await startServer({
+          filePath: spec,
+          workspaceRoot: packageRoot,
+          pingIntervalMs: 50,
+        }),
+      );
+      try {
+        const frame = await new Promise<Buffer>((resolve, reject) => {
+          http
+            .get(`${server.url}/__diffmap/events`, {
+              headers: {
+                connection: "Upgrade",
+                upgrade: "websocket",
+                "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==",
+                "sec-websocket-version": "13",
+              },
+            })
+            .on("upgrade", (_res, upgraded) => {
+              upgraded.once("data", (data: Buffer) => {
+                upgraded.destroy();
+                resolve(data);
+              });
+            })
+            .on("error", reject);
+        });
+        assert.deepEqual([...frame.subarray(0, 2)], [0x89, 0x00]);
+      } finally {
         await server.shutdown();
         await waitForClosed(server);
       }

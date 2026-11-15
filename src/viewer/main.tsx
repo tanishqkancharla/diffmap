@@ -99,23 +99,54 @@ function trackPageError(load: PageLoad) {
 const reloadToken =
   document.querySelector<HTMLMetaElement>('meta[name="diffmap-reload-token"]')
     ?.content ?? "";
-const reloadSocket = new WebSocket(
-  `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/__diffmap/events?${new URLSearchParams({ token: reloadToken })}`,
-);
-reloadSocket.addEventListener("message", (event) => {
-  if (event.data === "pages" || event.data === shownFile)
-    window.location.reload();
-});
-// Like Vite's client: once the server goes away, reload when one answers on this port again.
-let reloadSocketOpened = false;
-reloadSocket.addEventListener("open", () => {
-  reloadSocketOpened = true;
-});
-reloadSocket.addEventListener("close", () => {
-  if (!reloadSocketOpened) return;
-  setServerConnection("disconnected");
-  setTimeout(reloadWhenServerAnswers, 1000);
-});
+const reloadUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/__diffmap/events?${new URLSearchParams({ token: reloadToken })}`;
+let reloadSocketEverOpened = false;
+let reconnectDelay = 1000;
+openReloadSocket();
+
+// A closed socket does not mean the server restarted: proxies, port forwards, and sleep drop idle sockets while the same server runs.
+// So the page reconnects, and reloads only when the server that answers holds a different token, which a restarted server does.
+function openReloadSocket() {
+  const socket = new WebSocket(reloadUrl);
+  let opened = false;
+  socket.addEventListener("message", (event) => {
+    if (event.data === "pages" || event.data === shownFile)
+      window.location.reload();
+  });
+  socket.addEventListener("open", () => {
+    opened = true;
+    reloadSocketEverOpened = true;
+    reconnectDelay = 1000;
+    setServerConnection("connected");
+  });
+  socket.addEventListener("close", () => {
+    if (opened) {
+      setServerConnection("disconnected");
+      setTimeout(openReloadSocket, 1000);
+    } else if (reloadSocketEverOpened) setTimeout(checkServer, 1000);
+  });
+}
+
+function checkServer() {
+  // oxlint-disable-next-line typescript/no-floating-promises -- A timer owns this poll.
+  void fetch("/__diffmap/meta")
+    .then((response) =>
+      response.ok
+        ? (response.json() as Promise<{ reloadToken?: string }>)
+        : undefined,
+    )
+    .then(
+      (meta) => {
+        if (meta === undefined) setTimeout(checkServer, 1000);
+        else if (meta.reloadToken !== reloadToken) window.location.reload();
+        else {
+          setTimeout(openReloadSocket, reconnectDelay);
+          reconnectDelay = Math.min(reconnectDelay * 2, 10_000);
+        }
+      },
+      () => setTimeout(checkServer, 1000),
+    );
+}
 
 function reloadWhenServerAnswers() {
   // oxlint-disable-next-line typescript/no-floating-promises -- A timer owns this poll.
