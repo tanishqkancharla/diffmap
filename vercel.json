@@ -4,6 +4,7 @@
   "installCommand": "npm install",
   "buildCommand": "npx vite build",
   "outputDirectory": "dist",
+  "trailingSlash": false,
   "rewrites": [
     { "source": "/g", "destination": "/index.html" },
     { "source": "/g/:path*", "destination": "/index.html" },

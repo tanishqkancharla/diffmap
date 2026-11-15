@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   githubCommitPath,
@@ -53,6 +54,19 @@ test("parseGitHubPath reads pull and commit spec URLs", () => {
     pull: 5,
     path: ".diffmap/specs/sessions",
   });
+});
+
+test("hosted spec URLs open with or without a trailing slash", () => {
+  // Vercel's rewrite sources don't match a trailing slash, so the host has to
+  // redirect it away before the rewrites run.
+  const vercel = JSON.parse(
+    readFileSync(new URL("../../vercel.json", import.meta.url), "utf8"),
+  ) as { trailingSlash?: boolean };
+  assert.equal(vercel.trailingSlash, false);
+  assert.deepEqual(
+    parseGitHubPath("/o/r/pull/115/.diffmap/specs/sync-engine/"),
+    parseGitHubPath("/o/r/pull/115/.diffmap/specs/sync-engine"),
+  );
 });
 
 test("printed GitHub viewer URLs pin pull or commit", () => {
