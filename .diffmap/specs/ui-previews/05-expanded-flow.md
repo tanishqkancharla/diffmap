@@ -14,12 +14,12 @@ A second copy would reload the app and lose what the reader typed, and moving an
 
 - **The outline** lists every state indented by depth, with its action and a check when it has been reviewed.
 - **The live screen** renders at `flows.viewport` from `.diffmap/config.json`, scaled down to fit its column, so a desktop layout shows as it does at full width. Without the setting, it takes the column's width.
-- **The map** lays the tree out left to right, each state to the right of the one it follows and centered on its own children ([[f914dad:src/viewer/previews/flowTree.ts#L41-L62]]). Curved edges join the cards, and the path to the selected state is drawn in the accent color. The map scrolls to the selected state as the reader moves.
+- **The map** lays the tree out left to right, each state to the right of the one it follows and centered on its own children ([[d982acf:src/viewer/previews/flowTree.ts#L41-L62]]). Curved edges join the cards, and the path to the selected state is drawn in the accent color. The map scrolls to the selected state as the reader moves.
 
 Checked in Chrome at 1440 by 900: the log-in flow expanded, played "Fill in email and password", "Log in", and "Enter the code" on the live screen without reloading it, highlighted that path on the map, and collapsed with Escape to the same state. The checkout flow expanded on its `Declined` state shows the outline, the live payment screen at 1024 by 720, and the map.
 
 ```changes
-e7b0bd1..4266595
+2df4c53..8031163
 src/viewer/previews/FlowBlock.tsx
 src/viewer/previews/flowTree.ts
 src/viewer/previews/PreviewFrame.tsx

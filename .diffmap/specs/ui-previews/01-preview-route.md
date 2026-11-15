@@ -8,7 +8,7 @@ To preview UI, an agent takes screenshots, or builds a separate app in `tmp/` an
 
 **Proposed**
 
-The package gains a small entry point, `@tanishqkancharla/diffmap/preview`, next to the `.` export in [[1b22930:package.json]]. It exports a `PreviewRoute` component and `previewFrameAncestors`, from [[1b22930:src/preview/index.ts]]. `@storybook/react` and React are optional peer dependencies, so installing diffmap for its CLI pulls in neither, and the page uses the app's own copy of `@storybook/react`, the same version as its Storybook.
+The package gains a small entry point, `@tanishqkancharla/diffmap/preview`, next to the `.` export in [[eb505dc:package.json]]. It exports a `PreviewRoute` component and `previewFrameAncestors`, from [[eb505dc:src/preview/index.ts]]. `@storybook/react` and React are optional peer dependencies, so installing diffmap for its CLI pulls in neither, and the page uses the app's own copy of `@storybook/react`, the same version as its Storybook.
 
 The app mounts `PreviewRoute` on a dev-only page. For a Vite app, it is an extra `previews.html` entry that Vite serves in dev and that the production build leaves out. The page applies the project's Storybook preview, as Storybook's own Vitest setup does, so every story gets the app's decorators, providers, and global styles:
 
@@ -41,13 +41,13 @@ In a Next.js app, it is an `app/__previews/page.tsx` that returns `notFound()` i
 `PreviewRoute` composes every story module with Storybook's `composeStories`. It renders the story named by `?story=`, using the story's Storybook ID, such as `settings-preferences--saved`. Showing a story follows Storybook's own order: load it, which runs its loaders and `beforeEach`; render it; then run its `play` function, so a story defined by interactions reaches its state. Without `?story=`, the page lists every story by title and links to each. A mistake in a story file shows as a list the agent can fix from: a file without a default export, a file without a `title`, two stories with one ID, or a `play` function that throws.
 
 ```callstack [Showing a story]
-PreviewRoute({ stories }) [[1b22930:src/preview/PreviewRoute.tsx#L34-L201]]
-├── resolveStories(stories, composeStories): catalog by ID, and problems [[1b22930:src/preview/protocol.ts#L108-L152]]
+PreviewRoute({ stories }) [[eb505dc:src/preview/PreviewRoute.tsx#L34-L201]]
+├── resolveStories(stories, composeStories): catalog by ID, and problems [[eb505dc:src/preview/protocol.ts#L108-L152]]
 ├── read ?story=
-└── show(id) [[1b22930:src/preview/PreviewRoute.tsx#L79-L103]]
+└── show(id) [[eb505dc:src/preview/PreviewRoute.tsx#L79-L103]]
     ├── await story.load() # loaders and beforeEach
-    ├── PreviewView: <Story /> in a fresh container, decorators and args applied [[1b22930:src/preview/PreviewRoute.tsx#L203-L249]]
-    └── after it renders [[1b22930:src/preview/PreviewRoute.tsx#L110-L137]]
+    ├── PreviewView: <Story /> in a fresh container, decorators and args applied [[eb505dc:src/preview/PreviewRoute.tsx#L203-L249]]
+    └── after it renders [[eb505dc:src/preview/PreviewRoute.tsx#L110-L137]]
         ├── await story.play?.({ canvasElement })
         ├── watch the container's size
         └── post preview-state, or preview-error if play threw
@@ -72,21 +72,21 @@ Inside a block, it talks to the viewer with `postMessage`. The page cannot know 
 ```
 
 ```callstack [Driven by the viewer]
-onMessage(event) [[1b22930:src/preview/PreviewRoute.tsx#L140-L169]]
-├── ignore it unless event.source is the parent and isViewerOrigin(event.origin) [[1b22930:src/preview/protocol.ts#L32-L44]]
-├── parseViewerMessage(event.data) [[1b22930:src/preview/protocol.ts#L50-L72]]
+onMessage(event) [[eb505dc:src/preview/PreviewRoute.tsx#L140-L169]]
+├── ignore it unless event.source is the parent and isViewerOrigin(event.origin) [[eb505dc:src/preview/protocol.ts#L32-L44]]
+├── parseViewerMessage(event.data) [[eb505dc:src/preview/protocol.ts#L50-L72]]
 ├── preview-connect: remember the origin, then post preview-ready, preview-size, and preview-state
 ├── other messages only from the remembered origin
 ├── preview-show → show(story); an unknown story posts preview-error
 └── preview-mode → document.documentElement.dataset.previewMode
 ```
 
-Each `preview-state` carries a fingerprint of the story's HTML ([[1b22930:src/preview/protocol.ts#L75-L82]]), and neither it nor `preview-size` repeats an unchanged report. The page passes Storybook's `composeStories` into `resolveStories`, so the tests compose real story modules with the real library.
+Each `preview-state` carries a fingerprint of the story's HTML ([[eb505dc:src/preview/protocol.ts#L75-L82]]), and neither it nor `preview-size` repeats an unchanged report. The page passes Storybook's `composeStories` into `resolveStories`, so the tests compose real story modules with the real library.
 
 Checked in Chrome with a Vite app that mounts the page as above, with a Storybook preview whose decorator wraps every story, framed by a page on another allowed origin. On connect, the page sent its hello, then the catalog with each story's description and whether it has a `play` function, then its size and the `Editing` story. Showing `Saved` ran its `play`, which clicked the real Save button, and the confirmation appeared inside the decorator. Showing `EmptyName` ran its `play`, which cleared the field, and the validation message appeared. An unknown story answered with `preview-error`, and `preview-mode` set the attribute.
 
 ```changes
-1b22930
+eb505dc
 src/preview/index.ts
 src/preview/PreviewRoute.tsx
 src/preview/protocol.ts
