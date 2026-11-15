@@ -70,6 +70,25 @@ test("the page accepts only well-formed viewer messages", () => {
     parseViewerMessage({ type: "preview-mode", mode: "thumbnail" }),
     { type: "preview-mode", mode: "thumbnail" },
   );
+  assert.deepEqual(
+    parseViewerMessage({
+      type: "preview-show",
+      story: "a--c",
+      how: "play",
+      path: ["a--b", "a--c"],
+    }),
+    {
+      type: "preview-show",
+      story: "a--c",
+      how: "play",
+      path: ["a--b", "a--c"],
+    },
+  );
+  for (const path of [[], ["a--c", "a--b"], ["a--b", 3], "a--c"])
+    assert.deepEqual(
+      parseViewerMessage({ type: "preview-show", story: "a--c", path }),
+      { type: "preview-show", story: "a--c", how: "render" },
+    );
   assert.equal(parseViewerMessage({ type: "preview-show" }), undefined);
   assert.equal(
     parseViewerMessage({ type: "preview-mode", mode: "x" }),

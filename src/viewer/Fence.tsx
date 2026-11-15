@@ -8,6 +8,8 @@ import { FileExcerpt } from "./FileExcerpt.tsx";
 import { HtmlBlock } from "./HtmlBlock.tsx";
 import { HtmlPlaceholder } from "./HtmlPlaceholder.tsx";
 import { MermaidBlock } from "./MermaidBlock.tsx";
+import { FlowBlock } from "./previews/FlowBlock.tsx";
+import { PreviewBlock } from "./previews/PreviewBlock.tsx";
 import { ServiceDiagramBlock } from "./ServiceDiagramBlock.tsx";
 import { useViewerMode } from "./viewerMode.ts";
 
@@ -59,6 +61,10 @@ export function Fence(props: { fence: FenceModel } & SourceNavigation) {
         onSelectAnnotation={props.onSelectAnnotation}
       />
     );
+  if (fence.kind === "preview")
+    return <PreviewBlock stories={fence.stories} title={fence.title} />;
+  if (fence.kind === "flow")
+    return <FlowBlock states={fence.states} title={fence.title} />;
   if (fence.kind === "diff") {
     return <CodeDiff source={fence.source} path={fence.path} />;
   }

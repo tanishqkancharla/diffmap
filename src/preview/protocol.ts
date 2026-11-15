@@ -25,7 +25,13 @@ export type PreviewRouteMessage =
 
 export type PreviewViewerMessage =
   | { type: "preview-connect" }
-  | { type: "preview-show"; story: string; how: "render" | "play" }
+  | {
+      type: "preview-show";
+      story: string;
+      how: "render" | "play";
+      /** A flow state's stories from the flow's first story to `story`; see PreviewRoute. */
+      path?: string[];
+    }
   | { type: "preview-mode"; mode: "live" | "thumbnail" };
 
 /** The pages that may frame the page: the local viewer, which listens on any port, and diffmap.dev. */
@@ -55,13 +61,16 @@ export function parseViewerMessage(
   switch (message.type) {
     case "preview-connect":
       return { type: "preview-connect" };
-    case "preview-show":
+    case "preview-show": {
       if (typeof message.story !== "string") return undefined;
+      const path = parsePath(message.path, message.story);
       return {
         type: "preview-show",
         story: message.story,
         how: message.how === "play" ? "play" : "render",
+        ...(path === undefined ? {} : { path }),
       };
+    }
     case "preview-mode":
       if (message.mode !== "live" && message.mode !== "thumbnail")
         return undefined;
@@ -69,6 +78,18 @@ export function parseViewerMessage(
     default:
       return undefined;
   }
+}
+
+/** A path is kept only when it is a list of story IDs that ends at `story`. */
+export function parsePath(value: unknown, story: string) {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    !value.every((id) => typeof id === "string") ||
+    value.at(-1) !== story
+  )
+    return undefined;
+  return value as string[];
 }
 
 /** FNV-1a of the story's rendered HTML: it changes when the markup or its classes do, so review marks can tell a story changed. */
@@ -87,7 +108,12 @@ export type ComposedPreviewStory = ComponentType & {
   storyName: string;
   parameters: Record<string, unknown>;
   load: () => Promise<void>;
-  play?: (context: { canvasElement: HTMLElement }) => Promise<void>;
+  /** Storybook's composed play merges the context it is given, so the page supplies `canvas` and a paced `userEvent`. */
+  play?: (context: {
+    canvasElement: HTMLElement;
+    canvas?: unknown;
+    userEvent?: unknown;
+  }) => Promise<void>;
 };
 
 export type CatalogStory = PreviewStoryInfo & { Story: ComposedPreviewStory };

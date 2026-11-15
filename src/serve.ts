@@ -7,6 +7,7 @@ import { pipeline, type Duplex } from "node:stream";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ViteDevServer } from "vite";
+import { readDiffmapConfig } from "./diffmapConfig.js";
 import { DiffmapFileError, DiffmapServeError } from "./errors.js";
 import { findPage, isMarkdownFile, type SpecPage } from "./spec.js";
 import { parseViewerDocument, type ViewerDocument } from "./parseViewer.js";
@@ -295,6 +296,18 @@ export async function startServer(input: StartServerInput) {
     }
     if (req.method === "GET" && pathname === "/__diffmap/spec") {
       await serveSpec({ filePath, res });
+      return;
+    }
+    if (req.method === "GET" && pathname === "/__diffmap/config") {
+      const configRead = await readDiffmapConfig(specDir);
+      sendJson(
+        res,
+        JSON.stringify(
+          "error" in configRead
+            ? { error: `${configRead.file}: ${configRead.error}` }
+            : { config: configRead.config },
+        ),
+      );
       return;
     }
     if (req.method === "GET" && pathname === "/__diffmap/document") {

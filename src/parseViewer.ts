@@ -124,6 +124,24 @@ export function parseViewerDocument(source: string, path = "spec") {
         return new DiffmapAnnotationError({ reason: problem });
       continue;
     }
+    if (fence.kind === "preview") {
+      const invalid = fence.stories.find(
+        (story) => !/^[a-z0-9-]+--[a-z0-9-]+$/.test(story),
+      );
+      if (fence.stories.length === 0 || invalid !== undefined)
+        return new DiffmapAnnotationError({
+          reason:
+            invalid === undefined
+              ? "a preview fence lists at least one Storybook story ID, one per line"
+              : `preview "${invalid}" is not a Storybook story ID, which looks like design-button--primary`,
+        });
+      continue;
+    }
+    if (fence.kind === "flow") {
+      if (fence.problem !== undefined)
+        return new DiffmapAnnotationError({ reason: fence.problem });
+      continue;
+    }
     if (fence.kind !== "changes") continue;
     if (!isRev(fence.rev)) {
       return new DiffmapAnnotationError({
