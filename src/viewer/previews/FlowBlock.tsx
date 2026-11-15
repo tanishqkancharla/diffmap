@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import {
   ActivityIndicator,
   ArrowLeft,
@@ -39,6 +40,10 @@ import { useReviewedStates } from "./reviewedStates.ts";
 
 /** Thumbnails render the app this wide, then scale down, so they show the layout a reader sees at full size. */
 const THUMBNAIL_RENDER_WIDTH = 720;
+const PEEK_WIDTH = 248;
+const PEEK_GAP = 8;
+/** Keeps a card for a state near the bottom of the window from opening below it. */
+const PEEK_MIN_ROOM = 300;
 const MAP_CARD = { width: 152, height: 128, gapX: 32, gapY: 16 };
 
 /**
@@ -68,7 +73,11 @@ export function FlowBlock(props: {
   const [expanded, setExpanded] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [warm, setWarm] = useState(false);
-  const [peek, setPeek] = useState<{ index: number; top: number }>();
+  const [peek, setPeek] = useState<{
+    index: number;
+    top: number;
+    left: number;
+  }>();
   const peekOpen = useRef(false);
   const peekTimer = useRef<number | undefined>(undefined);
   const [lockedHeight, setLockedHeight] = useState<number | undefined>();
@@ -136,6 +145,17 @@ export function FlowBlock(props: {
     });
   }, [selected, expanded]);
 
+  useEffect(() => {
+    if (peek === undefined) return;
+    const onScroll = () => {
+      window.clearTimeout(peekTimer.current);
+      peekOpen.current = false;
+      setPeek(undefined);
+    };
+    window.addEventListener("scroll", onScroll, true);
+    return () => window.removeEventListener("scroll", onScroll, true);
+  }, [peek]);
+
   const layout = layoutFlow(states);
   const ancestry = stateAncestry(states, selected);
   const children = stateChildren(states, selected);
@@ -151,16 +171,28 @@ export function FlowBlock(props: {
   };
 
   const showPeek = (index: number, row: HTMLElement) => {
-    const top = row.offsetTop - row.parentElement!.scrollTop;
+    const at = row.getBoundingClientRect();
+    const sidebar = row
+      .closest("[data-states-sidebar]")!
+      .getBoundingClientRect();
+    const right = sidebar.right + PEEK_GAP;
+    const left =
+      right + PEEK_WIDTH <= window.innerWidth - PEEK_GAP
+        ? right
+        : sidebar.left - PEEK_GAP - PEEK_WIDTH;
+    const top = Math.max(
+      PEEK_GAP,
+      Math.min(at.top, window.innerHeight - PEEK_MIN_ROOM),
+    );
     setWarm(true);
     window.clearTimeout(peekTimer.current);
     if (peekOpen.current) {
-      setPeek({ index, top });
+      setPeek({ index, top, left });
       return;
     }
     peekTimer.current = window.setTimeout(() => {
       peekOpen.current = true;
-      setPeek({ index, top });
+      setPeek({ index, top, left });
     }, 300);
   };
   const hidePeek = () => {
@@ -439,7 +471,11 @@ export function FlowBlock(props: {
             </div>
           ) : (
             sidebarOpen && (
-              <div className={sidebar} onPointerEnter={() => setWarm(true)}>
+              <div
+                className={sidebar}
+                data-states-sidebar
+                onPointerEnter={() => setWarm(true)}
+              >
                 <nav
                   className={outline}
                   aria-label="Every state"
@@ -492,53 +528,56 @@ export function FlowBlock(props: {
                     );
                   })}
                 </nav>
-                {warm && catalog !== undefined && (
-                  <div
-                    className={peekCard}
-                    data-open={peek !== undefined || undefined}
-                    style={{ top: peek?.top ?? 0 }}
-                    aria-hidden
-                  >
-                    <div className={peekFrames}>
-                      {states.map((state, index) => (
-                        <div
-                          key={state.story}
-                          className={peekFrame}
-                          data-shown={index === peek?.index || undefined}
-                        >
-                          <PreviewFrame
-                            page={page.url}
-                            initialPath={statePath(states, index)}
-                            mode="thumbnail"
-                            renderWidth={THUMBNAIL_RENDER_WIDTH}
-                            maxHeight={140}
-                            label={label(index)}
-                            onState={(next) =>
-                              setFingerprints((current) => ({
-                                ...current,
-                                [state.story]: next.fingerprint,
-                              }))
-                            }
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    {peek !== undefined && (
-                      <>
-                        <strong>{label(peek.index)}</strong>
-                        {catalog.get(states[peek.index]!.story)?.description !==
-                          undefined && (
-                          <span data-description>
-                            {
-                              catalog.get(states[peek.index]!.story)!
-                                .description
-                            }
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
+                {warm &&
+                  catalog !== undefined &&
+                  createPortal(
+                    <div
+                      className={peekCard}
+                      data-open={peek !== undefined || undefined}
+                      style={{ top: peek?.top ?? 0, left: peek?.left ?? 0 }}
+                      aria-hidden
+                    >
+                      <div className={peekFrames}>
+                        {states.map((state, index) => (
+                          <div
+                            key={state.story}
+                            className={peekFrame}
+                            data-shown={index === peek?.index || undefined}
+                          >
+                            <PreviewFrame
+                              page={page.url}
+                              initialPath={statePath(states, index)}
+                              mode="thumbnail"
+                              renderWidth={THUMBNAIL_RENDER_WIDTH}
+                              maxHeight={140}
+                              label={label(index)}
+                              onState={(next) =>
+                                setFingerprints((current) => ({
+                                  ...current,
+                                  [state.story]: next.fingerprint,
+                                }))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {peek !== undefined && (
+                        <>
+                          <strong>{label(peek.index)}</strong>
+                          {catalog.get(states[peek.index]!.story)
+                            ?.description !== undefined && (
+                            <span data-description>
+                              {
+                                catalog.get(states[peek.index]!.story)!
+                                  .description
+                              }
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>,
+                    document.body,
+                  )}
               </div>
             )
           )}
@@ -707,10 +746,10 @@ const styles = {
     shadow.subtle,
     spacing.padding({ x: 2, y: 2 }),
     {
-      position: "absolute",
-      right: `calc(100% + ${spacing.value(2)})`,
-      zIndex: 20,
-      width: "232px",
+      position: "fixed",
+      zIndex: 40,
+      width: `${PEEK_WIDTH}px`,
+      boxSizing: "border-box",
       display: "flex",
       flexDirection: "column",
       gap: "2px",
