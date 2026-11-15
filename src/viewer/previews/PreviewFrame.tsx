@@ -230,7 +230,7 @@ function ConnectedFrame(props: FrameProps & { onRetry: () => void }) {
           }}
         />
       )}
-      {status === "loading" && props.mode === "live" && (
+      {status === "loading" && (
         <div className={overlay}>
           <ActivityIndicator />
         </div>
