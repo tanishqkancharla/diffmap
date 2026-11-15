@@ -31,7 +31,6 @@ import {
   layoutFlow,
   stateAncestry,
   stateChildren,
-  stateDepth,
   statePath,
 } from "./flowTree.ts";
 import { usePreviewPage } from "./PreviewBlock.tsx";
@@ -68,6 +67,10 @@ export function FlowBlock(props: {
   const [fingerprints, setFingerprints] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [warm, setWarm] = useState(false);
+  const [peek, setPeek] = useState<{ index: number; top: number }>();
+  const peekOpen = useRef(false);
+  const peekTimer = useRef<number | undefined>(undefined);
   const [lockedHeight, setLockedHeight] = useState<number | undefined>();
   const seq = useRef(0);
   const wrapper = useRef<HTMLDivElement>(null);
@@ -147,6 +150,25 @@ export function FlowBlock(props: {
     if (print !== undefined) setReviewed(reviewKey(index), print, value);
   };
 
+  const showPeek = (index: number, row: HTMLElement) => {
+    const top = row.offsetTop - row.parentElement!.scrollTop;
+    setWarm(true);
+    window.clearTimeout(peekTimer.current);
+    if (peekOpen.current) {
+      setPeek({ index, top });
+      return;
+    }
+    peekTimer.current = window.setTimeout(() => {
+      peekOpen.current = true;
+      setPeek({ index, top });
+    }, 300);
+  };
+  const hidePeek = () => {
+    window.clearTimeout(peekTimer.current);
+    peekOpen.current = false;
+    setPeek(undefined);
+  };
+
   const wrapperClass = useStyles(styles.wrapper);
   const scrim = useStyles(styles.scrim);
   const card = useStyles(
@@ -171,8 +193,12 @@ export function FlowBlock(props: {
   const sidebar = useStyles(styles.sidebar);
   const outline = useStyles(styles.outline);
   const outlineItem = useStyles(styles.outlineItem);
-  const statePreview = useStyles(styles.statePreview);
-  const statePreviewFrame = useStyles(styles.statePreviewFrame);
+  const outlineLabel = useStyles(styles.outlineLabel);
+  const guides = useStyles(styles.guides);
+  const guide = useStyles(styles.guide);
+  const peekCard = useStyles(styles.peekCard);
+  const peekFrames = useStyles(styles.peekFrames);
+  const peekFrame = useStyles(styles.peekFrame);
   const map = useStyles(styles.map);
   const mapCard = useStyles(styles.mapCard);
   const thumbFrame = useStyles(styles.thumbFrame);
@@ -202,35 +228,6 @@ export function FlowBlock(props: {
   const mapHeight =
     layout.rows * (MAP_CARD.height + MAP_CARD.gapY) - MAP_CARD.gapY;
 
-  const statePreviewContent = (index: number) => {
-    const state = states[index]!;
-    const description = catalog?.get(state.story)?.description;
-    return (
-      <div className={statePreview}>
-        <div className={statePreviewFrame}>
-          {catalog !== undefined && (
-            <PreviewFrame
-              page={page.url}
-              initialPath={statePath(states, index)}
-              mode="thumbnail"
-              renderWidth={THUMBNAIL_RENDER_WIDTH}
-              maxHeight={140}
-              label={label(index)}
-              onState={(next) =>
-                setFingerprints((current) => ({
-                  ...current,
-                  [state.story]: next.fingerprint,
-                }))
-              }
-            />
-          )}
-        </div>
-        <strong>{label(index)}</strong>
-        {state.action !== undefined && <span>{state.action}</span>}
-        {description !== undefined && <p>{description}</p>}
-      </div>
-    );
-  };
   const stateCard = (index: number, position?: CSSProperties) => {
     const state = states[index]!;
     const reviewed = stateReviewed(index);
@@ -331,10 +328,14 @@ export function FlowBlock(props: {
           {playing && (
             <ActivityIndicator size="xs" aria-label="Playing the step" />
           )}
-          <ReviewedCheckbox
-            isSelected={stateReviewed(selected)}
-            onChange={(value) => markReviewed(selected, value)}
-          />
+          <Button
+            size="sm"
+            variant="quiet"
+            aria-label={expanded ? "Collapse the flow" : "Expand the flow"}
+            onClick={() => expand(!expanded)}
+          >
+            {expanded ? <Close size="xs" /> : <Maximize size="xs" />}
+          </Button>
           {!expanded && (
             <Tooltip content={sidebarOpen ? "Hide states" : "Show states"}>
               <Button
@@ -348,14 +349,6 @@ export function FlowBlock(props: {
               </Button>
             </Tooltip>
           )}
-          <Button
-            size="sm"
-            variant="quiet"
-            aria-label={expanded ? "Collapse the flow" : "Expand the flow"}
-            onClick={() => expand(!expanded)}
-          >
-            {expanded ? <Close size="xs" /> : <Maximize size="xs" />}
-          </Button>
         </figcaption>
         <div className={body}>
           <div className={stage}>
@@ -384,6 +377,7 @@ export function FlowBlock(props: {
               }}
             />
             <div className={controls}>
+              {note !== undefined && <div className={noteClass}>{note}</div>}
               <Button
                 size="sm"
                 isDisabled={parent === undefined}
@@ -392,7 +386,6 @@ export function FlowBlock(props: {
                 <ArrowLeft size="xs" />
                 Back
               </Button>
-              <div className={noteClass}>{note}</div>
               <div className={actions}>
                 {children.length === 0 ? (
                   <span className={endNote}>End of this path</span>
@@ -446,38 +439,119 @@ export function FlowBlock(props: {
             </div>
           ) : (
             sidebarOpen && (
-              <div className={sidebar}>
-                <nav className={outline} aria-label="Every state">
-                  {states.map((state, index) => (
-                    <Tooltip
-                      key={state.story}
-                      placement="left"
-                      content={statePreviewContent(index)}
-                    >
-                      <button
-                        type="button"
+              <div className={sidebar} onPointerEnter={() => setWarm(true)}>
+                <nav
+                  className={outline}
+                  aria-label="Every state"
+                  onPointerLeave={hidePeek}
+                >
+                  {states.map((state, index) => {
+                    const path = stateAncestry(states, index);
+                    return (
+                      <div
+                        key={state.story}
                         className={outlineItem}
                         aria-current={index === selected ? "step" : undefined}
                         data-on-path={ancestry.includes(index) || undefined}
-                        style={{
-                          paddingLeft: 8 + stateDepth(states, index) * 12,
-                        }}
-                        onClick={() => select(index)}
+                        onPointerEnter={(event) =>
+                          showPeek(index, event.currentTarget)
+                        }
                       >
-                        <span>{label(index)}</span>
-                        {stateReviewed(index) && (
-                          <Check size="xs" aria-label="Reviewed" />
-                        )}
-                      </button>
-                    </Tooltip>
-                  ))}
+                        <span className={guides} aria-hidden>
+                          {path.slice(1).map((node, level) => (
+                            <span
+                              key={node}
+                              className={guide}
+                              data-elbow={
+                                level === path.length - 2 || undefined
+                              }
+                              data-continued={
+                                hasLaterSibling(states, node) || undefined
+                              }
+                            />
+                          ))}
+                        </span>
+                        <button
+                          type="button"
+                          className={outlineLabel}
+                          aria-current={index === selected ? "step" : undefined}
+                          onClick={() => select(index)}
+                          onFocus={(event) =>
+                            showPeek(index, event.currentTarget.parentElement!)
+                          }
+                          onBlur={hidePeek}
+                        >
+                          {label(index)}
+                        </button>
+                        <ReviewedCheckbox
+                          isSelected={stateReviewed(index)}
+                          isDisabled={fingerprints[state.story] === undefined}
+                          onChange={(value) => markReviewed(index, value)}
+                        />
+                      </div>
+                    );
+                  })}
                 </nav>
+                {warm && catalog !== undefined && (
+                  <div
+                    className={peekCard}
+                    data-open={peek !== undefined || undefined}
+                    style={{ top: peek?.top ?? 0 }}
+                    aria-hidden
+                  >
+                    <div className={peekFrames}>
+                      {states.map((state, index) => (
+                        <div
+                          key={state.story}
+                          className={peekFrame}
+                          data-shown={index === peek?.index || undefined}
+                        >
+                          <PreviewFrame
+                            page={page.url}
+                            initialPath={statePath(states, index)}
+                            mode="thumbnail"
+                            renderWidth={THUMBNAIL_RENDER_WIDTH}
+                            maxHeight={140}
+                            label={label(index)}
+                            onState={(next) =>
+                              setFingerprints((current) => ({
+                                ...current,
+                                [state.story]: next.fingerprint,
+                              }))
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    {peek !== undefined && (
+                      <>
+                        <strong>{label(peek.index)}</strong>
+                        {catalog.get(states[peek.index]!.story)?.description !==
+                          undefined && (
+                          <span data-description>
+                            {
+                              catalog.get(states[peek.index]!.story)!
+                                .description
+                            }
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )
           )}
         </div>
       </figure>
     </div>
+  );
+}
+
+function hasLaterSibling(states: FlowState[], index: number): boolean {
+  const parent = states[index]!.parent;
+  return states.some(
+    (state, other) => other > index && state.parent === parent,
   );
 }
 
@@ -603,7 +677,7 @@ const styles = {
     backgroundColor: colors.gray[1],
   }),
   note: style(text({ size: "xs", color: "lowContrast" }), {
-    flex: "1 1 120px",
+    flexBasis: "100%",
     lineHeight: 1.5,
   }),
   actions: style({
@@ -627,18 +701,45 @@ const styles = {
       marginLeft: "1px",
     },
   }),
-  statePreview: style({
-    display: "flex",
-    flexDirection: "column",
-    gap: "2px",
-    width: "216px",
-    "& > strong": { marginTop: spacing.value(1), fontWeight: 600 },
-    "& > span": { color: colors.gray[11] },
-    "& > p": { margin: 0, marginTop: spacing.value(1), lineHeight: 1.45 },
-  }),
-  statePreviewFrame: style(radius.sm, {
+  peekCard: style(
+    text({ size: "xs" }),
+    radius.sm,
+    shadow.subtle,
+    spacing.padding({ x: 2, y: 2 }),
+    {
+      position: "absolute",
+      right: `calc(100% + ${spacing.value(2)})`,
+      zIndex: 20,
+      width: "232px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      visibility: "hidden",
+      border: `1px solid ${colors.gray[5]}`,
+      backgroundColor: colors.gray[1],
+      color: colors.gray[12],
+      pointerEvents: "none",
+      "&[data-open]": { visibility: "visible" },
+      "& > strong": { marginTop: spacing.value(1), fontWeight: 600 },
+      "& > [data-description]": {
+        color: colors.gray[11],
+        marginTop: "2px",
+        lineHeight: 1.45,
+      },
+    },
+  ),
+  peekFrames: style(radius.sm, {
+    position: "relative",
     overflow: "hidden",
     border: `1px solid ${colors.gray[4]}`,
+  }),
+  peekFrame: style({
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    visibility: "hidden",
+    "&[data-shown]": { position: "relative", visibility: "visible" },
   }),
   sidebar: style({
     position: "relative",
@@ -651,36 +752,69 @@ const styles = {
     inset: 0,
     display: "flex",
     flexDirection: "column",
-    gap: "1px",
     padding: spacing.value(2),
     overflowY: "auto",
   }),
-  outlineItem: style(text({ size: "xs" }), focusRing(), {
+  outlineItem: style(text({ size: "xs" }), {
     display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.value(2),
+    alignItems: "stretch",
     flexShrink: 0,
-    paddingBlock: "4px",
-    paddingRight: "8px",
-    border: 0,
+    minHeight: "28px",
+    paddingInline: "4px 6px",
     borderRadius: "4px",
-    background: "none",
     color: colors.gray[11],
-    textAlign: "left",
-    cursor: "pointer",
-    "& > span": {
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    },
-    "& > svg": { flexShrink: 0, color: colors.green[9] },
+    "& > label": { alignSelf: "center", flexShrink: 0 },
     "&[data-on-path]": { color: colors.gray[12] },
     "&:hover": { backgroundColor: colors.gray[3] },
     "&[aria-current='step']": {
       backgroundColor: colors.accent[3],
       color: colors.gray[12],
       fontWeight: 600,
+    },
+  }),
+  outlineLabel: style(focusRing(), {
+    flex: 1,
+    minWidth: 0,
+    padding: "0 4px",
+    border: 0,
+    borderRadius: "4px",
+    background: "none",
+    color: "inherit",
+    font: "inherit",
+    textAlign: "left",
+    cursor: "pointer",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  }),
+  guides: style({ display: "inline-flex", flexShrink: 0 }),
+  guide: style({
+    position: "relative",
+    width: "16px",
+    flexShrink: 0,
+    "&[data-continued]::before": {
+      content: "''",
+      position: "absolute",
+      left: "7px",
+      insetBlock: 0,
+      borderLeft: `1px solid ${colors.gray[8]}`,
+    },
+    "&[data-elbow]::after": {
+      content: "''",
+      position: "absolute",
+      left: "7px",
+      right: 0,
+      top: 0,
+      bottom: "50%",
+      borderLeft: `1px solid ${colors.gray[8]}`,
+      borderBottom: `1px solid ${colors.gray[8]}`,
+      borderBottomLeftRadius: "5px",
+    },
+    "&[data-elbow][data-continued]::after": {
+      top: "50%",
+      bottom: "auto",
+      borderLeft: 0,
+      borderBottomLeftRadius: 0,
     },
   }),
   map: style({

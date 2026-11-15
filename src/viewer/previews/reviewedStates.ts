@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 
-/** Each reviewed preview, by `preview:<story>` or `flow:<path>`, mapped to the fingerprint of the UI the reader reviewed. */
+/** Each reviewed flow state, by `flow:<path>`, mapped to the fingerprint of the UI the reader reviewed. */
 type Reviewed = Record<string, string>;
 
 const listeners = new Set<() => void>();

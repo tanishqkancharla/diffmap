@@ -3,11 +3,9 @@ import { colors, spacing, text } from "maui";
 import { style, useStyles } from "purse-styles";
 import type { PreviewStoryInfo } from "../../preview/protocol.js";
 import { fenceTitle, pierreShell } from "../pierre.js";
-import { ReviewedCheckbox } from "../ReviewedCheckbox.tsx";
 import { useViewerMode } from "../viewerMode.ts";
 import { storyLabel, storyLabelFromId, useDiffmapConfig } from "./config.ts";
 import { PreviewFrame } from "./PreviewFrame.tsx";
-import { useReviewedStates } from "./reviewedStates.ts";
 
 /** A `preview` fence: each story it lists, live from the app's preview page, side by side when they fit. */
 export function PreviewBlock(props: {
@@ -16,8 +14,6 @@ export function PreviewBlock(props: {
 }) {
   const page = usePreviewPage();
   const [catalog, setCatalog] = useState<Map<string, PreviewStoryInfo>>();
-  const [fingerprints, setFingerprints] = useState<Record<string, string>>({});
-  const { isReviewed, setReviewed } = useReviewedStates();
   const card = useStyles(pierreShell);
   const caption = useStyles(fenceTitle);
   const grid = useStyles(
@@ -38,23 +34,12 @@ export function PreviewBlock(props: {
         <div className={grid}>
           {props.stories.map((id) => {
             const info = catalog?.get(id);
-            const fingerprint = fingerprints[id];
-            const key = `preview:${id}`;
             return (
               <div key={id} className={cell}>
                 <div className={name}>
-                  <span>
-                    {info === undefined
-                      ? storyLabelFromId(id)
-                      : storyLabel(info.name)}
-                  </span>
-                  <ReviewedCheckbox
-                    isSelected={isReviewed(key, fingerprint)}
-                    onChange={(value) => {
-                      if (fingerprint !== undefined)
-                        setReviewed(key, fingerprint, value);
-                    }}
-                  />
+                  {info === undefined
+                    ? storyLabelFromId(id)
+                    : storyLabel(info.name)}
                 </div>
                 <PreviewFrame
                   page={page.url}
@@ -70,12 +55,6 @@ export function PreviewBlock(props: {
                     setCatalog(
                       new Map(stories.map((story) => [story.id, story])),
                     )
-                  }
-                  onState={(state) =>
-                    setFingerprints((current) => ({
-                      ...current,
-                      [id]: state.fingerprint,
-                    }))
                   }
                 />
                 {info?.description !== undefined && (
@@ -145,10 +124,6 @@ const styles = {
     text({ size: "xs", fontWeight: 500 }),
     spacing.padding({ x: 6, y: 3 }),
     {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: spacing.value(4),
       borderBottom: `1px solid ${colors.gray[4]}`,
     },
   ),
