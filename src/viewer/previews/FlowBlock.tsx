@@ -436,7 +436,7 @@ const styles = {
   }),
   expandedBody: style({
     flex: 1,
-    gridTemplateColumns: "220px minmax(0, 1fr) minmax(0, 1fr)",
+    gridTemplateColumns: "200px minmax(0, 3fr) minmax(0, 2fr)",
     gridTemplateAreas: "'outline stage map'",
   }),
   outline: style({
