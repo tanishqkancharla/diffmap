@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from "react";
-import { Checkbox, colors, spacing, text } from "maui";
+import { colors, spacing, text } from "maui";
 import { style, useStyles } from "purse-styles";
 import type { PreviewStoryInfo } from "../../preview/protocol.js";
 import { fenceTitle, pierreShell } from "../pierre.js";
+import { ReviewedCheckbox } from "../ReviewedCheckbox.tsx";
 import { useViewerMode } from "../viewerMode.ts";
 import { storyLabel, storyLabelFromId, useDiffmapConfig } from "./config.ts";
 import { PreviewFrame } from "./PreviewFrame.tsx";
@@ -47,10 +48,9 @@ export function PreviewBlock(props: {
                       ? storyLabelFromId(id)
                       : storyLabel(info.name)}
                   </span>
-                  <Checkbox
-                    label="Reviewed"
-                    checked={isReviewed(key, fingerprint)}
-                    setChecked={(value) => {
+                  <ReviewedCheckbox
+                    isSelected={isReviewed(key, fingerprint)}
+                    onChange={(value) => {
                       if (fingerprint !== undefined)
                         setReviewed(key, fingerprint, value);
                     }}

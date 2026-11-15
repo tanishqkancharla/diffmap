@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Button,
   Check,
-  Checkbox,
   ChevronDown,
   ChevronRight,
   Close,
@@ -24,6 +23,7 @@ import { style, useStyles } from "purse-styles";
 import type { FlowState } from "../../parseFence.js";
 import type { PreviewStoryInfo } from "../../preview/protocol.js";
 import { fenceTitle, pierreShell } from "../pierre.js";
+import { ReviewedCheckbox } from "../ReviewedCheckbox.tsx";
 import { storyLabel, storyLabelFromId, useDiffmapConfig } from "./config.ts";
 import {
   layoutFlow,
@@ -240,10 +240,9 @@ export function FlowBlock(props: {
           {playing && (
             <ActivityIndicator size="xs" aria-label="Playing the step" />
           )}
-          <Checkbox
-            label="Reviewed"
-            checked={stateReviewed(selected)}
-            setChecked={(value) => markReviewed(selected, value)}
+          <ReviewedCheckbox
+            isSelected={stateReviewed(selected)}
+            onChange={(value) => markReviewed(selected, value)}
           />
           <Button
             size="sm"
@@ -418,10 +417,9 @@ export function FlowBlock(props: {
                       role="group"
                       aria-label={`Review ${label(index)}`}
                     >
-                      <Checkbox
-                        label="Reviewed"
-                        checked={reviewed}
-                        setChecked={(value) => markReviewed(index, value)}
+                      <ReviewedCheckbox
+                        isSelected={reviewed}
+                        onChange={(value) => markReviewed(index, value)}
                       />
                     </div>
                   </div>
@@ -688,14 +686,6 @@ const styles = {
     padding: "2px",
     borderRadius: "4px",
     backgroundColor: colors.gray[1],
-    "& label > span:last-child": {
-      position: "absolute",
-      width: "1px",
-      height: "1px",
-      overflow: "hidden",
-      clipPath: "inset(50%)",
-      whiteSpace: "nowrap",
-    },
   }),
   reviewedMark: style(radius.circle, shadow.subtle, {
     position: "absolute",

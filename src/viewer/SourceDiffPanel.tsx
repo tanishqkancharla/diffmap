@@ -13,7 +13,6 @@ import {
   borderColor,
   colors,
   Button,
-  checkboxStyles,
   ChevronDown,
   controlSize,
   flex,
@@ -22,12 +21,10 @@ import {
   shadowVars,
   spacing,
   text,
-  Tooltip,
   useTheme,
   Banner,
 } from "maui";
 import { style, useStyles } from "purse-styles";
-import { Checkbox } from "react-aria-components";
 import {
   referenceLabel,
   type SourceAnnotation,
@@ -61,6 +58,7 @@ import {
   sourceSelectionCss,
 } from "./pierre.js";
 import { useReviewedFiles } from "./reviewed.ts";
+import { ReviewedCheckbox } from "./ReviewedCheckbox.tsx";
 import { sourcePanelPin } from "./sourceHeader.ts";
 import { trackViewerEvent } from "./telemetry.ts";
 import { useViewerMode } from "./viewerMode.ts";
@@ -172,10 +170,6 @@ export function SourceDiffPanel(props: {
   const codeWrap = useStyles(styles.codeWrap);
   const collapseIcon = useStyles(styles.collapseIcon);
   const fileHeaderClass = useStyles(styles.fileHeader);
-  // Maui's Checkbox takes no aria-label or ref, which a bare box under a Tooltip needs.
-  const reviewedClass = useStyles(checkboxStyles.root);
-  const checkboxBox = useStyles(checkboxStyles.box);
-  const checkboxCheck = useStyles(checkboxStyles.check);
   const github = useGitHubPin();
   const gist = useGistPin();
   const bodyClass = useStyles(styles.body);
@@ -715,33 +709,10 @@ export function SourceDiffPanel(props: {
                     )}
                     {item.type === "diff" && renderDiffStat(item.fileDiff)}
                     {changed !== undefined && (
-                      <Tooltip
-                        placement="bottom"
-                        content={
-                          isReviewed(changed)
-                            ? "Mark as not reviewed"
-                            : "Mark as reviewed"
-                        }
-                      >
-                        <Checkbox
-                          className={reviewedClass}
-                          data-reviewed
-                          aria-label="Reviewed"
-                          isSelected={isReviewed(changed)}
-                          onChange={(value) => setFileReviewed(item.id, value)}
-                        >
-                          <span className={checkboxBox}>
-                            <svg
-                              focusable="false"
-                              aria-hidden="true"
-                              className={checkboxCheck}
-                              viewBox="0 0 11 11"
-                            >
-                              <path d={CHECKMARK} />
-                            </svg>
-                          </span>
-                        </Checkbox>
-                      </Tooltip>
+                      <ReviewedCheckbox
+                        isSelected={isReviewed(changed)}
+                        onChange={(value) => setFileReviewed(item.id, value)}
+                      />
                     )}
                   </span>
                 </div>
@@ -760,10 +731,6 @@ export function SourceDiffPanel(props: {
     </aside>
   );
 }
-
-/** Maui Checkbox's checkmark. */
-const CHECKMARK =
-  "M3.788 9A.999.999 0 0 1 3 8.615l-2.288-3a1 1 0 1 1 1.576-1.23l1.5 1.991 3.924-4.991a1 1 0 1 1 1.576 1.23l-4.712 6A.999.999 0 0 1 3.788 9z";
 
 /** Space around and between file cards, in px. */
 const CARD_GAP = 12;
