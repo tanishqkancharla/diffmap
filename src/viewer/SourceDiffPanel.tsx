@@ -13,7 +13,6 @@ import {
   borderColor,
   colors,
   Button,
-  buttonStyles,
   checkboxStyles,
   ChevronDown,
   controlSize,
@@ -23,6 +22,7 @@ import {
   shadowVars,
   spacing,
   text,
+  Tooltip,
   useTheme,
   Banner,
 } from "maui";
@@ -172,11 +172,8 @@ export function SourceDiffPanel(props: {
   const codeWrap = useStyles(styles.codeWrap);
   const collapseIcon = useStyles(styles.collapseIcon);
   const fileHeaderClass = useStyles(styles.fileHeader);
-  // A small button with the checkbox on its right; Maui's Checkbox puts its box first.
-  const reviewedClass = useStyles(
-    buttonStyles.root({ size: "sm" }),
-    checkboxStyles.root,
-  );
+  // Maui's Checkbox takes no aria-label or ref, which a bare box under a Tooltip needs.
+  const reviewedClass = useStyles(checkboxStyles.root);
   const checkboxBox = useStyles(checkboxStyles.box);
   const checkboxCheck = useStyles(checkboxStyles.check);
   const github = useGitHubPin();
@@ -718,24 +715,33 @@ export function SourceDiffPanel(props: {
                     )}
                     {item.type === "diff" && renderDiffStat(item.fileDiff)}
                     {changed !== undefined && (
-                      <Checkbox
-                        className={reviewedClass}
-                        data-reviewed
-                        isSelected={isReviewed(changed)}
-                        onChange={(value) => setFileReviewed(item.id, value)}
+                      <Tooltip
+                        placement="bottom"
+                        content={
+                          isReviewed(changed)
+                            ? "Mark as not reviewed"
+                            : "Mark as reviewed"
+                        }
                       >
-                        Reviewed
-                        <span className={checkboxBox}>
-                          <svg
-                            focusable="false"
-                            aria-hidden="true"
-                            className={checkboxCheck}
-                            viewBox="0 0 11 11"
-                          >
-                            <path d={CHECKMARK} />
-                          </svg>
-                        </span>
-                      </Checkbox>
+                        <Checkbox
+                          className={reviewedClass}
+                          data-reviewed
+                          aria-label="Reviewed"
+                          isSelected={isReviewed(changed)}
+                          onChange={(value) => setFileReviewed(item.id, value)}
+                        >
+                          <span className={checkboxBox}>
+                            <svg
+                              focusable="false"
+                              aria-hidden="true"
+                              className={checkboxCheck}
+                              viewBox="0 0 11 11"
+                            >
+                              <path d={CHECKMARK} />
+                            </svg>
+                          </span>
+                        </Checkbox>
+                      </Tooltip>
                     )}
                   </span>
                 </div>
@@ -909,15 +915,18 @@ const styles = {
         flexShrink: 0,
       },
       "& .status": { fontFamily: "inherit", fontSize: "inherit" },
-      // Under the header's class, these beat the small button's own text size and
-      // padding; the box sits as far from the right edge as from the top and bottom.
-      "& [data-reviewed]": {
-        font: "inherit",
-        fontWeight: 400,
-        color: colors.gray[12],
-        paddingInlineEnd: "5px",
-        cursor: "default",
+      // Trimmed to their capitals, the sans name and mono stat center on the
+      // checkbox; their line boxes put the glyphs at different heights per font.
+      "& :is(.file-name, .head, .tail), & .stat > span": {
+        textBox: "trim-both cap alphabetic",
       },
+      // Trimmed glyphs paint above and below their boxes; clip only sideways, for the ellipsis.
+      "& [title], & :is(.file-name, .file-folder, .head, .tail)": {
+        overflow: "visible",
+        overflowX: "clip",
+        minWidth: 0,
+      },
+      "& [data-reviewed]": { cursor: "default" },
       "& .status[data-status='new']": {
         backgroundColor: colors.greenAlpha[3],
         color: colors.green[11],
