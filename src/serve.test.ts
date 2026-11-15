@@ -283,6 +283,10 @@ test(
         assert.notEqual(firstUrl, secondUrl);
         await fetchOk(firstUrl);
         await fetchOk(secondUrl);
+        assert.equal(
+          first.output(),
+          `Serving ${firstSpec} at ${firstUrl} (1 page)\nStop with Ctrl+C or Close server in the viewer.\n`,
+        );
 
         const listed = await execFileAsync(
           process.execPath,
