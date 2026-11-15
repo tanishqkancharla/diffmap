@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   Close,
+  LayoutRight,
   Maximize,
   Menu,
   MenuItem,
@@ -18,6 +19,7 @@ import {
   shadow,
   spacing,
   text,
+  Tooltip,
 } from "maui";
 import { style, useStyles } from "purse-styles";
 import type { FlowState } from "../../parseFence.js";
@@ -65,6 +67,7 @@ export function FlowBlock(props: {
   const [catalog, setCatalog] = useState<Map<string, PreviewStoryInfo>>();
   const [fingerprints, setFingerprints] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [lockedHeight, setLockedHeight] = useState<number | undefined>();
   const seq = useRef(0);
   const wrapper = useRef<HTMLDivElement>(null);
@@ -155,7 +158,11 @@ export function FlowBlock(props: {
   const crumbs = useStyles(styles.crumbs);
   const crumbStep = useStyles(styles.crumbStep);
   const crumb = useStyles(styles.crumb);
-  const body = useStyles(styles.body, expanded && styles.expandedBody);
+  const body = useStyles(
+    styles.body,
+    !expanded && sidebarOpen && styles.bodyWithSidebar,
+    expanded && styles.expandedBody,
+  );
   const stage = useStyles(styles.stage, expanded && styles.expandedStage);
   const controls = useStyles(styles.controls);
   const noteClass = useStyles(styles.note);
@@ -164,6 +171,8 @@ export function FlowBlock(props: {
   const sidebar = useStyles(styles.sidebar);
   const outline = useStyles(styles.outline);
   const outlineItem = useStyles(styles.outlineItem);
+  const statePreview = useStyles(styles.statePreview);
+  const statePreviewFrame = useStyles(styles.statePreviewFrame);
   const map = useStyles(styles.map);
   const mapCard = useStyles(styles.mapCard);
   const thumbFrame = useStyles(styles.thumbFrame);
@@ -193,6 +202,35 @@ export function FlowBlock(props: {
   const mapHeight =
     layout.rows * (MAP_CARD.height + MAP_CARD.gapY) - MAP_CARD.gapY;
 
+  const statePreviewContent = (index: number) => {
+    const state = states[index]!;
+    const description = catalog?.get(state.story)?.description;
+    return (
+      <div className={statePreview}>
+        <div className={statePreviewFrame}>
+          {catalog !== undefined && (
+            <PreviewFrame
+              page={page.url}
+              initialPath={statePath(states, index)}
+              mode="thumbnail"
+              renderWidth={THUMBNAIL_RENDER_WIDTH}
+              maxHeight={140}
+              label={label(index)}
+              onState={(next) =>
+                setFingerprints((current) => ({
+                  ...current,
+                  [state.story]: next.fingerprint,
+                }))
+              }
+            />
+          )}
+        </div>
+        <strong>{label(index)}</strong>
+        {state.action !== undefined && <span>{state.action}</span>}
+        {description !== undefined && <p>{description}</p>}
+      </div>
+    );
+  };
   const stateCard = (index: number, position?: CSSProperties) => {
     const state = states[index]!;
     const reviewed = stateReviewed(index);
@@ -297,6 +335,19 @@ export function FlowBlock(props: {
             isSelected={stateReviewed(selected)}
             onChange={(value) => markReviewed(selected, value)}
           />
+          {!expanded && (
+            <Tooltip content={sidebarOpen ? "Hide states" : "Show states"}>
+              <Button
+                size="sm"
+                variant="quiet"
+                aria-label={sidebarOpen ? "Hide states" : "Show states"}
+                aria-pressed={sidebarOpen}
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+              >
+                <LayoutRight size="xs" />
+              </Button>
+            </Tooltip>
+          )}
           <Button
             size="sm"
             variant="quiet"
@@ -394,27 +445,35 @@ export function FlowBlock(props: {
               {states.map((_, index) => stateCard(index, mapPosition(index)))}
             </div>
           ) : (
-            <div className={sidebar}>
-              <nav className={outline} aria-label="Every state">
-                {states.map((state, index) => (
-                  <button
-                    key={state.story}
-                    type="button"
-                    className={outlineItem}
-                    aria-current={index === selected ? "step" : undefined}
-                    data-on-path={ancestry.includes(index) || undefined}
-                    style={{ paddingLeft: 8 + stateDepth(states, index) * 12 }}
-                    title={state.action}
-                    onClick={() => select(index)}
-                  >
-                    <span>{label(index)}</span>
-                    {stateReviewed(index) && (
-                      <Check size="xs" aria-label="Reviewed" />
-                    )}
-                  </button>
-                ))}
-              </nav>
-            </div>
+            sidebarOpen && (
+              <div className={sidebar}>
+                <nav className={outline} aria-label="Every state">
+                  {states.map((state, index) => (
+                    <Tooltip
+                      key={state.story}
+                      placement="left"
+                      content={statePreviewContent(index)}
+                    >
+                      <button
+                        type="button"
+                        className={outlineItem}
+                        aria-current={index === selected ? "step" : undefined}
+                        data-on-path={ancestry.includes(index) || undefined}
+                        style={{
+                          paddingLeft: 8 + stateDepth(states, index) * 12,
+                        }}
+                        onClick={() => select(index)}
+                      >
+                        <span>{label(index)}</span>
+                        {stateReviewed(index) && (
+                          <Check size="xs" aria-label="Reviewed" />
+                        )}
+                      </button>
+                    </Tooltip>
+                  ))}
+                </nav>
+              </div>
+            )
           )}
         </div>
       </figure>
@@ -513,8 +572,11 @@ const styles = {
   }),
   body: style({
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) 200px",
+    gridTemplateColumns: "minmax(0, 1fr)",
     minHeight: 0,
+  }),
+  bodyWithSidebar: style({
+    gridTemplateColumns: "minmax(0, 1fr) 200px",
   }),
   expandedBody: style({
     flex: 1,
@@ -541,7 +603,7 @@ const styles = {
     backgroundColor: colors.gray[1],
   }),
   note: style(text({ size: "xs", color: "lowContrast" }), {
-    flex: "1 1 240px",
+    flex: "1 1 120px",
     lineHeight: 1.5,
   }),
   actions: style({
@@ -564,6 +626,19 @@ const styles = {
       borderBottomLeftRadius: 0,
       marginLeft: "1px",
     },
+  }),
+  statePreview: style({
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    width: "216px",
+    "& > strong": { marginTop: spacing.value(1), fontWeight: 600 },
+    "& > span": { color: colors.gray[11] },
+    "& > p": { margin: 0, marginTop: spacing.value(1), lineHeight: 1.45 },
+  }),
+  statePreviewFrame: style(radius.sm, {
+    overflow: "hidden",
+    border: `1px solid ${colors.gray[4]}`,
   }),
   sidebar: style({
     position: "relative",
