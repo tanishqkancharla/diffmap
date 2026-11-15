@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { ToggleButton, ToggleButtonGroup } from "react-aria-components";
 import {
+  buttonStyles,
   ActivityIndicator,
   ArrowLeft,
   ArrowRight,
@@ -29,7 +31,6 @@ import {
   layoutFlow,
   stateAncestry,
   stateChildren,
-  stateDepth,
   statePath,
 } from "./flowTree.ts";
 import { usePreviewPage } from "./PreviewBlock.tsx";
@@ -42,7 +43,7 @@ const MAP_CARD = { width: 152, height: 128, gapX: 32, gapY: 16 };
 
 /**
  * A `flow` fence: one live frame of the app moving through a user journey, with the viewer's controls around it.
- * Expanding fixes the same frame to the window and lays the outline and a map of every state around it, so the
+ * Expanding fixes the same frame to the window with the states beside it as the only way around the flow, so the
  * live UI, and anything the reader typed into it, survives.
  */
 export function FlowBlock(props: {
@@ -66,6 +67,7 @@ export function FlowBlock(props: {
   const [fingerprints, setFingerprints] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [statesView, setStatesView] = useState<"sequence" | "tree">("sequence");
   const [lockedHeight, setLockedHeight] = useState<number | undefined>();
   const seq = useRef(0);
   const wrapper = useRef<HTMLDivElement>(null);
@@ -122,14 +124,21 @@ export function FlowBlock(props: {
     if (container === null || card === null || card === undefined) return;
     const box = container.getBoundingClientRect();
     const at = card.getBoundingClientRect();
+    const offsetLeft = container.scrollLeft + at.left - box.left;
+    const besideItsNextSteps =
+      offsetLeft - parseFloat(getComputedStyle(container).scrollPaddingLeft);
     container.scrollTo({
-      left:
-        container.scrollLeft + at.left - box.left - (box.width - at.width) / 2,
-      top:
-        container.scrollTop + at.top - box.top - (box.height - at.height) / 2,
+      left: !expanded
+        ? offsetLeft - (box.width - at.width) / 2
+        : statesView === "tree"
+          ? besideItsNextSteps
+          : undefined,
+      top: expanded
+        ? container.scrollTop + at.top - box.top - (box.height - at.height) / 2
+        : undefined,
       behavior: expanded ? "instant" : "smooth",
     });
-  }, [selected, expanded, showAll]);
+  }, [selected, expanded, showAll, statesView]);
 
   const layout = layoutFlow(states);
   const ancestry = stateAncestry(states, selected);
@@ -158,8 +167,6 @@ export function FlowBlock(props: {
   const crumbStep = useStyles(styles.crumbStep);
   const crumb = useStyles(styles.crumb);
   const body = useStyles(styles.body, expanded && styles.expandedBody);
-  const outline = useStyles(styles.outline);
-  const outlineItem = useStyles(styles.outlineItem);
   const stage = useStyles(styles.stage, expanded && styles.expandedStage);
   const controls = useStyles(styles.controls);
   const noteClass = useStyles(styles.note);
@@ -170,7 +177,26 @@ export function FlowBlock(props: {
     styles.toggleChevron,
     showAll && styles.toggleChevronOpen,
   );
+  const statesPanel = useStyles(
+    styles.statesPanel,
+    expanded && styles.expandedStatesPanel,
+  );
+  const statesBar = useStyles(styles.statesBar);
+  const expandedStatesBar = useStyles(
+    styles.statesBar,
+    styles.expandedStatesBar,
+  );
+  const viewSwitch = useStyles(styles.viewSwitch);
+  const viewOption = useStyles(
+    buttonStyles.root({ variant: "quiet", size: "sm" }),
+    styles.viewOption,
+  );
   const map = useStyles(styles.map, expanded && styles.expandedMap);
+  const sequence = useStyles(
+    styles.sequence,
+    expanded && styles.expandedSequence,
+  );
+  const sequenceEdge = useStyles(styles.sequenceEdge);
   const mapCard = useStyles(styles.mapCard);
   const thumbFrame = useStyles(styles.thumbFrame);
   const thumbLabel = useStyles(styles.thumbLabel);
@@ -189,7 +215,8 @@ export function FlowBlock(props: {
       </figure>
     );
 
-  const mapPosition = (index: number) => ({
+  const mapPosition = (index: number): CSSProperties => ({
+    position: "absolute",
     left: `calc(${layout.placements[index]!.column * (MAP_CARD.width + MAP_CARD.gapX)}px + ${spacing.value(6)})`,
     top: `calc(${layout.placements[index]!.row * (MAP_CARD.height + MAP_CARD.gapY)}px + ${spacing.value(6)})`,
   });
@@ -197,6 +224,84 @@ export function FlowBlock(props: {
     layout.columns * (MAP_CARD.width + MAP_CARD.gapX) - MAP_CARD.gapX;
   const mapHeight =
     layout.rows * (MAP_CARD.height + MAP_CARD.gapY) - MAP_CARD.gapY;
+
+  const viewPicker = (
+    <ToggleButtonGroup
+      className={viewSwitch}
+      aria-label="Show the states as"
+      selectionMode="single"
+      disallowEmptySelection
+      selectedKeys={[statesView]}
+      onSelectionChange={(keys) => {
+        const [key] = keys;
+        if (key === "sequence" || key === "tree") setStatesView(key);
+      }}
+    >
+      <ToggleButton id="sequence" className={viewOption}>
+        Sequence
+      </ToggleButton>
+      <ToggleButton id="tree" className={viewOption}>
+        Tree
+      </ToggleButton>
+    </ToggleButtonGroup>
+  );
+  const stateCard = (index: number, position?: CSSProperties) => {
+    const state = states[index]!;
+    const reviewed = stateReviewed(index);
+    return (
+      <div
+        key={state.story}
+        className={mapCard}
+        data-state={index}
+        aria-current={index === selected ? "step" : undefined}
+        style={position}
+      >
+        <div className={thumbFrame} data-reviewed={reviewed}>
+          {catalog !== undefined && (
+            <PreviewFrame
+              page={page.url}
+              initialPath={statePath(states, index)}
+              mode="thumbnail"
+              renderWidth={THUMBNAIL_RENDER_WIDTH}
+              label={label(index)}
+              onState={(next) =>
+                setFingerprints((current) => ({
+                  ...current,
+                  [state.story]: next.fingerprint,
+                }))
+              }
+            />
+          )}
+        </div>
+        {reviewed && (
+          <div
+            className={reviewedMark}
+            role="img"
+            aria-label={`Reviewed: ${label(index)}`}
+          >
+            <Check size="sm" />
+          </div>
+        )}
+        <div className={thumbLabel}>{state.action ?? "Start"}</div>
+        <button
+          type="button"
+          className={thumbHit}
+          aria-label={label(index)}
+          onClick={() => select(index)}
+        />
+        <div
+          className={thumbReview}
+          role="group"
+          aria-label={`Review ${label(index)}`}
+        >
+          <ReviewedCheckbox
+            isSelected={reviewed}
+            onChange={(value) => markReviewed(index, value)}
+          />
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -254,24 +359,6 @@ export function FlowBlock(props: {
           </Button>
         </figcaption>
         <div className={body}>
-          {expanded && (
-            <nav className={outline} aria-label="Every state">
-              {states.map((state, index) => (
-                <button
-                  key={state.story}
-                  type="button"
-                  className={outlineItem}
-                  aria-current={index === selected ? "step" : undefined}
-                  style={{ paddingLeft: 12 + stateDepth(states, index) * 14 }}
-                  onClick={() => select(index)}
-                >
-                  <span>{label(index)}</span>
-                  {state.action !== undefined && <small>{state.action}</small>}
-                  {stateReviewed(index) && <Check size="xs" />}
-                </button>
-              ))}
-            </nav>
-          )}
           <div className={stage}>
             <PreviewFrame
               page={page.url}
@@ -322,109 +409,91 @@ export function FlowBlock(props: {
               </div>
             </div>
             {!expanded && (
-              <button
-                type="button"
-                className={toggle}
-                aria-expanded={showAll}
-                onClick={() => setShowAll(!showAll)}
-              >
-                <span className={toggleChevron}>
-                  <ChevronRight size="xs" />
-                </span>
-                {showAll ? "Hide states" : `Show all ${states.length} states`}
-              </button>
+              <div className={statesBar}>
+                <button
+                  type="button"
+                  className={toggle}
+                  aria-expanded={showAll}
+                  onClick={() => setShowAll(!showAll)}
+                >
+                  <span className={toggleChevron}>
+                    <ChevronRight size="xs" />
+                  </span>
+                  {showAll ? "Hide states" : `Show all ${states.length} states`}
+                </button>
+                {showAll && viewPicker}
+              </div>
             )}
           </div>
           {showStates && (
-            <div ref={stripRef} className={map}>
-              <div
-                aria-hidden
-                style={{
-                  width: `calc(${mapWidth}px + 2 * ${spacing.value(6)})`,
-                  height: `calc(${mapHeight}px + 2 * ${spacing.value(6)})`,
-                }}
-              />
-              <svg className={edges} aria-hidden>
-                {states.map((state, index) => {
-                  if (state.parent === undefined) return undefined;
-                  const from = layout.placements[state.parent]!;
-                  const to = layout.placements[index]!;
-                  const x1 =
-                    from.column * (MAP_CARD.width + MAP_CARD.gapX) +
-                    MAP_CARD.width;
-                  const y1 =
-                    from.row * (MAP_CARD.height + MAP_CARD.gapY) +
-                    MAP_CARD.height / 2;
-                  const x2 = to.column * (MAP_CARD.width + MAP_CARD.gapX);
-                  const y2 =
-                    to.row * (MAP_CARD.height + MAP_CARD.gapY) +
-                    MAP_CARD.height / 2;
-                  const mid = (x1 + x2) / 2;
-                  return (
-                    <path
-                      key={state.story}
-                      d={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`}
-                      data-active={ancestry.includes(index) || undefined}
-                    />
-                  );
-                })}
-              </svg>
-              {states.map((state, index) => {
-                const reviewed = stateReviewed(index);
-                return (
-                  <div
-                    key={state.story}
-                    className={mapCard}
-                    data-state={index}
-                    aria-current={index === selected ? "step" : undefined}
-                    style={mapPosition(index)}
-                  >
-                    <div className={thumbFrame} data-reviewed={reviewed}>
-                      {catalog !== undefined && (
-                        <PreviewFrame
-                          page={page.url}
-                          initialPath={statePath(states, index)}
-                          mode="thumbnail"
-                          renderWidth={THUMBNAIL_RENDER_WIDTH}
-                          label={label(index)}
-                          onState={(next) =>
-                            setFingerprints((current) => ({
-                              ...current,
-                              [state.story]: next.fingerprint,
-                            }))
+            <div className={statesPanel}>
+              {expanded && (
+                <div className={expandedStatesBar}>{viewPicker}</div>
+              )}
+              {statesView === "sequence" ? (
+                <div
+                  ref={stripRef}
+                  className={sequence}
+                  role="list"
+                  aria-label="States in order"
+                >
+                  {states.map((state, index) => (
+                    <div key={state.story} role="listitem">
+                      {index > 0 && (
+                        <div
+                          className={sequenceEdge}
+                          data-step={state.parent === index - 1 || undefined}
+                          data-active={
+                            (state.parent === index - 1 &&
+                              ancestry.includes(index)) ||
+                            undefined
                           }
+                          aria-hidden
                         />
                       )}
+                      {stateCard(index)}
                     </div>
-                    {reviewed && (
-                      <div
-                        className={reviewedMark}
-                        role="img"
-                        aria-label={`Reviewed: ${label(index)}`}
-                      >
-                        <Check size="sm" />
-                      </div>
-                    )}
-                    <div className={thumbLabel}>{state.action ?? "Start"}</div>
-                    <button
-                      type="button"
-                      className={thumbHit}
-                      aria-label={label(index)}
-                      onClick={() => select(index)}
-                    />
-                    <div
-                      className={thumbReview}
-                      role="group"
-                      aria-label={`Review ${label(index)}`}
-                    >
-                      <ReviewedCheckbox
-                        isSelected={reviewed}
-                        onChange={(value) => markReviewed(index, value)}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+                  ))}
+                </div>
+              ) : (
+                <div ref={stripRef} className={map}>
+                  <div
+                    aria-hidden
+                    style={{
+                      width: `calc(${mapWidth}px + 2 * ${spacing.value(6)})`,
+                      height: `calc(${mapHeight}px + 2 * ${spacing.value(6)})`,
+                    }}
+                  />
+                  <svg className={edges} aria-hidden>
+                    {states.map((state, index) => {
+                      if (state.parent === undefined) return undefined;
+                      const from = layout.placements[state.parent]!;
+                      const to = layout.placements[index]!;
+                      const x1 =
+                        from.column * (MAP_CARD.width + MAP_CARD.gapX) +
+                        MAP_CARD.width;
+                      const y1 =
+                        from.row * (MAP_CARD.height + MAP_CARD.gapY) +
+                        MAP_CARD.height / 2;
+                      const x2 = to.column * (MAP_CARD.width + MAP_CARD.gapX);
+                      const y2 =
+                        to.row * (MAP_CARD.height + MAP_CARD.gapY) +
+                        MAP_CARD.height / 2;
+                      const mid = (x1 + x2) / 2;
+                      return (
+                        <path
+                          key={state.story}
+                          d={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`}
+                          data-active={ancestry.includes(index) || undefined}
+                        />
+                      );
+                    })}
+                  </svg>
+                  {states.map((_, index) =>
+                    stateCard(index, mapPosition(index)),
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -529,33 +598,8 @@ const styles = {
   }),
   expandedBody: style({
     flex: 1,
-    gridTemplateColumns: "200px minmax(0, 3fr) minmax(0, 2fr)",
-    gridTemplateAreas: "'outline stage map'",
-  }),
-  outline: style({
-    gridArea: "outline",
-    display: "flex",
-    flexDirection: "column",
-    gap: "2px",
-    padding: spacing.value(3),
-    overflow: "auto",
-    borderRight: `1px solid ${colors.gray[4]}`,
-  }),
-  outlineItem: style(text({ size: "xs" }), focusRing(), {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    alignItems: "center",
-    columnGap: spacing.value(2),
-    padding: "6px 8px",
-    border: 0,
-    borderRadius: "6px",
-    background: "none",
-    color: colors.gray[12],
-    textAlign: "left",
-    cursor: "pointer",
-    "& small": { gridColumn: 1, color: colors.gray[11] },
-    "&:hover": { backgroundColor: colors.gray[3] },
-    "&[aria-current='step']": { backgroundColor: colors.accent[3] },
+    gridTemplateColumns: `calc(${2 * MAP_CARD.width + MAP_CARD.gapX}px + 2 * ${spacing.value(6)} + 12px) minmax(0, 1fr)`,
+    gridTemplateAreas: "'map stage'",
   }),
   stage: style({
     display: "flex",
@@ -621,21 +665,96 @@ const styles = {
   ),
   toggleChevron: style({ display: "flex", transition: "transform 120ms" }),
   toggleChevronOpen: style({ transform: "rotate(90deg)" }),
-  map: style({
-    position: "relative",
-    overflow: "auto",
-    maxHeight: "560px",
+  statesBar: style({
+    display: "flex",
+    alignItems: "center",
+    borderTop: `1px solid ${colors.gray[4]}`,
+    backgroundColor: colors.gray[1],
+    "& > button": { borderTop: 0 },
+  }),
+  expandedStatesBar: style({
+    justifyContent: "flex-end",
+    borderTop: 0,
+    borderBottom: `1px solid ${colors.gray[4]}`,
+  }),
+  viewSwitch: style({
+    display: "flex",
+    gap: "2px",
+    padding: "2px",
+    borderRadius: "8px",
+    backgroundColor: colors.gray[3],
+    flexShrink: 0,
+    margin: `${spacing.value(1)} ${spacing.value(4)}`,
+  }),
+  viewOption: style({
+    "&[data-selected]": {
+      backgroundColor: colors.gray[1],
+      color: colors.gray[12],
+      boxShadow: "0 1px 2px rgb(0 0 0 / 0.12)",
+    },
+  }),
+  statesPanel: style({
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 0,
+    minHeight: 0,
     borderTop: `1px solid ${colors.gray[4]}`,
     backgroundColor: colors.gray[2],
   }),
-  expandedMap: style({
+  expandedStatesPanel: style({
     gridArea: "map",
-    maxHeight: "none",
     borderTop: 0,
-    borderLeft: `1px solid ${colors.gray[4]}`,
+    borderRight: `1px solid ${colors.gray[4]}`,
+  }),
+  map: style({
+    position: "relative",
+    overflowX: "auto",
+    overflowY: "hidden",
+    scrollSnapType: "x mandatory",
+    scrollPaddingInline: spacing.value(6),
+    "& [data-state]": { scrollSnapAlign: "start" },
+  }),
+  expandedMap: style({ flex: 1, overflowY: "auto" }),
+  sequence: style(spacing.padding({ x: 6, y: 6 }), {
+    display: "flex",
+    overflowX: "auto",
+    scrollSnapType: "x mandatory",
+    scrollPaddingInline: spacing.value(6),
+    "& > [role='listitem']": { display: "flex", alignItems: "center" },
+    "& [data-state]": { scrollSnapAlign: "start" },
+  }),
+  expandedSequence: style({
+    flex: 1,
+    flexDirection: "column",
+    alignItems: "center",
+    overflowX: "hidden",
+    overflowY: "auto",
+    scrollSnapType: "y mandatory",
+    scrollPaddingBlock: spacing.value(6),
+    "& > [role='listitem']": { flexDirection: "column" },
+    "& [data-step]::before": { width: "1.5px", height: "100%" },
+    "& [data-active]::before": { width: "2px" },
+  }),
+  sequenceEdge: style({
+    flexShrink: 0,
+    width: `${MAP_CARD.gapX}px`,
+    height: `${MAP_CARD.gapX}px`,
+    display: "grid",
+    placeItems: "center",
+    "&[data-step]::before": {
+      content: "''",
+      width: "100%",
+      height: "1.5px",
+      backgroundColor: colors.gray[7],
+    },
+    "&[data-active]::before": {
+      backgroundColor: colors.accent[9],
+      height: "2px",
+    },
   }),
   mapCard: style(radius.md, shadow.subtle, {
-    position: "absolute",
+    position: "relative",
+    flexShrink: 0,
     width: `${MAP_CARD.width}px`,
     height: `${MAP_CARD.height}px`,
     display: "flex",
