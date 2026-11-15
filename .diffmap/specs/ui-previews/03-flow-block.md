@@ -33,11 +33,11 @@ The page learns paths. `preview-show` carries `path`, the story IDs from the sta
 // [!note path] Stories from the flow's start to this state. Without it, the page renders the story alone, as in Phase 1.
 ```
 
-The block is one live frame, with the viewer's controls around it ([[e45db07:src/viewer/previews/FlowBlock.tsx#L48-L423]]):
+The block is one live frame, with the viewer's controls around it ([[ac74b95:src/viewer/previews/FlowBlock.tsx#L50-L482]]):
 
-- **The header** has breadcrumbs from the starting state to the selected one, each a button back to that state, and in its right corner the state's **Reviewed** checkbox, keyed to the path and the state's fingerprint. It is the diff panel's [[src/viewer/ReviewedCheckbox.tsx#ReviewedCheckbox]].
+- **The header** has breadcrumbs from the starting state to the selected one, each a button back to that state, and in its right corner the state's **Reviewed** checkbox, keyed to the path and the state's fingerprint, then a button that shows and hides the states sidebar, and the expand button. The checkbox is the diff panel's [[src/viewer/ReviewedCheckbox.tsx#ReviewedCheckbox]].
 - **Under the frame,** Back sits on the left, then the state's note, from the story's description. On the right is a segmented next-step button. Its main half follows the first state listed under this one, so **a fence lists the happy path first**, and is labeled with that action, such as "Fill in email and password". The arrow beside it opens a menu of the state's other steps. A state with no children says it is the end of the path.
-- **Beside the frame,** a narrow sidebar lists every state as a compact text tree, indented by depth, in the order the fence lists them, so the happy path comes first. The selected state is highlighted, the states on the path to it are darker than the rest, and a reviewed state has a check. Clicking a state jumps straight to it, as the breadcrumbs do, and hovering one shows the action that reaches it. The sidebar is as tall as the frame and scrolls on its own. Thumbnails of the states are left for the expanded view in [Phase 5](05-expanded-flow.md), so a flow on the page loads one frame of the app, not one per state.
+- **Beside the frame,** a narrow sidebar lists every state as a compact text tree, indented by depth, in the order the fence lists them, so the happy path comes first. The selected state is highlighted, the states on the path to it are darker than the rest, and a reviewed state has a check. Clicking a state jumps straight to it, as the breadcrumbs do. Hovering one shows a tooltip with a thumbnail of that state, its name, the action that reaches it, and its description from the story, so a reader can see where a state leads before going there. The thumbnail loads when the tooltip opens. The sidebar is as tall as the frame and scrolls on its own. The sidebar is open by default. A tree of every state as thumbnails is left for the expanded view in [Phase 5](05-expanded-flow.md), so a flow on the page loads one frame of the app, not one per state, plus one while a tooltip is open.
 - **Arrow keys** move down the happy path and back to the parent while the block has focus.
 
 ```callstack [Showing a flow fence]
@@ -54,7 +54,7 @@ Before the page has answered, states read as names made from their IDs, so `auth
 Checked in Chrome against [`fixtures/previews-app`](07-examples.md) with five flows on one page: log-in, sign-up, checkout, search, and upload. All 37 frames reached their states, including the ones that need the server's answer (wrong password, locked, two-factor, email taken, card declined, search results, no results, file too large, connection dropped). Jumping from `Wrong Password` to `Reset Sent` rendered the reset screen from scratch. Reviewing a state from the header and from its card in the tree marked the same state, since both frames report the same fingerprint.
 
 ```changes
-2df4c53..e45db07
+2df4c53..ac74b95
 src/parseFence.ts
 src/parseViewer.ts
 src/preview/protocol.ts
