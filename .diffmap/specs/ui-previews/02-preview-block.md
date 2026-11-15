@@ -25,8 +25,8 @@ design-button--alerts
 
 ```callstack [Showing a preview fence]
  view = Fence(fence) [[f914dad:src/viewer/Fence.tsx#L64-L67]]
-+└── return PreviewBlock(fence) [[f914dad:src/viewer/previews/PreviewBlock.tsx#L12-L83]]
-+    ├── page = usePreviewPage(): previews.local, or why there is none [[f914dad:src/viewer/previews/PreviewBlock.tsx#L86-L113]]
++└── return PreviewBlock(fence) [[4266595:src/viewer/previews/PreviewBlock.tsx#L12-L91]]
++    ├── page = usePreviewPage(): previews.local, or why there is none [[4266595:src/viewer/previews/PreviewBlock.tsx#L94-L121]]
 +    └── fence.stories.map((id) => PreviewFrame(page, [id])) [[f914dad:src/viewer/previews/PreviewFrame.tsx#L49-L260]]
 +        ├── iframe(page + "?story=" + id), loaded once it nears the viewport
 +        ├── post preview-connect on load and on preview-hello
@@ -47,7 +47,7 @@ The iframe is sandboxed with `allow-scripts allow-same-origin`. That pair would 
 Checked in Chrome against [`fixtures/previews-app`](07-examples.md): four button and alert stories side by side, each with its name, description, and review mark; and with the dev server stopped, every frame's unreachable message, then Retry connecting once the server was back.
 
 ```changes
-e7b0bd1..f914dad
+e7b0bd1..4266595
 src/parseFence.ts
 src/parseViewer.ts
 src/diffmapConfig.ts

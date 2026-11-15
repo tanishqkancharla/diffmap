@@ -14,9 +14,9 @@ A `flow` fence lists stories as a tree. Each line is a story ID, indented under 
 ```flow [Logging in]
 auth-log-in--empty
   auth-log-in--filled: Fill in email and password
-    auth-log-in--wrong-password: Log in with the wrong password
-    auth-log-in--two-factor: Log in to a 2-factor account
+    auth-log-in--two-factor: Log in
       auth-log-in--signed-in: Enter the code
+    auth-log-in--wrong-password: Log in with the wrong password
   auth-log-in--forgot: Click "Forgot password?"
 ```
 ````
@@ -33,29 +33,28 @@ The page learns paths. `preview-show` carries `path`, the story IDs from the sta
 // [!note path] Stories from the flow's start to this state. Without it, the page renders the story alone, as in Phase 1.
 ```
 
-The block is one live frame, with the viewer's controls around it ([[f914dad:src/viewer/previews/FlowBlock.tsx#L44-L380]]):
+The block is one live frame, with the viewer's controls around it ([[4266595:src/viewer/previews/FlowBlock.tsx#L48-L436]]):
 
-- **Breadcrumbs** from the starting state to the selected one, each a button back to that state.
-- **Back and next-step buttons.** Each next-step button is labeled with its action, such as "Log in with the wrong password", and a state with several children shows one per child. A state with none says it is the end of the path.
-- **The state's note**, from the story's description, and its **Reviewed** checkbox, keyed to the path and the state's fingerprint.
-- **A strip of thumbnails** of every state, each the app rendered at 720 pixels wide and scaled down, inert, captioned with the action that reaches it. The strip scrolls to the selected state. Thumbnails load once the live frame has connected, so a page of flows loads the app as the reader reaches each one.
-- **Arrow keys** move to the first child and back to the parent while the block has focus.
+- **The header** has breadcrumbs from the starting state to the selected one, each a button back to that state, and in its right corner the state's **Reviewed** checkbox, keyed to the path and the state's fingerprint.
+- **Under the frame,** the state's note, from the story's description, sits on the left. On the right are Back and a segmented next-step button. Its main half follows the first state listed under this one, so **a fence lists the happy path first**, and is labeled with that action, such as "Fill in email and password". The arrow beside it opens a menu of the state's other steps. A state with no children says it is the end of the path.
+- **"Show all states"** opens every state as a tree under the frame: the same layout as the expanded map in [Phase 5](05-expanded-flow.md), each state to the right of the one it follows, with the path to the selected state drawn in the accent color. Each card is the app rendered at 720 pixels wide and scaled down, inert, captioned with the action that reaches it, and clicking it jumps to that state. Each has its own Reviewed checkbox in its corner; a reviewed card fades and shows a green check circle, as flow-preview's canvas does. The live frame never shows the circle. Thumbnails load only while the tree is open, and the tree scrolls to the selected state.
+- **Arrow keys** move down the happy path and back to the parent while the block has focus.
 
 ```callstack [Showing a flow fence]
  view = Fence(fence) [[f914dad:src/viewer/Fence.tsx#L64-L67]]
 +└── return FlowBlock(fence)
 +    ├── live = PreviewFrame(page, [start]) # the one the reader drives
-+    ├── strip = states.map((state) => PreviewFrame(page, statePath(state), "thumbnail")) [[f914dad:src/viewer/previews/flowTree.ts#L4-L13]]
-+    └── select(state) [[f914dad:src/viewer/previews/FlowBlock.tsx#L81-L92]]
++    ├── tree = showAll && states.map((state) => PreviewFrame(page, statePath(state), "thumbnail")) [[f914dad:src/viewer/previews/flowTree.ts#L4-L13]]
++    └── select(state) [[4266595:src/viewer/previews/FlowBlock.tsx#L86-L97]]
 +        └── live.post({ type: "preview-show", path: statePath(state), how })
 ```
 
 Before the page has answered, states read as names made from their IDs, so `auth-log-in--wrong-password` reads "Wrong Password", the same as Storybook's own name for the story.
 
-Checked in Chrome against [`fixtures/previews-app`](07-examples.md) with five flows on one page: log-in, sign-up, checkout, search, and upload. All 37 frames reached their states, including the ones that need the server's answer (wrong password, locked, two-factor, email taken, card declined, search results, no results, file too large, connection dropped). Jumping from `Wrong Password` to `Reset Sent` rendered the reset screen from scratch.
+Checked in Chrome against [`fixtures/previews-app`](07-examples.md) with five flows on one page: log-in, sign-up, checkout, search, and upload. All 37 frames reached their states, including the ones that need the server's answer (wrong password, locked, two-factor, email taken, card declined, search results, no results, file too large, connection dropped). Jumping from `Wrong Password` to `Reset Sent` rendered the reset screen from scratch. Reviewing a state from the header and from its card in the tree marked the same state, since both frames report the same fingerprint.
 
 ```changes
-e7b0bd1..f914dad
+e7b0bd1..4266595
 src/parseFence.ts
 src/parseViewer.ts
 src/preview/protocol.ts

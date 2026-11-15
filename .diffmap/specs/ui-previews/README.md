@@ -71,7 +71,7 @@ export const WrongPassword: Story = {
 };
 ```
 
-A spec shows components with a `preview` block, naming stories by their Storybook ID, and a journey with a `flow` block, which indents each story under the one it follows and names the action between them:
+A spec shows components with a `preview` block, naming stories by their Storybook ID, and a journey with a `flow` block, which indents each story under the one it follows, names the action between them, and lists the happy path first:
 
 ````text
 ```preview [The log-in screen on its own]
@@ -81,10 +81,10 @@ auth-log-in--empty
 ```flow [Logging in]
 auth-log-in--empty
   auth-log-in--filled: Fill in email and password
+    auth-log-in--two-factor: Log in
+      auth-log-in--signed-in: Enter the code
     auth-log-in--wrong-password: Log in with the wrong password
     auth-log-in--locked: Log in after too many tries
-    auth-log-in--two-factor: Log in to a 2-factor account
-      auth-log-in--signed-in: Enter the code
   auth-log-in--forgot: Click "Forgot password?"
 ```
 ````
@@ -108,7 +108,7 @@ The repo's `.diffmap/config.json` holds both blocks' settings, in two keys. `pre
 
 This is how the blocks look in a spec page. The frames are the app's own page, rendering the story live; the header, captions, breadcrumbs, buttons, and review marks around them are the viewer's own UI.
 
-![A flow block on the Wrong Password state, reached by playing that step on the live form](media/flow-block.png)
+![A flow block on the Wrong Password state, with all states open as a tree and two of them reviewed](media/flow-block.png)
 
 ![A preview block: four stories side by side](media/preview-block.png)
 
