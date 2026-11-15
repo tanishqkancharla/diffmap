@@ -6,9 +6,13 @@ import {
   Button,
   Check,
   Checkbox,
+  ChevronDown,
   ChevronRight,
   Close,
   Maximize,
+  Menu,
+  MenuItem,
+  MenuTrigger,
   colors,
   focusRing,
   radius,
@@ -61,6 +65,7 @@ export function FlowBlock(props: {
   const [catalog, setCatalog] = useState<Map<string, PreviewStoryInfo>>();
   const [fingerprints, setFingerprints] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [lockedHeight, setLockedHeight] = useState<number | undefined>();
   const seq = useRef(0);
   const wrapper = useRef<HTMLDivElement>(null);
@@ -111,6 +116,7 @@ export function FlowBlock(props: {
   }, [expanded]);
 
   useEffect(() => {
+    if (!expanded && !showAll) return;
     const container = stripRef.current;
     const card = container?.querySelector(`[data-state='${selected}']`);
     if (container === null || card === null || card === undefined) return;
@@ -123,7 +129,7 @@ export function FlowBlock(props: {
         container.scrollTop + at.top - box.top - (box.height - at.height) / 2,
       behavior: expanded ? "instant" : "smooth",
     });
-  }, [selected, expanded]);
+  }, [selected, expanded, showAll]);
 
   const layout = layoutFlow(states);
   const ancestry = stateAncestry(states, selected);
@@ -131,7 +137,14 @@ export function FlowBlock(props: {
   const parent = states[selected]!.parent;
   const playing = catalog !== undefined && reached !== selected;
   const note = catalog?.get(states[selected]!.story)?.description;
-  const fingerprint = fingerprints[states[selected]!.story];
+
+  const showStates = expanded || showAll;
+  const stateReviewed = (index: number) =>
+    isReviewed(reviewKey(index), fingerprints[states[index]!.story]);
+  const markReviewed = (index: number, value: boolean) => {
+    const print = fingerprints[states[index]!.story];
+    if (print !== undefined) setReviewed(reviewKey(index), print, value);
+  };
 
   const wrapperClass = useStyles(styles.wrapper);
   const scrim = useStyles(styles.scrim);
@@ -142,6 +155,7 @@ export function FlowBlock(props: {
   );
   const header = useStyles(fenceTitle, styles.header);
   const crumbs = useStyles(styles.crumbs);
+  const crumbStep = useStyles(styles.crumbStep);
   const crumb = useStyles(styles.crumb);
   const body = useStyles(styles.body, expanded && styles.expandedBody);
   const outline = useStyles(styles.outline);
@@ -150,11 +164,19 @@ export function FlowBlock(props: {
   const controls = useStyles(styles.controls);
   const noteClass = useStyles(styles.note);
   const actions = useStyles(styles.actions);
-  const crumbStep = useStyles(styles.crumbStep);
-  const strip = useStyles(styles.strip, expanded && styles.map);
-  const thumb = useStyles(styles.thumb, expanded && styles.mapCard);
-  const thumbFrame = useStyles(styles.thumbFrame, expanded && styles.mapFrame);
+  const endNote = useStyles(styles.endNote);
+  const toggle = useStyles(styles.toggle);
+  const toggleChevron = useStyles(
+    styles.toggleChevron,
+    showAll && styles.toggleChevronOpen,
+  );
+  const map = useStyles(styles.map, expanded && styles.expandedMap);
+  const mapCard = useStyles(styles.mapCard);
+  const thumbFrame = useStyles(styles.thumbFrame);
   const thumbLabel = useStyles(styles.thumbLabel);
+  const thumbHit = useStyles(styles.thumbHit);
+  const thumbReview = useStyles(styles.thumbReview);
+  const reviewedMark = useStyles(styles.reviewedMark);
   const edges = useStyles(styles.edges);
 
   if ("message" in page)
@@ -168,9 +190,13 @@ export function FlowBlock(props: {
     );
 
   const mapPosition = (index: number) => ({
-    left: layout.placements[index]!.column * (MAP_CARD.width + MAP_CARD.gapX),
-    top: layout.placements[index]!.row * (MAP_CARD.height + MAP_CARD.gapY),
+    left: `calc(${layout.placements[index]!.column * (MAP_CARD.width + MAP_CARD.gapX)}px + ${spacing.value(6)})`,
+    top: `calc(${layout.placements[index]!.row * (MAP_CARD.height + MAP_CARD.gapY)}px + ${spacing.value(6)})`,
   });
+  const mapWidth =
+    layout.columns * (MAP_CARD.width + MAP_CARD.gapX) - MAP_CARD.gapX;
+  const mapHeight =
+    layout.rows * (MAP_CARD.height + MAP_CARD.gapY) - MAP_CARD.gapY;
 
   return (
     <div
@@ -214,6 +240,11 @@ export function FlowBlock(props: {
           {playing && (
             <ActivityIndicator size="xs" aria-label="Playing the step" />
           )}
+          <Checkbox
+            label="Reviewed"
+            checked={stateReviewed(selected)}
+            setChecked={(value) => markReviewed(selected, value)}
+          />
           <Button
             size="sm"
             variant="quiet"
@@ -237,9 +268,7 @@ export function FlowBlock(props: {
                 >
                   <span>{label(index)}</span>
                   {state.action !== undefined && <small>{state.action}</small>}
-                  {isReviewed(reviewKey(index), fingerprints[state.story]) && (
-                    <Check size="xs" />
-                  )}
+                  {stateReviewed(index) && <Check size="xs" />}
                 </button>
               ))}
             </nav>
@@ -270,7 +299,7 @@ export function FlowBlock(props: {
               }}
             />
             <div className={controls}>
-              {note !== undefined && <div className={noteClass}>{note}</div>}
+              <div className={noteClass}>{note}</div>
               <div className={actions}>
                 <Button
                   size="sm"
@@ -280,51 +309,57 @@ export function FlowBlock(props: {
                   <ArrowLeft size="xs" />
                   Back
                 </Button>
-                {children.map((child) => (
-                  <Button
-                    key={child}
-                    size="sm"
-                    variant="primary"
-                    onClick={() => select(child)}
-                  >
-                    {states[child]!.action}
-                    <ArrowRight size="xs" />
-                  </Button>
-                ))}
-                {children.length === 0 && (
-                  <span className={noteClass}>End of this path</span>
+                {children.length === 0 ? (
+                  <span className={endNote}>End of this path</span>
+                ) : (
+                  <NextStep
+                    steps={children.map((child) => ({
+                      index: child,
+                      action: states[child]!.action!,
+                    }))}
+                    onSelect={select}
+                  />
                 )}
               </div>
-              <Checkbox
-                label="Reviewed"
-                checked={isReviewed(reviewKey(selected), fingerprint)}
-                setChecked={(value) => {
-                  if (fingerprint !== undefined)
-                    setReviewed(reviewKey(selected), fingerprint, value);
-                }}
-              />
             </div>
+            {!expanded && (
+              <button
+                type="button"
+                className={toggle}
+                aria-expanded={showAll}
+                onClick={() => setShowAll(!showAll)}
+              >
+                <span className={toggleChevron}>
+                  <ChevronRight size="xs" />
+                </span>
+                {showAll ? "Hide states" : `Show all ${states.length} states`}
+              </button>
+            )}
           </div>
-          <div ref={stripRef} className={strip}>
-            {expanded && (
+          {showStates && (
+            <div ref={stripRef} className={map}>
               <div
                 aria-hidden
                 style={{
-                  width: `calc(${layout.columns * (MAP_CARD.width + MAP_CARD.gapX) - MAP_CARD.gapX}px + 2 * ${spacing.value(8)})`,
-                  height: `calc(${layout.rows * (MAP_CARD.height + MAP_CARD.gapY) - MAP_CARD.gapY}px + 2 * ${spacing.value(8)})`,
+                  width: `calc(${mapWidth}px + 2 * ${spacing.value(6)})`,
+                  height: `calc(${mapHeight}px + 2 * ${spacing.value(6)})`,
                 }}
               />
-            )}
-            {expanded && (
               <svg className={edges} aria-hidden>
                 {states.map((state, index) => {
                   if (state.parent === undefined) return undefined;
-                  const from = mapPosition(state.parent);
-                  const to = mapPosition(index);
-                  const x1 = from.left + MAP_CARD.width;
-                  const y1 = from.top + MAP_CARD.height / 2;
-                  const x2 = to.left;
-                  const y2 = to.top + MAP_CARD.height / 2;
+                  const from = layout.placements[state.parent]!;
+                  const to = layout.placements[index]!;
+                  const x1 =
+                    from.column * (MAP_CARD.width + MAP_CARD.gapX) +
+                    MAP_CARD.width;
+                  const y1 =
+                    from.row * (MAP_CARD.height + MAP_CARD.gapY) +
+                    MAP_CARD.height / 2;
+                  const x2 = to.column * (MAP_CARD.width + MAP_CARD.gapX);
+                  const y2 =
+                    to.row * (MAP_CARD.height + MAP_CARD.gapY) +
+                    MAP_CARD.height / 2;
                   const mid = (x1 + x2) / 2;
                   return (
                     <path
@@ -335,46 +370,106 @@ export function FlowBlock(props: {
                   );
                 })}
               </svg>
-            )}
-            {states.map((state, index) => (
-              <button
-                key={state.story}
-                type="button"
-                className={thumb}
-                aria-current={index === selected ? "step" : undefined}
-                aria-label={label(index)}
-                data-state={index}
-                style={expanded ? mapPosition(index) : undefined}
-                onClick={() => select(index)}
-              >
-                <div className={thumbFrame}>
-                  {catalog !== undefined && (
-                    <PreviewFrame
-                      page={page.url}
-                      initialPath={statePath(states, index)}
-                      mode="thumbnail"
-                      renderWidth={THUMBNAIL_RENDER_WIDTH}
-                      label={label(index)}
-                      onState={(next) =>
-                        setFingerprints((current) => ({
-                          ...current,
-                          [state.story]: next.fingerprint,
-                        }))
-                      }
+              {states.map((state, index) => {
+                const reviewed = stateReviewed(index);
+                return (
+                  <div
+                    key={state.story}
+                    className={mapCard}
+                    data-state={index}
+                    aria-current={index === selected ? "step" : undefined}
+                    style={mapPosition(index)}
+                  >
+                    <div className={thumbFrame} data-reviewed={reviewed}>
+                      {catalog !== undefined && (
+                        <PreviewFrame
+                          page={page.url}
+                          initialPath={statePath(states, index)}
+                          mode="thumbnail"
+                          renderWidth={THUMBNAIL_RENDER_WIDTH}
+                          label={label(index)}
+                          onState={(next) =>
+                            setFingerprints((current) => ({
+                              ...current,
+                              [state.story]: next.fingerprint,
+                            }))
+                          }
+                        />
+                      )}
+                    </div>
+                    {reviewed && (
+                      <div
+                        className={reviewedMark}
+                        role="img"
+                        aria-label={`Reviewed: ${label(index)}`}
+                      >
+                        <Check size="sm" />
+                      </div>
+                    )}
+                    <div className={thumbLabel}>{state.action ?? "Start"}</div>
+                    <button
+                      type="button"
+                      className={thumbHit}
+                      aria-label={label(index)}
+                      onClick={() => select(index)}
                     />
-                  )}
-                </div>
-                <span className={thumbLabel}>
-                  <span>{state.action ?? "Start"}</span>
-                  {isReviewed(reviewKey(index), fingerprints[state.story]) && (
-                    <Check size="xs" />
-                  )}
-                </span>
-              </button>
-            ))}
-          </div>
+                    <div
+                      className={thumbReview}
+                      role="group"
+                      aria-label={`Review ${label(index)}`}
+                    >
+                      <Checkbox
+                        label="Reviewed"
+                        checked={reviewed}
+                        setChecked={(value) => markReviewed(index, value)}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </figure>
+    </div>
+  );
+}
+
+/** The next step down the path the fence lists first, with the state's other steps in a menu beside it. */
+function NextStep(props: {
+  steps: { index: number; action: string }[];
+  onSelect: (index: number) => void;
+}) {
+  const [first, ...rest] = props.steps;
+  const segmented = useStyles(styles.segmented);
+  return (
+    <div className={segmented}>
+      <Button
+        size="sm"
+        variant="primary"
+        onClick={() => props.onSelect(first!.index)}
+      >
+        {first!.action}
+        <ArrowRight size="xs" />
+      </Button>
+      {rest.length > 0 && (
+        <MenuTrigger placement="bottom end">
+          <Button
+            size="sm"
+            variant="primary"
+            aria-label={`${rest.length} other next ${rest.length === 1 ? "step" : "steps"}`}
+          >
+            <ChevronDown size="xs" />
+          </Button>
+          <Menu onAction={(key) => props.onSelect(Number(key))}>
+            {rest.map((step) => (
+              <MenuItem key={step.index} id={String(step.index)}>
+                {step.action}
+              </MenuItem>
+            ))}
+          </Menu>
+        </MenuTrigger>
+      )}
     </div>
   );
 }
@@ -473,77 +568,152 @@ const styles = {
   expandedStage: style({
     gridArea: "stage",
     overflow: "auto",
-    borderLeft: `1px solid ${colors.gray[4]}`,
   }),
-  controls: style(spacing.padding({ x: 6, y: 3 }), {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) auto",
-    alignItems: "start",
-    gap: spacing.value(3),
+  controls: style(spacing.padding({ x: 6, y: 4 }), {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    columnGap: spacing.value(6),
+    rowGap: spacing.value(3),
     borderTop: `1px solid ${colors.gray[4]}`,
     backgroundColor: colors.gray[1],
   }),
   note: style(text({ size: "xs", color: "lowContrast" }), {
-    gridColumn: "1 / -1",
-    margin: 0,
+    flex: "1 1 240px",
+    lineHeight: 1.5,
   }),
   actions: style({
     display: "flex",
-    flexWrap: "wrap",
     alignItems: "center",
     gap: spacing.value(2),
+    marginLeft: "auto",
   }),
-  strip: style(spacing.padding({ all: 4 }), {
-    display: "flex",
-    gap: spacing.value(3),
-    overflowX: "auto",
-    borderTop: `1px solid ${colors.gray[4]}`,
+  endNote: style(text({ size: "xs", color: "lowContrast" }), {
+    paddingInline: spacing.value(2),
   }),
-  map: style({
-    gridArea: "map",
-    position: "relative",
-    display: "block",
-    padding: 0,
-    overflow: "auto",
-    border: 0,
-    borderLeft: `1px solid ${colors.gray[4]}`,
+  segmented: style({
+    display: "inline-flex",
+    "& > button:not(:last-child)": {
+      borderTopRightRadius: 0,
+      borderBottomRightRadius: 0,
+    },
+    "& > button + button": {
+      borderTopLeftRadius: 0,
+      borderBottomLeftRadius: 0,
+      marginLeft: "1px",
+    },
   }),
-  thumb: style(radius.md, shadow.subtle, focusRing(), {
-    flex: "0 0 168px",
-    display: "flex",
-    flexDirection: "column",
-    padding: 0,
-    border: 0,
-    overflow: "hidden",
-    backgroundColor: colors.gray[1],
-    cursor: "pointer",
-    textAlign: "left",
-    "&[aria-current='step']": { boxShadow: `0 0 0 2px ${colors.accent[9]}` },
-  }),
-  mapCard: style({
-    position: "absolute",
-    width: `${MAP_CARD.width}px`,
-    height: `${MAP_CARD.height}px`,
-    margin: spacing.value(8),
-  }),
-  thumbFrame: style({ height: "104px", overflow: "hidden", flexShrink: 0 }),
-  mapFrame: style({ height: `${MAP_CARD.height - 36}px` }),
-  thumbLabel: style(
-    text({ size: "xs", fontWeight: 500 }),
-    spacing.padding({ x: 4, y: 2 }),
+  toggle: style(
+    text({ size: "xs", color: "lowContrast" }),
+    spacing.padding({ x: 6, y: 2 }),
+    focusRing(),
     {
       display: "flex",
       alignItems: "center",
-      justifyContent: "space-between",
       gap: spacing.value(2),
+      width: "100%",
       minHeight: "32px",
+      border: 0,
       borderTop: `1px solid ${colors.gray[4]}`,
-      color: colors.gray[12],
+      backgroundColor: colors.gray[1],
+      cursor: "pointer",
+      textAlign: "left",
+      "&:hover": { color: colors.gray[12] },
     },
   ),
+  toggleChevron: style({ display: "flex", transition: "transform 120ms" }),
+  toggleChevronOpen: style({ transform: "rotate(90deg)" }),
+  map: style({
+    position: "relative",
+    overflow: "auto",
+    maxHeight: "560px",
+    borderTop: `1px solid ${colors.gray[4]}`,
+    backgroundColor: colors.gray[2],
+  }),
+  expandedMap: style({
+    gridArea: "map",
+    maxHeight: "none",
+    borderTop: 0,
+    borderLeft: `1px solid ${colors.gray[4]}`,
+  }),
+  mapCard: style(radius.md, shadow.subtle, {
+    position: "absolute",
+    width: `${MAP_CARD.width}px`,
+    height: `${MAP_CARD.height}px`,
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+    backgroundColor: colors.gray[1],
+    "&[aria-current='step']": { boxShadow: `0 0 0 2px ${colors.accent[9]}` },
+    "&:has(> button:focus-visible)": {
+      boxShadow: `0 0 0 2px ${colors.accent[8]}`,
+    },
+  }),
+  thumbFrame: style({
+    height: `${MAP_CARD.height - 36}px`,
+    overflow: "hidden",
+    flexShrink: 0,
+    transition: "opacity 120ms",
+    "&[data-reviewed='true']": { opacity: 0.35 },
+  }),
+  thumbLabel: style(
+    text({ size: "xs", fontWeight: 500 }),
+    spacing.padding({ x: 3, y: 2 }),
+    {
+      display: "flex",
+      alignItems: "center",
+      flex: 1,
+      minHeight: 0,
+      borderTop: `1px solid ${colors.gray[4]}`,
+      color: colors.gray[12],
+      lineHeight: 1.25,
+    },
+  ),
+  thumbHit: style({
+    position: "absolute",
+    inset: 0,
+    padding: 0,
+    border: 0,
+    background: "none",
+    cursor: "pointer",
+    outline: "none",
+  }),
+  thumbReview: style({
+    position: "absolute",
+    top: spacing.value(1),
+    right: spacing.value(1),
+    zIndex: 1,
+    display: "flex",
+    padding: "2px",
+    borderRadius: "4px",
+    backgroundColor: colors.gray[1],
+    "& label > span:last-child": {
+      position: "absolute",
+      width: "1px",
+      height: "1px",
+      overflow: "hidden",
+      clipPath: "inset(50%)",
+      whiteSpace: "nowrap",
+    },
+  }),
+  reviewedMark: style(radius.circle, shadow.subtle, {
+    position: "absolute",
+    top: `${(MAP_CARD.height - 36) / 2}px`,
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: "32px",
+    height: "32px",
+    display: "grid",
+    placeItems: "center",
+    color: "white",
+    backgroundColor: colors.green[9],
+    pointerEvents: "none",
+  }),
   edges: style({
     position: "absolute",
-    inset: spacing.value(8),
+    top: spacing.value(6),
+    left: spacing.value(6),
     width: "100%",
     height: "100%",
     overflow: "visible",

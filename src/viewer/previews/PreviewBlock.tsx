@@ -4,7 +4,7 @@ import { style, useStyles } from "purse-styles";
 import type { PreviewStoryInfo } from "../../preview/protocol.js";
 import { fenceTitle, pierreShell } from "../pierre.js";
 import { useViewerMode } from "../viewerMode.ts";
-import { storyLabel, useDiffmapConfig } from "./config.ts";
+import { storyLabel, storyLabelFromId, useDiffmapConfig } from "./config.ts";
 import { PreviewFrame } from "./PreviewFrame.tsx";
 import { useReviewedStates } from "./reviewedStates.ts";
 
@@ -41,12 +41,31 @@ export function PreviewBlock(props: {
             const key = `preview:${id}`;
             return (
               <div key={id} className={cell}>
+                <div className={name}>
+                  <span>
+                    {info === undefined
+                      ? storyLabelFromId(id)
+                      : storyLabel(info.name)}
+                  </span>
+                  <Checkbox
+                    label="Reviewed"
+                    checked={isReviewed(key, fingerprint)}
+                    setChecked={(value) => {
+                      if (fingerprint !== undefined)
+                        setReviewed(key, fingerprint, value);
+                    }}
+                  />
+                </div>
                 <PreviewFrame
                   page={page.url}
                   initialPath={[id]}
                   mode="live"
                   maxHeight={560}
-                  label={info === undefined ? id : storyLabel(info.name)}
+                  label={
+                    info === undefined
+                      ? storyLabelFromId(id)
+                      : storyLabel(info.name)
+                  }
                   onReady={(stories) =>
                     setCatalog(
                       new Map(stories.map((story) => [story.id, story])),
@@ -59,17 +78,6 @@ export function PreviewBlock(props: {
                     }))
                   }
                 />
-                <div className={name}>
-                  <span>{info === undefined ? id : storyLabel(info.name)}</span>
-                  <Checkbox
-                    label="Reviewed"
-                    checked={isReviewed(key, fingerprint)}
-                    setChecked={(value) => {
-                      if (fingerprint !== undefined)
-                        setReviewed(key, fingerprint, value);
-                    }}
-                  />
-                </div>
                 {info?.description !== undefined && (
                   <div className={note}>{info.description}</div>
                 )}
@@ -141,13 +149,13 @@ const styles = {
       alignItems: "center",
       justifyContent: "space-between",
       gap: spacing.value(4),
-      borderTop: `1px solid ${colors.gray[4]}`,
+      borderBottom: `1px solid ${colors.gray[4]}`,
     },
   ),
   note: style(
     text({ size: "xs", color: "lowContrast" }),
-    spacing.padding({ x: 6, bottom: 3 }),
-    { margin: 0 },
+    spacing.padding({ x: 6, y: 3 }),
+    { margin: 0, lineHeight: 1.5, borderTop: `1px solid ${colors.gray[4]}` },
   ),
   notice: style(
     text({ size: "sm", color: "lowContrast" }),
