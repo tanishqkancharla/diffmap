@@ -24,15 +24,21 @@ const serveOptions = z.object({
   root: z.string().optional().describe("Workspace root for file excerpts"),
 });
 
-const serveOutput = z.object({
-  url: z.string(),
-  file: z.string(),
-  warnings: z.array(z.string()).optional(),
-});
+const serveOutput = z.union([
+  z
+    .string()
+    .describe("What serve prints unless --format or --json asks for data"),
+  z.object({
+    url: z.string(),
+    file: z.string(),
+    warnings: z.array(z.string()).optional(),
+  }),
+]);
 
 type ServeContext = {
   args: { file: string };
   options: { port?: number | undefined; root?: string | undefined };
+  formatExplicit: boolean;
   error: (input: { code: string; message: string }) => never;
 };
 
@@ -64,7 +70,7 @@ async function* runServe(c: ServeContext) {
     track("serve_result", { ok: false, error: started.name });
     return c.error({
       code: "DIFFMAP",
-      message: started.message,
+      message: `Failed to serve ${c.args.file}: ${started.message.replace(/^diffmap /, "")}`,
     });
   }
   // How many of each fence kind the spec uses across its pages (a kind it never uses is left out), to see which parts of the guide agents follow.
@@ -87,7 +93,20 @@ async function* runServe(c: ServeContext) {
     file: started.filePath,
     ...(started.warnings.length > 0 ? { warnings: started.warnings } : {}),
   };
-  yield output;
+  if (c.formatExplicit) yield output;
+  else {
+    const pages = started.documents.length;
+    const counts = [`${pages} page${pages === 1 ? "" : "s"}`];
+    if (started.warnings.length > 0)
+      counts.push(
+        `${started.warnings.length} warning${started.warnings.length === 1 ? "" : "s"}`,
+      );
+    yield [
+      `Serving ${c.args.file} at ${started.url} (${counts.join(", ")})`,
+      ...started.warnings.map((warning) => `Warning: ${warning}`),
+      "Stop with Ctrl+C or Close server in the viewer.",
+    ].join("\n");
+  }
   await started.closed;
   return output;
 }

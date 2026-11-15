@@ -1012,7 +1012,7 @@ test("diffmap serve exits non-zero on broken mermaid", async () => {
     assert.equal(result.exitCode, 1);
     assert.equal(
       `${result.stdout}${result.stderr}`,
-      `Error (DIFFMAP): ${mermaidCliMessage(page)}\n`,
+      `Error (DIFFMAP): Failed to serve ${dir}: ${mermaidCliMessage(page).replace(/^diffmap /, "")}\n`,
     );
   });
 });
@@ -1023,7 +1023,7 @@ test("bare diffmap <spec> exits non-zero on broken mermaid", async () => {
     assert.equal(result.exitCode, 1);
     assert.equal(
       `${result.stdout}${result.stderr}`,
-      `Error (DIFFMAP): ${mermaidCliMessage(page)}\n`,
+      `Error (DIFFMAP): Failed to serve ${dir}: ${mermaidCliMessage(page).replace(/^diffmap /, "")}\n`,
     );
   });
 });
