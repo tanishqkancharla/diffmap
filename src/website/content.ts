@@ -3,7 +3,7 @@ export const repository = "https://github.com/tanishqkancharla/diffmap";
 const source = `${repository}/blob/4fc4811`;
 
 export const examplePrompt =
-  "Use npx product-doc to explain how this project works.";
+  "Install the generate-product-doc skill from tanishqkancharla/diffmap, then use it to explain how this project works.";
 
 export type Page = {
   path: string;
@@ -13,9 +13,9 @@ export type Page = {
   body: string;
 };
 
-/** Release gates are facts, not a browser setting. No public install command yet. */
+/** Public acquisition paths; the skill and runtime are installed separately. */
 export const releaseStatus =
-  "Productdoc is in release preparation. The fixed product-doc@0.13.2 candidate is staged, not approved or live. Public npm currently contains only a placeholder. Public skill installation is not yet verified.";
+  "The product-doc CLI is available on npm, and generate-product-doc is available from the public GitHub repository. Install the skill into your coding agent; it reads the CLI guide before creating a document.";
 
 export const pages: Page[] = [
   {
@@ -212,34 +212,48 @@ The current Productdoc guide sharpens this further: one small independent or com
 
 Reading the commit establishes what changed. It does not establish fresh-user onboarding, public package availability, or whether every generated document is understandable. Those need their own checks; a published source commit and a staged npm release are different delivery states.
 
-[Start a document when the release is ready](/docs/quickstart)
+[Start your first document](/docs/quickstart)
 `,
   },
   {
     path: "/docs/quickstart",
     title: "Your first Productdoc document",
     description:
-      "Prerequisites, release status, and the explain–plan–review workflow, without an unavailable install command.",
-    label: "Quickstart · Release preparation",
+      "Install generate-product-doc, load its CLI guide, and explain, plan, or review your first document.",
+    label: "Quickstart · Get started",
     body: `# Your first Productdoc document
 
 ${releaseStatus}
 
 ## What you will need
 
-A coding agent with access to your repository, Node.js 22 or newer, npm, and a browser. Amp is the initial onboarding target. The successor skill is generate-product-doc; the CLI package and executable are product-doc. You will not need a second Diffmap runtime alongside it.
+A coding agent with access to your repository and shell, Git, Node.js 22 or newer, npm, and a browser. Amp is the initial onboarding target. You do not need a separate Diffmap runtime.
 
-## Installation is gated
+## Ask your agent to install and use the skill
 
-There is no supported public Productdoc install command to run yet. Do not install the npm placeholder expecting the runtime. The primary skill-install action will become available only after both the runtime and public skill path are verified.
+From your project, give your agent this prompt:
 
-[Install, update, and remove status](/docs/install)
+\`\`\`text
+${examplePrompt}
+\`\`\`
+
+Or install the skill yourself from the project directory, selecting your coding agent when prompted:
+
+\`\`\`sh
+npx skills add tanishqkancharla/diffmap --skill generate-product-doc
+\`\`\`
+
+For a non-interactive Amp installation, add --agent amp --yes. Then ask your agent to use generate-product-doc. If the current session does not discover the new skill, reload its skills or start a new session before continuing.
+
+Installing the skill adds authoring instructions to your agent; it does not install the viewer globally. The skill tells the agent to run npx product-doc guide, which acquires the CLI from npm and prints its version-matched instructions. Running that command alone does not install the skill.
+
+[Install, update, and remove](/docs/install)
 
 ## Ask a question worth documenting
 
-Start with “Explain what happens when a reader opens a document,” “Plan how to split this workflow into small changes,” or “Review what changed on this branch and why.” Give the agent the reader’s question and any constraints, not just a list of files.
+Try “Use generate-product-doc to explain how sign-in works,” “Use generate-product-doc to plan this workflow in small changes,” or “Use generate-product-doc to review this branch and explain why it changed.” Give the agent the reader’s question and constraints, not just a list of files.
 
-The installed skill loads the CLI’s version-matched guide. The agent inspects the repository, writes a cover and numbered Markdown pages in .diffmap/specs/, validates the document, and opens a local preview. A plan uses one small independent or commit-sized change per page.
+The agent loads the installed skill and CLI guide, inspects the repository, writes a cover and numbered Markdown pages in .diffmap/specs/, validates the document, and opens a local preview. A plan uses one small independent or commit-sized change per page.
 
 ## Read, question, revise
 
@@ -247,7 +261,7 @@ Open the preview. Follow the explanation before drilling into code. Highlight a 
 
 ## Working from a source checkout
 
-Contributors with the successor runtime changes already applied can use the repository’s CLI without pretending it is on npm:
+Contributors can run the checkout’s CLI to test changes that are not in the published package yet:
 
 \`\`\`sh
 npm run cli -- guide
@@ -264,7 +278,7 @@ These are checkout commands, not public installation instructions. Use the guide
     path: "/docs/install",
     title: "Install, update, and remove",
     description:
-      "The supported acquisition path is still gated on the public runtime and skill release.",
+      "Install the authoring skill, acquire the CLI, and update or remove each independently.",
     label: "Documentation · Availability",
     body: `# Install, update, and remove
 
@@ -272,15 +286,37 @@ ${releaseStatus}
 
 ## Install
 
-Public installation is not supported yet. The intended entry point is the generate-product-doc skill, backed by the unscoped product-doc CLI package. No public install command is advertised until both paths work from a clean environment. The CLI requires Node.js 22 or newer.
+From your project directory, install the public authoring skill and select your coding agent:
+
+\`\`\`sh
+npx skills add tanishqkancharla/diffmap --skill generate-product-doc
+\`\`\`
+
+For Amp without prompts, append --agent amp --yes. The skill is installed for your project unless you choose a global installation. Load generate-product-doc in your agent after installation; reload skills or start a new session if it is not discovered yet.
+
+The skill’s first step acquires the public CLI and loads its guide:
+
+\`\`\`sh
+npx product-doc guide
+\`\`\`
+
+These are separate steps: the skills installer makes the authoring skill available to your agent; npx acquires and runs the product-doc CLI. Neither requires installing the old Diffmap package. Git, npm and Node.js 22 or newer are required.
 
 ## Update
 
-The successor runtime includes an update command, but it must not be used to acquire the placeholder package. Wait for a verified public release and its version-matched instructions. Existing published Diffmap installations remain unchanged.
+Update the skill from the same project or global scope in which you installed it:
+
+\`\`\`sh
+npx skills update generate-product-doc
+\`\`\`
+
+The skill reads the guide from the CLI it runs. For an explicit refresh of the public CLI, run npx product-doc@latest guide. If you installed the CLI globally, run product-doc update to use its supported package-manager update path. Restart an existing viewer after updating its runtime.
 
 ## Remove
 
-There is no released successor installation to remove yet. For a manually tested candidate, remove the generate-product-doc skill from the same agent scope in which you installed it, and remove the candidate using the package manager and method you used. Do not delete repository documents or existing Diffmap configuration as part of removing a skill.
+Remove the skill from the same scope and agent in which you installed it, for example npx skills remove generate-product-doc --agent amp for a project-local Amp install. Add --global only if it was installed globally.
+
+Using the CLI through npx does not create a global product-doc installation. If you chose a global npm installation, remove it with npm uninstall -g product-doc. Keep repository documents and existing Diffmap configuration; removing a skill does not require deleting them.
 
 [Migration notes](/docs/migration) · [Report an installation problem](${repository}/issues)
 `,
@@ -293,15 +329,15 @@ There is no released successor installation to remove yet. For a manually tested
     label: "Documentation · Migration",
     body: `# Coming from Diffmap
 
-Productdoc is Diffmap’s successor: the scope expands from reviewing changes to explaining existing systems and planning future work too. The folded-map logo stays. This is not a permanent pair of runtimes or a skill layered on top of a separate Diffmap product.
+Productdoc replaces Diffmap, which is being retired. New installs should use generate-product-doc and the product-doc CLI. The scope expands from reviewing changes to explaining existing systems and planning future work too; the folded-map logo stays. Diffmap is not a second onboarding path.
 
 ## What stays put
 
-Keep documents in .diffmap/specs/. Existing published Diffmap packages, the legacy skill, and shared-document links are not changed by this website preview. Existing diffmap.dev shared links should continue to open their documents, not redirect to a marketing homepage.
+Keep documents in .diffmap/specs/. Do not remove existing installs or shared-document links as part of migration. Existing diffmap.dev shared links should continue to open their documents, not redirect to a marketing homepage.
 
 ## What is changing
 
-The name is Productdoc, the destination domain is productdoc.dev, the npm package and executable are product-doc, and the successor skill is generate-product-doc. Public runtime release and skill cutover are not complete. Do not replace a working install with npm’s placeholder.
+The name is Productdoc, the destination domain is productdoc.dev, the public npm package and executable are product-doc, and the public successor skill is generate-product-doc. Install the successor skill and use its CLI guide; a legacy Diffmap installation does not automatically migrate. Once Productdoc is working, remove the legacy skill from the same agent and scope in which it was installed so new requests do not select it.
 
 Retained configuration names such as DIFFMAP_TELEMETRY and the diffmap configuration directory preserve existing privacy choices during migration.
 
@@ -316,9 +352,11 @@ Retained configuration names such as DIFFMAP_TELEMETRY and the diffmap configura
     label: "Documentation · Support",
     body: `# Troubleshooting and feedback
 
-## The install does not provide the runtime
+## The agent cannot find the skill or CLI
 
-Only a placeholder is public on npm. The staged candidate is not a public release. Wait for verified runtime and skill availability rather than substituting an unrelated package or old guide.
+The authoring skill and runtime are separate. Install generate-product-doc from tanishqkancharla/diffmap using npx skills add, then reload your agent’s skill list or start a new session if necessary. Running npx product-doc guide alone does not install the skill.
+
+Check Node.js is version 22 or newer and that Git and npm can reach GitHub and the npm registry. If npx reuses an old CLI, try npx product-doc@latest guide. Use the successor’s guide rather than substituting the legacy Diffmap guide. If a skill is listed but not being used, explicitly ask the agent to load generate-product-doc; scanner discovery alone does not prove that it loaded the skill.
 
 ## A document does not validate
 

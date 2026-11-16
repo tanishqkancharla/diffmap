@@ -6,21 +6,23 @@ Use it to explain an existing workflow, plan future work, or review a change. Do
 
 ## Try it
 
-**Release status:** the renamed package is prepared in this checkout, not yet published. The commands below describe the release candidate. From this checkout, use `npm run cli -- guide` or `npm run cli -- serve <directory>` until publication; do not expect a public npm install to work yet.
+The `product-doc` CLI is available on npm, and the `generate-product-doc` skill is available in this public repository. You need Git, Node.js 22 or newer, npm, and a coding agent with repository and shell access.
 
-Install the skill after the package is released:
+From your project, ask your agent:
+
+```text
+Install the generate-product-doc skill from tanishqkancharla/diffmap, then use it to explain how this project works.
+```
+
+Or install the skill yourself, selecting your coding agent when prompted:
 
 ```sh
 npx skills add tanishqkancharla/diffmap --skill generate-product-doc
 ```
 
-Then ask your agent to explain an existing system, plan work, or review changes:
+For a non-interactive Amp installation, add `--agent amp --yes`. Then ask your agent to use `generate-product-doc` to explain a system, plan work, or review changes. If the current session does not discover the installed skill, reload its skills or start a new session.
 
-```text
-Use generate-product-doc to explain how this app handles sign-in, including what happens when the session expires.
-```
-
-The skill is a short pointer: your agent loads the full instructions from `npx product-doc guide`, so they stay version-matched to the viewer. When the stub itself changes, update it with `npx skills update generate-product-doc`.
+Installing the skill and acquiring the CLI are separate steps. The skill is a short pointer: your agent loads the full instructions from `npx product-doc guide`, which acquires the CLI from npm and keeps its instructions version-matched to the viewer. Running that command alone does not install the skill. When the stub itself changes, update it with `npx skills update generate-product-doc`.
 
 The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source and MIT licensed. Documents are served locally by default; [sharing as an unlisted gist](#share-a-spec-with-a-link-experimental) still uses diffmap.dev until productdoc.dev supports those links.
 
@@ -28,7 +30,7 @@ The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source
 
 Productdoc is the standalone successor to Diffmap, expanding beyond diff review. The npm package is `product-doc`, its executable is `product-doc`, and its website will be **productdoc.dev**. The GitHub repository keeps its current URL.
 
-Both skills coexist temporarily. Existing published Diffmap packages, the legacy skill, and the live site are unchanged by these local edits; users will be invited to migrate later. Keep existing documents and paths rather than copying them. No legacy binary alias or automatic installation migration is added.
+Diffmap is being retired. Use `generate-product-doc` and `product-doc` for new work, not the legacy skill or package. Existing installs do not migrate automatically. Keep existing documents and shared links rather than copying or deleting them; Productdoc still reads `.diffmap/specs/`. No legacy binary alias or automatic installation migration is added.
 
 [The original Diffmap launch video](https://x.com/tanishqk/status/2116212881125691850) shows the review workflow this builds on.
 

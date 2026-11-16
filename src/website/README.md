@@ -26,8 +26,8 @@ Review phases independently:
 
 ## Rollout checks still required
 
-Public npm currently contains a placeholder; no public install command is advertised. Recheck the fixed staged runtime and public skill flow before replacing the release-status link with installation.
+The public `product-doc` runtime and `generate-product-doc` GitHub skill are available. Onboarding explicitly installs the skill, then asks the agent to use it; the CLI guide is a separate acquisition step, not a skill installer. The homepage prompt is also included in its Markdown representation and llms.txt. A clean-project check verified the public installer, Amp scanner discovery, explicit skill loading by a fresh subagent, public guide, document validation and preview. This does not establish automatic skill selection in a fresh Amp session or isolation from account-level skills. Website analytics remains gated off; install intent is not a confirmed installation.
 
 Search crawling is allowed; GPTBot, ClaudeBot and Google-Extended training use is conservatively disallowed independently. This is a proposed policy for review, not an access-control guarantee. The preview sends `X-Robots-Tag: noindex`; the generated sitemap/canonicals target productdoc.dev for future rollout.
 
-Vercel configuration is prepared, not deployed or verified on its CDN. Validate the function's included build files, root/docs/Markdown response behavior in both request orders, missing-page 404s, and unchanged gist/GitHub viewer routes on an approved deployment. Inspect CDN bot challenges separately; a local HTTP check cannot establish the deployed edge policy. Existing old-domain shared links must not become marketing redirects.
+Local preview checks do not establish Vercel CDN behavior. Validate the function's included build files, root/docs/Markdown response behavior in both request orders, missing-page 404s, and unchanged gist/GitHub viewer routes after deployment. Inspect CDN bot challenges separately; a local HTTP check cannot establish the deployed edge policy. Existing old-domain shared links must not become marketing redirects.

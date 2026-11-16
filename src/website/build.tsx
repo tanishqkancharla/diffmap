@@ -7,7 +7,14 @@ import { baseTextStyle } from "maui/src/tokens/text.ts";
 import { shadowVars } from "maui/src/tokens/shadow.ts";
 import { themeFoucScript } from "maui/src/theme/themeFoucScript.ts";
 import { Logo } from "../landing/Logo.tsx";
-import { markdownPath, origin, pages } from "./content.ts";
+import {
+  examplePrompt,
+  markdownPath,
+  origin,
+  pages,
+  releaseStatus,
+  repository,
+} from "./content.ts";
 import { renderPage } from "./render.tsx";
 
 await init();
@@ -46,19 +53,36 @@ for (const page of pages) {
   await fs.writeFile(path.join(out, "pages", `${name}.html`), html);
   await fs.writeFile(
     path.join(out, "pages", `${name}.md`),
-    `${page.body.trim()}\n`,
+    `${page.body.trim()}\n${page.path === "/" ? `\n## Get started\n\n${examplePrompt}\n\n[Install the skill and CLI](${origin}/docs/install)\n` : ""}`,
   );
   if (page.path === "/") await fs.writeFile(path.join(out, "index.html"), html);
 }
 await fs.writeFile(
   path.join(out, "llms.txt"),
-  `# Productdoc\n\nVisual documents for explaining systems, planning small changes, and reviewing changes.\n\nPublic runtime and skill installation are not yet available. Do not install the npm placeholder.\n\n${pages
-    .filter((p) => p.path !== "/")
-    .map(
-      (p) =>
-        `- [${p.title}](${origin}${markdownPath(p.path)}): ${p.description}`,
-    )
-    .join("\n")}\n`,
+  `# Productdoc
+
+Visual documents for explaining systems, planning small changes, and reviewing changes.
+
+${releaseStatus}
+
+## Get started
+
+${examplePrompt}
+
+Install: npx skills add tanishqkancharla/diffmap --skill generate-product-doc
+Public skill source: ${repository}/tree/main/skills/generate-product-doc
+CLI guide: npx product-doc guide
+Running the CLI does not install the skill. Load generate-product-doc in your agent after installation.
+
+## Documentation
+
+${pages
+  .filter((p) => p.path !== "/")
+  .map(
+    (p) => `- [${p.title}](${origin}${markdownPath(p.path)}): ${p.description}`,
+  )
+  .join("\n")}
+`,
 );
 await fs.writeFile(
   path.join(out, "sitemap.xml"),
