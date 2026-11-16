@@ -1,6 +1,6 @@
 # Phase 5: Definitions and commit ranges
 
-[Phase 1](02-publish-a-spec.md) shares the diffs and files a spec shows. Two features in the Diff panel still ask the local server for things a shared spec does not have: Cmd-click to a definition, and the commit range picker. This phase works out what each needs when the spec is shared, and says what stays local.
+[Phase 1](02-share-dialog.md) shares the diffs and files a spec shows. Two features in the Diff panel still ask the local server for things a shared spec does not have: Cmd-click to a definition, and the commit range picker. This phase works out what each needs when the spec is shared, and says what stays local.
 
 **Today**
 
