@@ -23,9 +23,9 @@ auth-log-in--empty
 
 The first line is the starting state. **Each later story is one step from the story it is indented under:** its `play` does what the person does, and its `msw` handlers say how the server answers. So a state is the path of stories that leads to it, and the journey lives in the spec rather than in the stories.
 
-[[d982acf:src/parseFence.ts#L235-L281]] parses the tree, and `validate` names what is wrong: a line indented under nothing, an action on the starting state, a missing action, a line that is not a story ID, or a story listed twice.
+[[39c48f0:src/parseFence.ts#L235-L281]] parses the tree, and `validate` names what is wrong: a line indented under nothing, an action on the starting state, a missing action, a line that is not a story ID, or a story listed twice.
 
-The page learns paths. `preview-show` carries `path`, the story IDs from the start to the state, and the page's URL carries it as `?story=<id>&path=<ids>` so a frame loads straight into a state. Showing a path from scratch renders the first story, then loads and runs each later story's steps at once ([[d982acf:src/preview/PreviewRoute.tsx#L170-L202]]). Loading a story first runs its loaders, which is where the MSW addon swaps in that story's fake server. A path that does not end at the story is ignored, and the page renders the story alone ([[d982acf:src/preview/protocol.ts#L84-L93]]).
+The page learns paths. `preview-show` carries `path`, the story IDs from the start to the state, and the page's URL carries it as `?story=<id>&path=<ids>` so a frame loads straight into a state. Showing a path from scratch renders the first story, then loads and runs each later story's steps at once ([[39c48f0:src/preview/PreviewRoute.tsx#L170-L202]]). Loading a story first runs its loaders, which is where the MSW addon swaps in that story's fake server. A path that does not end at the story is ignored, and the page renders the story alone ([[39c48f0:src/preview/protocol.ts#L84-L93]]).
 
 ```ts
 // viewer → page
@@ -33,21 +33,21 @@ The page learns paths. `preview-show` carries `path`, the story IDs from the sta
 // [!note path] Stories from the flow's start to this state. Without it, the page renders the story alone, as in Phase 1.
 ```
 
-The block is one live frame, with the viewer's controls around it ([[236fbba:src/viewer/previews/FlowBlock.tsx#L49-L549]]):
+The block is one live frame, with the viewer's controls around it ([[dba00a5:src/viewer/previews/FlowBlock.tsx#L49-L549]]):
 
 - **The header** has breadcrumbs from the starting state to the selected one, each a button back to that state, then the expand button and a button that shows and hides the states sidebar.
 - **Under the frame,** the state's note, from the story's description, sits on its own line. Under it, Back is on the left and a segmented next-step button on the right. Its main half follows the first state listed under this one, so **a fence lists the happy path first**, and is labeled with that action, such as "Fill in email and password". The arrow beside it opens a menu of the state's other steps. A state with no children says it is the end of the path.
 - **Beside the frame,** a narrow sidebar lists every state as a compact text tree in the order the fence lists them, so the happy path comes first, with the same guide lines as a `callstack` block. The selected state is highlighted, and the states on the path to it are darker than the rest. Clicking a state jumps straight to it, as the breadcrumbs do. The sidebar is open by default, as tall as the frame, and scrolls on its own.
-- **Reviewing** happens in the sidebar: each state has the diff panel's **Reviewed** checkbox, [[src/viewer/ReviewedCheckbox.tsx#ReviewedCheckbox]], keyed to the state's path and fingerprint. Review marks are stored in `localStorage` per spec page, as [[src/viewer/reviewed.ts#useReviewedFiles]] keys reviewed files to their diff, so a state whose UI changes needs reviewing again ([[d982acf:src/viewer/previews/reviewedStates.ts#L45-L63]]).
-- **Hovering a state** shows a card to the right of the sidebar, outside the block, with a thumbnail of that state, its name, and its description. The first time the pointer enters the sidebar, the block loads every state's thumbnail and keeps them, so moving between states, or back to one, shows its thumbnail at once without loading it again; the loaded thumbnails also give every state a fingerprint, so each checkbox can be ticked. Where the window has no room on the right, the card opens on the left ([[a1c1b21:src/viewer/previews/FlowBlock.tsx#L173-L197]]). Until then, a flow on the page loads one frame of the app. A tree of every state as thumbnails is the expanded view's, in [Phase 5](05-expanded-flow.md).
+- **Reviewing** happens in the sidebar: each state has the diff panel's **Reviewed** checkbox, [[src/viewer/ReviewedCheckbox.tsx#ReviewedCheckbox]], keyed to the state's path and fingerprint. Review marks are stored in `localStorage` per spec page, as [[src/viewer/reviewed.ts#useReviewedFiles]] keys reviewed files to their diff, so a state whose UI changes needs reviewing again ([[39c48f0:src/viewer/previews/reviewedStates.ts#L45-L63]]).
+- **Hovering a state** shows a card to the right of the sidebar, outside the block, with a thumbnail of that state, its name, and its description. The first time the pointer enters the sidebar, the block loads every state's thumbnail and keeps them, so moving between states, or back to one, shows its thumbnail at once without loading it again; the loaded thumbnails also give every state a fingerprint, so each checkbox can be ticked. Where the window has no room on the right, the card opens on the left ([[8f5be11:src/viewer/previews/FlowBlock.tsx#L173-L197]]). Until then, a flow on the page loads one frame of the app. A tree of every state as thumbnails is the expanded view's, in [Phase 5](05-expanded-flow.md).
 - **Arrow keys** move down the happy path and back to the parent while the block has focus.
 
 ```callstack [Showing a flow fence]
- view = Fence(fence) [[d982acf:src/viewer/Fence.tsx#L64-L67]]
+ view = Fence(fence) [[39c48f0:src/viewer/Fence.tsx#L64-L67]]
 +└── return FlowBlock(fence)
 +    ├── live = PreviewFrame(page, [start]) # the one the reader drives
-+    ├── tree = showAll && states.map((state) => PreviewFrame(page, statePath(state), "thumbnail")) [[d982acf:src/viewer/previews/flowTree.ts#L4-L13]]
-+    └── select(state) [[8031163:src/viewer/previews/FlowBlock.tsx#L86-L97]]
++    ├── tree = showAll && states.map((state) => PreviewFrame(page, statePath(state), "thumbnail")) [[39c48f0:src/viewer/previews/flowTree.ts#L4-L13]]
++    └── select(state) [[85f7ba9:src/viewer/previews/FlowBlock.tsx#L86-L97]]
 +        └── live.post({ type: "preview-show", path: statePath(state), how })
 ```
 
@@ -56,7 +56,7 @@ Before the page has answered, states read as names made from their IDs, so `auth
 Checked in Chrome against [`fixtures/previews-app`](07-examples.md) with five flows on one page: log-in, sign-up, checkout, search, and upload. All 37 frames reached their states, including the ones that need the server's answer (wrong password, locked, two-factor, email taken, card declined, search results, no results, file too large, connection dropped). Jumping from `Wrong Password` to `Reset Sent` rendered the reset screen from scratch. Reviewing a state from the header and from its card in the tree marked the same state, since both frames report the same fingerprint.
 
 ```changes
-2df4c53..a1c1b21
+a5ec180..8f5be11
 src/parseFence.ts
 src/parseViewer.ts
 src/preview/protocol.ts
@@ -70,4 +70,47 @@ fixtures/previews-app/src/auth/AuthFlow.tsx
 
 ignore:
 fixtures/previews-app/src/app.css
+.diffmap/config.json
+.diffmap/specs/ui-previews/01-preview-route.md
+.diffmap/specs/ui-previews/02-preview-block.md
+.diffmap/specs/ui-previews/03-flow-block.md
+.diffmap/specs/ui-previews/04-live-transitions.md
+.diffmap/specs/ui-previews/05-expanded-flow.md
+.diffmap/specs/ui-previews/06-diffmap-dev-and-guide.md
+.diffmap/specs/ui-previews/07-examples.md
+.diffmap/specs/ui-previews/README.md
+.diffmap/specs/ui-previews/media/flow-block.png
+.diffmap/specs/ui-previews/media/flow-expanded.png
+.diffmap/specs/ui-previews/media/preview-block.png
+fixtures/previews-app/.storybook/main.ts
+fixtures/previews-app/.storybook/preview.tsx
+fixtures/previews-app/index.html
+fixtures/previews-app/package.json
+fixtures/previews-app/previews.html
+fixtures/previews-app/public/mockServiceWorker.js
+fixtures/previews-app/src/checkout/Checkout.stories.tsx
+fixtures/previews-app/src/checkout/Checkout.tsx
+fixtures/previews-app/src/main.tsx
+fixtures/previews-app/src/previews/main.tsx
+fixtures/previews-app/src/search/Search.stories.tsx
+fixtures/previews-app/src/search/Search.tsx
+fixtures/previews-app/src/signup/Signup.stories.tsx
+fixtures/previews-app/src/signup/Signup.tsx
+fixtures/previews-app/src/ui.stories.tsx
+fixtures/previews-app/src/ui.tsx
+fixtures/previews-app/src/upload/Upload.stories.tsx
+fixtures/previews-app/src/upload/Upload.tsx
+fixtures/previews-app/tsconfig.json
+fixtures/previews-app/vite.config.ts
+package.json
+src/diffmapConfig.ts
+src/serve.ts
+src/viewer/CallStackDiff.tsx
+src/viewer/Fence.tsx
+src/viewer/ReviewedCheckbox.tsx
+src/viewer/SourceDiffPanel.tsx
+src/viewer/previews/PreviewBlock.tsx
+src/viewer/previews/PreviewFrame.tsx
+src/viewer/previews/config.ts
+src/viewer/previews/reviewedStates.ts
 ```
