@@ -38,7 +38,7 @@ design-button--alerts
 
 The frames sit in a grid that puts them side by side when they fit the column and wraps them when they do not. Above each frame is the story's name, and under it is the story's description. A preview block has nothing to review: it shows a component, so review marks belong to a flow's states in [Phase 3](03-flow-block.md).
 
-**When there is no page to show.** Outside `serve`, the block says live previews show when the spec runs with `diffmap serve`; [Phase 6](06-diffmap-dev-and-guide.md) adds the pull request's deployment. Without `previews.local`, it says what to add to `.diffmap/config.json`. When the dev server is not running, each frame says it cannot reach the page at its URL, with a Retry button.
+**When there is no page to show.** On a pull request on diffmap.dev, the block loads the pull request's preview deployment ([Phase 6](06-diffmap-dev-and-guide.md)). Anywhere else outside `serve`, such as a shared gist, it says live previews show when the spec runs with `diffmap serve`. Without `previews.local`, it says what to add to `.diffmap/config.json`. When the dev server is not running, each frame says it cannot reach the page at its URL, with a Retry button.
 
 **Keeping the reader's place.** A story's `play` focuses inputs as it types, and focusing inside a frame makes the browser scroll the page to that frame and move keyboard focus into it. The page replays steps with `preventScroll` ([[d982acf:src/preview/PreviewRoute.tsx#L369-L380]]), and the viewer hands focus back when a frame takes it before it has shown its state ([[d982acf:src/viewer/previews/PreviewFrame.tsx#L170-L183]]). A reader who clicks into a live frame keeps focus there.
 
