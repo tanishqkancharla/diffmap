@@ -28,7 +28,7 @@ The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source
 
 ### Migrating from Diffmap
 
-Productdoc is the standalone successor to Diffmap, expanding beyond diff review. The npm package is `product-doc`, its executable is `product-doc`, and its website will be **productdoc.dev**. The GitHub repository keeps its current URL.
+Productdoc is the standalone successor to Diffmap, expanding beyond diff review. The npm package is `product-doc`, its executable is `product-doc`, and its website is [productdoc.dev](https://productdoc.dev). The GitHub repository keeps its current URL.
 
 Diffmap is being retired. Use `generate-product-doc` and `product-doc` for new work, not the legacy skill or package. Existing installs do not migrate automatically. Keep existing documents and shared links rather than copying or deleting them; Productdoc still reads `.diffmap/specs/`. No legacy binary alias or automatic installation migration is added.
 
