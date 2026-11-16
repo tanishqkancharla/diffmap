@@ -119,6 +119,8 @@ const cli = Cli.create("product-doc", {
   description:
     "Explain systems, plan work, and review changes as visual documents",
   version: packageVersion,
+  // The curated authoring skill is installed separately, not generated from commands.
+  sync: false,
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
@@ -279,6 +281,74 @@ const cli = Cli.create("product-doc", {
     },
   });
 
-await cli.serve(resolveUpdateArgv(process.argv.slice(2)), {
-  exit: exitAfterTelemetry,
-});
+const argv = resolveUpdateArgv(process.argv.slice(2));
+// Incur has no MCP opt-out. Block its entry points before dispatch; do not
+// mistake an option value or a spec passed to `serve` for a command.
+const valueOptions = new Set([
+  "--port",
+  "--root",
+  "--format",
+  "--filter-output",
+  "--token-limit",
+  "--token-offset",
+]);
+let command: string | undefined;
+for (let index = 0; index < argv.length; index++) {
+  const arg = argv[index]!;
+  if (arg === "--") break;
+  if (valueOptions.has(arg)) {
+    index++;
+    continue;
+  }
+  if (arg.startsWith("-") || arg === "product-doc") continue;
+  command = arg;
+  break;
+}
+if (argv.includes("--mcp") || command === "mcp") {
+  if (!process.env.COMPLETE) {
+    process.stderr.write(
+      "MCP is not supported by product-doc. Run product-doc --help.\n",
+    );
+    exitAfterTelemetry(1);
+  }
+} else {
+  await cli.serve(argv, {
+    exit: exitAfterTelemetry,
+    stdout(output) {
+      if (process.env.COMPLETE && argv.length > 0) {
+        // Keep Incur's shell-specific encoding and all non-MCP candidates.
+        if (process.env.COMPLETE === "nushell") {
+          output = JSON.stringify(
+            (JSON.parse(output) as { value: string }[]).filter(
+              (candidate) => candidate.value !== "mcp",
+            ),
+          );
+        } else {
+          const separator = process.env.COMPLETE === "bash" ? "\v" : "\n";
+          output = output
+            .split(separator)
+            .filter(
+              (candidate) =>
+                candidate !== "mcp\x01" && !/^mcp(?:[:\t]|$)/.test(candidate),
+            )
+            .join(separator);
+        }
+      } else if (
+        argv.includes("--help") ||
+        argv.includes("-h") ||
+        (argv.length === 0 && process.stdout.isTTY)
+      ) {
+        output = output.replace(/^  (?:mcp|--mcp)\s.*\n/gm, "");
+      } else if (
+        output.includes("COMMAND_NOT_FOUND") &&
+        output.includes("Did you mean 'mcp'?")
+      ) {
+        process.stderr.write(
+          `Unknown command ${JSON.stringify(command)}. Run product-doc --help.\n`,
+        );
+        return;
+      }
+      process.stdout.write(output);
+    },
+  });
+}
