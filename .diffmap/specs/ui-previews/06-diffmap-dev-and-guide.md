@@ -41,12 +41,16 @@ The deployment doesn't answer, because it is still building, or is private:
 
 A spec opened by commit, with no pull request to fill `{pull}` or `{branch}` from, names the missing placeholder and links to the same instructions.
 
-[[guide.md]] gains a [Live previews](../../../guide.md#live-previews) section, linked from [Capture UI changes](../../../guide.md#capture-ui-changes). It covers:
+The guide splits into topics, so an agent reads the UI parts only when a change has UI. `diffmap guide` still prints the main guide, now with a short "UI changes" section that sends the agent to two topics ([[guide.md]]):
 
-- When to use a `preview` block, a `flow` block, or screenshots.
-- The fence syntax.
-- A one-time setup in the app: the libraries, the preview page for Vite and Next.js, the frame header on the dev server and on preview deployments, and `.diffmap/config.json`.
-- How to write the stories, and how to check each state before handing back the spec.
+- `diffmap guide ui` prints how to show a UI change: live when it has stories, otherwise screenshots and recordings ([[guide/ui.md]]). This was the main guide's "Capture UI changes" section.
+- `diffmap guide previews` prints the new "Live previews" topic ([[guide/previews.md]]), covering:
+  - when to use a `preview` block, a `flow` block, or screenshots;
+  - the fence syntax;
+  - a one-time setup in the app: the libraries, the preview page for Vite and Next.js, the frame header on the dev server and on preview deployments, and `.diffmap/config.json`;
+  - how to write the stories, and how to check each state before handing back the spec.
+
+Feedback stays in the main guide. The topics ship in the package beside `guide.md`, so they always match the installed viewer, as the main guide does ([[src/cli.ts]]).
 
 [[skills/generate-diffmap/SKILL.md]] names previewing components and user flows in its description, so agents pick it for the requests that used to trigger flow-preview. The flow-preview repo's README will point to diffmap, in a separate PR in that repo.
 
@@ -76,4 +80,17 @@ ignore:
 src/serve.ts
 src/github/fetchRepo.test.ts
 src/viewer/previews/previews.test.ts
+```
+
+```changes
+9779b1e
+guide.md
+guide/ui.md
+guide/previews.md
+src/cli.ts
+src/viewer/previews/PreviewFrame.tsx
+package.json
+
+ignore:
+src/cli.test.ts
 ```
