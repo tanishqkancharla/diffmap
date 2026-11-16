@@ -13,6 +13,8 @@ import {
   runUpdate,
 } from "./update.js";
 
+const guideTopics = ["ui", "previews"] as const;
+
 const serveArgs = z.object({
   file: z
     .string()
@@ -203,10 +205,26 @@ const cli = Cli.create("product-doc", {
   })
   .command("guide", {
     description: "Print the instructions agents follow to write a spec",
+    args: z.object({
+      topic: z
+        .enum(guideTopics)
+        .optional()
+        .describe(
+          "A part the main guide sends you to: ui (showing a UI change) or previews (live preview and flow blocks)",
+        ),
+    }),
     output: z.string(),
-    run() {
+    run(c) {
       trackCommand("guide");
-      return readFileSync(new URL("../guide.md", import.meta.url), "utf8");
+      return readFileSync(
+        new URL(
+          c.args.topic === undefined
+            ? "../guide.md"
+            : `../guide/${c.args.topic}.md`,
+          import.meta.url,
+        ),
+        "utf8",
+      );
     },
   })
   .command("list", {

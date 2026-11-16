@@ -81,7 +81,7 @@ Use `services` when the parts keep state, run at the same time, or fan out; use 
 
 **Links.** Link existing source with [references](#source-references); write planned symbols as plain text.
 
-**Screenshots and recordings.** When a phase changes something a person sees, show it; [Capture UI changes](#capture-ui-changes) says which kind to use. Write `![label](path)`; a `.mp4` or `.webm` path renders as a video player. Group related captures in a `:::gallery side-by-side`, `grid`, or `carousel`, and title a carousel like `:::gallery carousel [Saving a record]`. Each item's alt text is its visible label, and a gallery holds only images and videos.
+**Screenshots and recordings.** When a phase changes something a person sees, show it, live in a `preview` or `flow` block or in captures; `diffmap guide ui` says which to use. Write `![label](path)`; a `.mp4` or `.webm` path renders as a video player. Group related captures in a `:::gallery side-by-side`, `grid`, or `carousel`, and title a carousel like `:::gallery carousel [Saving a record]`. Each item's alt text is its visible label, and a gallery holds only images and videos.
 
 ```md
 :::gallery side-by-side
@@ -207,84 +207,9 @@ src/request.test.ts
 ```
 ````
 
-## Capture UI changes
+## UI changes
 
-When a phase changes a UI that has Storybook stories, or could have them, show it live instead: see [Live previews](#live-previews). Otherwise, capture the running app with the browser automation you have, such as Playwright or agent-browser, and add the captures to the phase. They let the reader judge the result without running it, and they test your work: before you add a capture, look at it with the expected result in mind, and fix what it shows wrong. Skip captures for changes nobody sees, such as a refactor or a backend fix with no visible effect.
-
-- Use screenshots by default: they show how a state looks. Take one per state, variant, or window width the change affects, default first, such as empty, loading, error, hover, or a narrow window, and label each with the state it shows.
-- Record a clip only for what screenshots cannot show: hover and click feedback, menus, focus, dragging, transitions, or timing. Move a real pointer through the whole interaction, past neighboring controls, and keep the clip under about 15 seconds.
-- Show Today beside Proposed when the comparison is the point, in a `side-by-side` gallery. Capture Today from the unchanged code, such as the base commit in a worktree, not from a mockup. Use `grid` to scan several states or variants, and `carousel` to step through the stages of a flow.
-- Keep only captures that help the reader decide something. Leave out intermediate attempts; when a fix changes the UI, replace the capture so only the final one remains.
-- Crop screenshots to the part that changed, keep text readable, and leave out secrets and personal data.
-- Save captures under `media/<phase-slug>/` in the spec and link them relative to the page, as in `media/write-through/save.png`. Prefer `.mp4` for recordings, since every browser plays it. Commit them with the spec so the pull request viewer shows them; ask the user before committing more than a few megabytes.
-- Above each capture, say in a sentence what to look for. Readers comment by highlighting that sentence or a gallery label, and **Copy comments** brings their notes back to you.
-- A capture shows what happened; it does not prove the behavior. Say which checks you ran.
-- `share` fails on local media. To share a spec with captures, link them by https URL, or open the spec on its pull request.
-
-## Live previews
-
-A `preview` or `flow` block runs the app's real components in the spec, from the app's own Storybook stories. Use a `preview` block for a component or a design, with its variants side by side. Use a `flow` block for a journey of several states, or one that branches. Keep screenshots for UI that has no story, such as a whole page that needs a real backend.
-
-````text
-```preview [The log-in screen]
-auth-log-in--empty
-auth-log-in--wrong-password
-```
-
-```flow [Logging in]
-auth-log-in--empty
-  auth-log-in--filled: Fill in email and password
-    auth-log-in--signed-in: Log in
-    auth-log-in--wrong-password: Log in with the wrong password
-  auth-log-in--forgot: Click "Forgot password?"
-```
-````
-
-Name stories by their Storybook ID. In a `flow`, the first line is the starting state, and each later story is indented two spaces under the state it follows, with the action that leads to it after a colon. List the happy path first: the block's next-step button follows a state's first child.
-
-**Set up the app once.** Skip this if the repo's `.diffmap/config.json` already has `previews`.
-
-1. If the app has no Storybook, add `@storybook/react` and `storybook` as dev dependencies; no Storybook server or config is needed. For screens that call the server, add `msw` and `msw-storybook-addon`, run `npx msw init public`, and add `mswLoader` to the preview's `loaders`.
-2. Add a page that the dev server and preview deployments serve, and the production deployment leaves out. In a Vite app, it is a `previews.html` beside `index.html`, added to `build.rollupOptions.input` only when the build is not for production, such as when `VERCEL_ENV` is not `production`. It loads:
-
-   ```tsx
-   import { createRoot } from "react-dom/client";
-   import { setProjectAnnotations } from "@storybook/react";
-   import { PreviewRoute } from "@tanishqkancharla/diffmap/preview";
-   import preview from "../../.storybook/preview";
-
-   setProjectAnnotations([preview]);
-   const stories = import.meta.glob("../**/*.stories.tsx", { eager: true });
-   createRoot(document.getElementById("root")!).render(
-     <PreviewRoute stories={stories} />,
-   );
-   ```
-
-   In a Next.js app, it is `app/__previews/page.tsx`, which calls `notFound()` on the production deployment, such as when `VERCEL_ENV` is `production`, and otherwise renders a client component with the same `PreviewRoute`, passing the story modules imported by hand. Import the project's `.storybook/preview` when it exists, so every story gets the app's decorators, providers, and global styles.
-
-3. Send `previewFrameAncestors`, from `@tanishqkancharla/diffmap/preview`, as the page's `Content-Security-Policy` header, so only the local viewer and diffmap.dev can frame it: from the dev server, as with Vite's `server.headers`, and from preview deployments, as with `headers` in `vercel.json` or `headers()` in `next.config`.
-4. Add the page's URLs to `.diffmap/config.json` at the repo root. `local` is the page on the dev server. `preview` is the page on each pull request's preview deployment, with `{branch}`, `{sha}`, or `{pull}`; diffmap.dev fills them from the pull request, with `{branch}` lowercase and every run of characters other than letters and digits turned into `-`, as Vercel and Netlify put a branch in a hostname. The deployment must be public, or diffmap.dev shows that it can't reach it.
-
-   ```json [.diffmap/config.json]
-   {
-     "previews": {
-       "local": "http://localhost:5173/previews.html",
-       "preview": "https://myapp-git-{branch}-myteam.vercel.app/previews.html"
-     }
-   }
-   ```
-
-   Add a `flows` key only to change a flow's defaults: `"transitions": "render"` draws each state from the start instead of playing the step on the live UI, and `"viewport": { "width": 1280, "height": 800 }` sets the size of the expanded flow.
-
-**Write the stories.**
-
-- Reuse the team's stories where they exist. Write new ones next to the component, in Storybook's format, with a `title`.
-- Answer every request from the story's `parameters.msw.handlers`, never a live backend: previews must not sign anyone in, charge a card, or change real data. Use fixed values, not timestamps or random content.
-- In a flow, each story after the first is one step from the story it is indented under. Its `play` does what the person does next, through `canvas` and `userEvent`, and its handlers give the server's answer to that step. Don't repeat the parent's steps: diffmap plays the path for you.
-- Model events from outside the app, such as an email link or a provider's approval, as their own step with an action, not as buttons added to the UI.
-- Write each story's `parameters.docs.description.story` as the state's note: what just happened, what is saved or still pending, and what the person can do next. Mark behavior that does not exist yet as proposed.
-
-**Check before handing back.** With the app's dev server running, open each story on its own at `<previews.local>?story=<id>`, and each flow state at `?story=<id>&path=<ids from the start>`. Fix what the page lists as wrong with a story file. Then open the spec with `serve`, step through every state of each flow, and compare the states with the running app. The blocks show live UI only while the dev server runs; on a pull request, they load its preview deployment.
+When a phase changes a UI, run `npx @tanishqkancharla/diffmap guide ui` and follow what it prints: when to show the UI live, and how to take screenshots and recordings. To show it live, from the app's Storybook stories, run `npx @tanishqkancharla/diffmap guide previews`, which covers the `preview` and `flow` blocks and setting them up in the app.
 
 ## Source references
 

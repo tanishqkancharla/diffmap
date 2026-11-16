@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Button,
-  Link,
   PlugOff,
   Refresh,
   colors,
@@ -278,10 +277,14 @@ function ConnectedFrame(props: FrameProps & { onRetry: () => void }) {
 
 /** The guide's section on serving a spec, for when a block can't show live UI here. */
 export function RunLocally() {
+  const className = useStyles(styles.inlineLink);
   return (
-    <Link href="https://github.com/tanishqkancharla/diffmap/blob/main/guide.md#serve-and-share">
+    <a
+      className={className}
+      href="https://github.com/tanishqkancharla/diffmap/blob/main/guide.md#serve-and-share"
+    >
       run this spec with diffmap serve
-    </Link>
+    </a>
   );
 }
 
@@ -313,6 +316,13 @@ const styles = {
     backgroundColor: "white",
   }),
   inert: style({ pointerEvents: "none" }),
+  // Maui's Link sets its own text size; this one sits inside a notice's smaller text.
+  inlineLink: style({
+    font: "inherit",
+    color: colors.gray[12],
+    textDecorationLine: "underline",
+    textUnderlineOffset: "2px",
+  }),
   overlay: style(
     text({ size: "xs", color: "lowContrast" }),
     spacing.padding({ all: 6 }),

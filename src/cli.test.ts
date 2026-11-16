@@ -232,11 +232,21 @@ test("product-doc help exposes the successor identity", async () => {
   assert.doesNotMatch(update.stdout, /@tanishqkancharla\/diffmap/);
 });
 
-test("product-doc guide prints guide.md", async () => {
+test("product-doc guide prints guide.md, and each topic it names", async () => {
   const guide = await fs.readFile(path.join(packageRoot, "guide.md"), "utf8");
   const result = await runCli(["guide"]);
   assert.equal(result.exitCode, 0, result.stderr);
   assert.equal(result.stdout.trim(), guide.trim());
+  for (const topic of ["ui", "previews"]) {
+    const part = await fs.readFile(
+      path.join(packageRoot, "guide", `${topic}.md`),
+      "utf8",
+    );
+    assert.match(guide, new RegExp(`product-doc guide ${topic}\\b`));
+    const printed = await runCli(["guide", topic]);
+    assert.equal(printed.exitCode, 0, printed.stderr);
+    assert.equal(printed.stdout.trim(), part.trim());
+  }
 });
 
 test("product-doc validate checks specs without starting a server", async () => {
