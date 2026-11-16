@@ -232,6 +232,87 @@ test("product-doc help exposes the successor identity", async () => {
   assert.doesNotMatch(update.stdout, /@tanishqkancharla\/diffmap/);
 });
 
+test("product-doc excludes generated skills and MCP but keeps completions", async () => {
+  const help = await runCli(["--help"]);
+  assert.equal(help.exitCode, 0, help.stderr);
+  assert.doesNotMatch(help.stdout, /\bskills?\b|\bmcp\b/);
+  for (const command of [
+    "guide",
+    "list",
+    "serve",
+    "share",
+    "update",
+    "validate",
+    "completions",
+  ]) {
+    assert.match(help.stdout, new RegExp(`^  ${command}\\s`, "m"));
+    const result = await runCli([command, "--help"]);
+    assert.equal(result.exitCode, 0, result.stderr);
+  }
+  for (const command of ["skills", "skill"]) {
+    for (const args of [[], ["--help"], ["add"], ["list"], ["ls"]]) {
+      const result = await runCli([command, ...args]);
+      // Unknown names remain eligible for the root's <file> shorthand.
+      assert.equal(
+        result.exitCode,
+        args.includes("--help") ? 0 : 1,
+        result.stdout + result.stderr,
+      );
+      assert.doesNotMatch(
+        result.stdout + result.stderr,
+        /Syncing|skills synced|Sync skill files|List skills/,
+      );
+    }
+  }
+  for (const shell of ["bash", "fish", "zsh", "nushell"]) {
+    const completions = await execFileAsync(
+      process.execPath,
+      [binPath, "product-doc", ""],
+      {
+        cwd: packageRoot,
+        env: { ...process.env, COMPLETE: shell, _COMPLETE_INDEX: "1" },
+        timeout: 20_000,
+      },
+    );
+    assert.doesNotMatch(completions.stdout, /\bskills?\b|\bmcp\b/);
+    assert.match(completions.stdout, /validate/);
+    assert.match(completions.stdout, /completions/);
+  }
+  for (const args of [
+    ["mcp"],
+    ["mcp", "--help"],
+    ["mcp", "add"],
+    ["--json", "mcp", "add"],
+    ["mcp", "doctor"],
+    ["--mcp"],
+    ["guide", "--mcp"],
+    ["--mcp", "--help"],
+  ]) {
+    const result = await runCli(args);
+    assert.equal(result.exitCode, 1, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /MCP is not supported/);
+  }
+  const typo = await runCli(["mc"]);
+  assert.equal(typo.exitCode, 1);
+  assert.doesNotMatch(typo.stdout + typo.stderr, /\bmcp\b/);
+  for (const flag of ["--llms", "--llms-full"]) {
+    const manifest = await runCli([flag, "--json"]);
+    assert.equal(manifest.exitCode, 0, manifest.stderr);
+    assert.deepEqual(
+      JSON.parse(manifest.stdout).commands.map(
+        (entry: { name: string }) => entry.name,
+      ),
+      ["guide", "list", "serve", "share", "update", "validate"],
+    );
+  }
+  const schema = await runCli(["validate", "--schema", "--json"]);
+  assert.equal(schema.exitCode, 0, schema.stderr);
+  assert.deepEqual(JSON.parse(schema.stdout).args.required, ["file"]);
+  const count = await runCli(["guide", "--token-count"]);
+  assert.equal(count.exitCode, 0, count.stderr);
+  assert.ok(Number(count.stdout) > 0);
+});
+
 test("product-doc guide prints guide.md, and each topic it names", async () => {
   const guide = await fs.readFile(path.join(packageRoot, "guide.md"), "utf8");
   const result = await runCli(["guide"]);
@@ -264,6 +345,15 @@ test("product-doc validate checks specs without starting a server", async () => 
       valid: true,
       pages: ["README.md"],
     });
+    const filtered = await runCli([
+      "validate",
+      dir,
+      "--json",
+      "--filter-output",
+      "pages",
+    ]);
+    assert.equal(filtered.exitCode, 0, filtered.stderr);
+    assert.deepEqual(JSON.parse(filtered.stdout), { pages: ["README.md"] });
     for (const [source, message] of [
       [
         "```ts\nsave(record);\n// [!note L2 save] Out of range.\n```\n",
