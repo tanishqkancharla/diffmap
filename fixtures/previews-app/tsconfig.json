@@ -10,7 +10,7 @@
     "target": "ES2022",
     "types": ["vite/client"],
     "paths": {
-      "@tanishqkancharla/diffmap/preview": ["../../src/preview/index.ts"]
+      "product-doc/preview": ["../../src/preview/index.ts"]
     },
     "allowImportingTsExtensions": true
   },

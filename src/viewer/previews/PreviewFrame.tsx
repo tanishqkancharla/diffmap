@@ -283,7 +283,7 @@ export function RunLocally() {
       className={className}
       href="https://github.com/tanishqkancharla/diffmap/blob/main/guide.md#serve-and-share"
     >
-      run this spec with diffmap serve
+      run this spec with product-doc serve
     </a>
   );
 }

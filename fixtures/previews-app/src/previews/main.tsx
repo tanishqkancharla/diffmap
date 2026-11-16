@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { setProjectAnnotations } from "@storybook/react";
-import { PreviewRoute } from "@tanishqkancharla/diffmap/preview";
+import { PreviewRoute } from "product-doc/preview";
 import preview from "../../.storybook/preview";
 
 setProjectAnnotations([preview]);

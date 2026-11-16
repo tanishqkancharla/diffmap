@@ -11,9 +11,9 @@ const previewFrameAncestors =
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    // A published app imports "@tanishqkancharla/diffmap/preview"; this example uses the checkout's source.
+    // A published app imports "product-doc/preview"; this example uses the checkout's source.
     alias: {
-      "@tanishqkancharla/diffmap/preview": `${diffmapSrc}/preview/index.ts`,
+      "product-doc/preview": `${diffmapSrc}/preview/index.ts`,
     },
     dedupe: ["react", "react-dom", "@storybook/react", "storybook"],
   },

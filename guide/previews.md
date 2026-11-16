@@ -27,7 +27,7 @@ Name stories by their Storybook ID. In a `flow`, the first line is the starting 
    ```tsx
    import { createRoot } from "react-dom/client";
    import { setProjectAnnotations } from "@storybook/react";
-   import { PreviewRoute } from "@tanishqkancharla/diffmap/preview";
+   import { PreviewRoute } from "product-doc/preview";
    import preview from "../../.storybook/preview";
 
    setProjectAnnotations([preview]);
@@ -39,7 +39,7 @@ Name stories by their Storybook ID. In a `flow`, the first line is the starting 
 
    In a Next.js app, it is `app/__previews/page.tsx`, which calls `notFound()` on the production deployment, such as when `VERCEL_ENV` is `production`, and otherwise renders a client component with the same `PreviewRoute`, passing the story modules imported by hand. Import the project's `.storybook/preview` when it exists, so every story gets the app's decorators, providers, and global styles.
 
-3. Send `previewFrameAncestors`, from `@tanishqkancharla/diffmap/preview`, as the page's `Content-Security-Policy` header, so only the local viewer and diffmap.dev can frame it: from the dev server, as with Vite's `server.headers`, and from preview deployments, as with `headers` in `vercel.json` or `headers()` in `next.config`.
+3. Send `previewFrameAncestors`, from `product-doc/preview`, as the page's `Content-Security-Policy` header, so only the local viewer and diffmap.dev can frame it: from the dev server, as with Vite's `server.headers`, and from preview deployments, as with `headers` in `vercel.json` or `headers()` in `next.config`.
 4. Add the page's URLs to `.diffmap/config.json` at the repo root. `local` is the page on the dev server. `preview` is the page on each pull request's preview deployment, with `{branch}`, `{sha}`, or `{pull}`; diffmap.dev fills them from the pull request, with `{branch}` lowercase and every run of characters other than letters and digits turned into `-`, as Vercel and Netlify put a branch in a hostname. The deployment must be public, or diffmap.dev shows that it can't reach it.
 
    ```json [.diffmap/config.json]

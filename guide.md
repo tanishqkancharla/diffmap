@@ -81,7 +81,7 @@ Use `services` when the parts keep state, run at the same time, or fan out; use 
 
 **Links.** Link existing source with [references](#source-references); write planned symbols as plain text.
 
-**Screenshots and recordings.** When a phase changes something a person sees, show it, live in a `preview` or `flow` block or in captures; `diffmap guide ui` says which to use. Write `![label](path)`; a `.mp4` or `.webm` path renders as a video player. Group related captures in a `:::gallery side-by-side`, `grid`, or `carousel`, and title a carousel like `:::gallery carousel [Saving a record]`. Each item's alt text is its visible label, and a gallery holds only images and videos.
+**Screenshots and recordings.** When a phase changes something a person sees, show it, live in a `preview` or `flow` block or in captures; `product-doc guide ui` says which to use. Write `![label](path)`; a `.mp4` or `.webm` path renders as a video player. Group related captures in a `:::gallery side-by-side`, `grid`, or `carousel`, and title a carousel like `:::gallery carousel [Saving a record]`. Each item's alt text is its visible label, and a gallery holds only images and videos.
 
 ```md
 :::gallery side-by-side
@@ -209,7 +209,7 @@ src/request.test.ts
 
 ## UI changes
 
-When a phase changes a UI, run `npx @tanishqkancharla/diffmap guide ui` and follow what it prints: when to show the UI live, and how to take screenshots and recordings. To show it live, from the app's Storybook stories, run `npx @tanishqkancharla/diffmap guide previews`, which covers the `preview` and `flow` blocks and setting them up in the app.
+When a phase changes a UI, run `npx product-doc guide ui` and follow what it prints: when to show the UI live, and how to take screenshots and recordings. To show it live, from the app's Storybook stories, run `npx product-doc guide previews`, which covers the `preview` and `flow` blocks and setting them up in the app.
 
 ## Source references
 

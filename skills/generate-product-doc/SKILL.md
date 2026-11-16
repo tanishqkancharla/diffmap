@@ -1,6 +1,6 @@
 ---
 name: generate-product-doc
-description: Create general-purpose visual documents with productdoc. Use to explain existing systems, plan future work, or review changes through user behavior, workflows, or involved services.
+description: Create general-purpose visual documents with productdoc, including live previews of components and user flows from Storybook stories. Use to explain existing systems, plan future work, review changes through user behavior, workflows, or involved services, or preview components and user flows.
 ---
 
 # Productdoc
