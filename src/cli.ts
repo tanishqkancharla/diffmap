@@ -56,13 +56,15 @@ async function* runServe(c: ServeContext) {
         : resolveFromInvokeCwd(c.options.root),
     port: c.options.port,
     onViewerEvent({ event, ...properties }) {
-      if (event !== "viewer_opened") return track(event, properties);
+      if (event !== "viewer_opened") return track(event, properties, "viewer");
       // Live reloads load the page again; only the first load says this spec was seen.
       if (opened) return;
       opened = true;
-      track(event, {
-        seconds_after_serve: Math.round((Date.now() - readyAt) / 1000),
-      });
+      track(
+        event,
+        { seconds_after_serve: Math.round((Date.now() - readyAt) / 1000) },
+        "viewer",
+      );
     },
   });
   readyAt = Date.now();
@@ -111,17 +113,18 @@ async function* runServe(c: ServeContext) {
   return output;
 }
 
-const cli = Cli.create("diffmap", {
-  description: "Serve a spec locally, or share it as a gist",
+const cli = Cli.create("product-doc", {
+  description:
+    "Explain systems, plan work, and review changes as visual documents",
   version: packageVersion,
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
-  hint: "`guide` prints how to write a spec. A spec is a directory of Markdown pages, such as `.diffmap/specs/<name>/`. `validate <spec>` checks it without starting a server. `serve <spec>` runs the local viewer. `share <spec>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
+  hint: "`guide` prints how to write a spec. A spec is a directory of Markdown pages, such as `.diffmap/specs/<name>/`. `validate <spec>` checks it without starting a server. `serve <spec>` runs the local viewer. `share <spec>` publishes an unlisted gist. `update` (or `--update`) installs the latest product-doc.",
   examples: [
     {
       args: { file: ".diffmap/specs/sessions/" },
-      description: "Same as `diffmap serve .diffmap/specs/sessions/`",
+      description: "Same as `product-doc serve .diffmap/specs/sessions/`",
     },
   ],
   run: runServe,
@@ -207,7 +210,7 @@ const cli = Cli.create("diffmap", {
     },
   })
   .command("list", {
-    description: "List running diffmap viewers",
+    description: "List running productdoc viewers",
     output: z.object({
       instances: z.array(
         z.object({
@@ -231,7 +234,7 @@ const cli = Cli.create("diffmap", {
     },
   })
   .command("update", {
-    description: `Update diffmap to the latest ${packageName} on npm (same as --update)`,
+    description: `Update product-doc to the latest ${packageName} on npm (same as --update)`,
     output: z.object({
       status: z.enum(["up-to-date", "updated", "manual"]),
       message: z.string(),

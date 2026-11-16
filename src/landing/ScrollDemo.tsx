@@ -169,6 +169,7 @@ function LoadedDemo(props: { document: ViewerDocument }) {
   const track = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
+  const gap = useRef<HTMLDivElement>(null);
   // How far the spec scrolls; the section is that much taller than the window.
   const [range, setRange] = useState(0);
   const [layout, setLayout] = useState<Layout>();
@@ -202,6 +203,11 @@ function LoadedDemo(props: { document: ViewerDocument }) {
       }
 
       const stageRect = stage.current!.getBoundingClientRect();
+      if (gap.current) {
+        gap.current.dataset.stuck = String(
+          stageRect.top + TOUCH_GAP <= NAV_HEIGHT,
+        );
+      }
       const frameRect = frame.current!.getBoundingClientRect();
       const articleRect = article.getBoundingClientRect();
       // On touch the spec shows between its sticky bars and the screen's bottom edge.
@@ -319,7 +325,7 @@ function LoadedDemo(props: { document: ViewerDocument }) {
       aria-label="Example spec"
     >
       <div ref={stage} className={stageClass} data-touch={touch}>
-        {touch && <div className={gapClass} />}
+        {touch && <div ref={gap} className={gapClass} />}
         <div ref={frame} className={frameClass} data-touch={touch}>
           <BrowserBar url={DEMO_URL} />
           <div className={viewerClass} data-touch={touch}>
@@ -622,7 +628,7 @@ const styles = {
     height: `${TOUCH_GAP}px`,
     marginTop: `-${TOUCH_GAP}px`,
     alignSelf: "stretch",
-    backgroundColor: backgroundColor.app,
+    "&[data-stuck='true']": { backgroundColor: backgroundColor.app },
     pointerEvents: "none",
   }),
   viewer: style({

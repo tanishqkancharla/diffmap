@@ -2,47 +2,47 @@ import * as errore from "errore";
 
 export class DiffmapServeError extends errore.createTaggedError({
   name: "DiffmapServeError",
-  message: "diffmap server failed: $reason",
+  message: "product-doc server failed: $reason",
 }) {}
 
 export class DiffmapFileError extends errore.createTaggedError({
   name: "DiffmapFileError",
-  message: "diffmap could not read $path: $reason",
+  message: "product-doc could not read $path: $reason",
 }) {}
 
 export class DiffmapRegistryError extends errore.createTaggedError({
   name: "DiffmapRegistryError",
-  message: "diffmap registry failed: $reason",
+  message: "product-doc registry failed: $reason",
 }) {}
 
 export class DiffmapSpecError extends errore.createTaggedError({
   name: "DiffmapSpecError",
-  message: "diffmap spec $path: $reason",
+  message: "product-doc spec $path: $reason",
 }) {}
 
 export class DiffmapMermaidError extends errore.createTaggedError({
   name: "DiffmapMermaidError",
-  message: "diffmap could not parse mermaid in $path ($where): $reason",
+  message: "product-doc could not parse mermaid in $path ($where): $reason",
 }) {}
 
 export class DiffmapServicesError extends errore.createTaggedError({
   name: "DiffmapServicesError",
-  message: "diffmap could not parse services in $path ($where): $reason",
+  message: "product-doc could not parse services in $path ($where): $reason",
 }) {}
 
 export class DiffmapGalleryError extends errore.createTaggedError({
   name: "DiffmapGalleryError",
-  message: "diffmap could not parse a gallery in $path: $reason",
+  message: "product-doc could not parse a gallery in $path: $reason",
 }) {}
 
 export class DiffmapParseError extends errore.createTaggedError({
   name: "DiffmapParseError",
-  message: "diffmap could not parse markdown",
+  message: "product-doc could not parse markdown",
 }) {}
 
 export class DiffmapAnnotationError extends errore.createTaggedError({
   name: "DiffmapAnnotationError",
-  message: "diffmap source annotation: $reason",
+  message: "product-doc source annotation: $reason",
 }) {}
 
 export class DiffmapGitError extends errore.createTaggedError({
@@ -57,15 +57,15 @@ export class DiffmapDefinitionError extends errore.createTaggedError({
 
 export class DiffmapShareError extends errore.createTaggedError({
   name: "DiffmapShareError",
-  message: "diffmap share failed: $reason",
+  message: "product-doc share failed: $reason",
 }) {}
 
 export class DiffmapUpdateError extends errore.createTaggedError({
   name: "DiffmapUpdateError",
-  message: "diffmap update failed: $reason",
+  message: "product-doc update failed: $reason",
 }) {}
 
 export class DiffmapTelemetryError extends errore.createTaggedError({
   name: "DiffmapTelemetryError",
-  message: "diffmap telemetry failed: $reason",
+  message: "product-doc telemetry failed: $reason",
 }) {}

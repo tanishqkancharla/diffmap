@@ -2,13 +2,41 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { init } from "md4x/napi";
+import { createInMemoryStyleApi, style } from "purse-styles";
+import { baseTextStyle } from "maui/src/tokens/text.ts";
+import { shadowVars } from "maui/src/tokens/shadow.ts";
+import { themeFoucScript } from "maui/src/theme/themeFoucScript.ts";
 import { Logo } from "../landing/Logo.tsx";
 import { markdownPath, origin, pages } from "./content.ts";
 import { renderPage } from "./render.tsx";
 
 await init();
 const out = path.resolve(process.argv[2] ?? "dist");
-const template = await fs.readFile(path.join(out, "website.html"), "utf8");
+const initialStyle = style({
+  ...baseTextStyle,
+  color: "var(--ink)",
+  "& body": { ...baseTextStyle, color: "var(--ink)" },
+  "& .prompt-fallback": {
+    boxShadow: shadowVars.subtle,
+  },
+});
+const initialStyles = createInMemoryStyleApi();
+initialStyles.addStyleElement(initialStyle);
+const template = (await fs.readFile(path.join(out, "website.html"), "utf8"))
+  .replace(
+    '<html lang="en">',
+    `<html lang="en" class="${initialStyle.className}">`,
+  )
+  .replace(
+    "<!--page-meta-->",
+    `${renderToStaticMarkup(
+      <>
+        <script dangerouslySetInnerHTML={{ __html: themeFoucScript }} />
+        <style>{initialStyles.styleRulesRef.current.join("")}</style>
+      </>,
+    )}<!--page-meta-->`,
+  );
+initialStyles.detachVariableGroups();
 await fs.rename(path.join(out, "index.html"), path.join(out, "viewer.html"));
 await fs.mkdir(path.join(out, "pages"), { recursive: true });
 for (const page of pages) {

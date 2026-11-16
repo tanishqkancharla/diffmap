@@ -1,3 +1,10 @@
+@font-face {
+  font-family: "Newsreader";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/newsreader-latin-400-italic.woff2") format("woff2");
+}
 :root {
   color-scheme: light dark;
   --paper: #fcfcfc;
@@ -21,11 +28,41 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 body {
   margin: 0;
+  text-wrap: pretty;
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote,
+figure,
+pre,
+dl,
+dd {
+  margin: 0;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 a {
   color: inherit;
@@ -86,42 +123,137 @@ button:focus-visible {
 }
 .hero {
   position: relative;
+  /* Above the demo's glow, which rises behind it. */
+  z-index: 1;
   overflow: hidden;
   text-align: center;
 }
-.lagoon {
-  background:
-    radial-gradient(
-      ellipse 480px 360px at calc(50% - 520px) 0,
-      #f1968e70,
-      transparent
-    ),
-    radial-gradient(
-      ellipse 480px 350px at calc(50% + 520px) 160px,
-      #f1968e60,
-      transparent
-    ),
-    radial-gradient(
-      ellipse 500px 430px at calc(50% - 70px) 150px,
-      #a2d8b78a,
-      transparent
-    ),
-    var(--paper);
+.demo-stage {
+  display: flow-root;
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  scroll-margin-top: 80px;
 }
-.lagoon:has(#hero-mesh > *) {
-  background: var(--paper);
-}
-#hero-mesh,
+#demo-mesh,
 #footer-mesh {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
+/*
+ * The server-rendered mesh is the first frame. Each soft blob drifts, sways,
+ * and breathes on its own slow clock, so the field undulates without ever
+ * leaving that composition.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  :is(#demo-mesh, #footer-mesh) > div:first-of-type > div {
+    --dx: 60px;
+    --dy: 50px;
+    --turn: 0deg;
+    --grow: 1.1;
+    --drift: 9.1s;
+    --sway: 10.9s;
+    --breathe: 12.7s;
+    animation:
+      mesh-drift var(--drift) ease-in-out infinite alternate,
+      mesh-sway var(--sway) ease-in-out infinite alternate,
+      mesh-breathe var(--breathe) ease-in-out infinite alternate;
+  }
+  /* The tiled grain slides one tile per loop, so it never shows a seam or edge. */
+  :is(#demo-mesh, #footer-mesh) > div:last-child {
+    animation: mesh-grain 90s linear infinite;
+  }
+  :is(#demo-mesh, #footer-mesh) > div:first-of-type > div:nth-child(1) {
+    --dx: 150px;
+    --dy: -110px;
+    --turn: 14deg;
+    --grow: 1.16;
+    --drift: 8.2s;
+    --sway: 10s;
+    --breathe: 11.8s;
+  }
+  :is(#demo-mesh, #footer-mesh) > div:first-of-type > div:nth-child(2) {
+    --dx: -140px;
+    --dy: 110px;
+    --turn: -12deg;
+    --grow: 0.86;
+    --drift: 10s;
+    --sway: 7.3s;
+    --breathe: 10.9s;
+  }
+  :is(#demo-mesh, #footer-mesh) > div:first-of-type > div:nth-child(3) {
+    --dx: 120px;
+    --dy: 100px;
+    --turn: -15deg;
+    --grow: 1.18;
+    --drift: 10.9s;
+    --sway: 9.1s;
+    --breathe: 12.7s;
+  }
+  :is(#demo-mesh, #footer-mesh) > div:first-of-type > div:nth-child(4) {
+    --dx: -150px;
+    --dy: -90px;
+    --turn: 16deg;
+    --grow: 0.85;
+    --drift: 9.1s;
+    --sway: 11.8s;
+    --breathe: 10s;
+  }
+  :is(#demo-mesh, #footer-mesh) > div:first-of-type > div:nth-child(5) {
+    --dx: 120px;
+    --dy: 100px;
+    --grow: 1.2;
+    --drift: 10s;
+    --sway: 8.2s;
+    --breathe: 9.1s;
+  }
+  :is(#demo-mesh, #footer-mesh) > div:first-of-type > div:nth-child(6) {
+    --dx: -110px;
+    --dy: -110px;
+    --grow: 0.84;
+    --drift: 7.3s;
+    --sway: 9.1s;
+    --breathe: 11.8s;
+  }
+}
+/* Every motion starts at the rendered still: blobs keep their own centering. */
+@keyframes mesh-drift {
+  to {
+    translate: calc(-50% + var(--dx)) -50%;
+  }
+}
+@keyframes mesh-sway {
+  to {
+    transform: translateY(var(--dy)) rotate(var(--turn));
+  }
+}
+@keyframes mesh-breathe {
+  to {
+    scale: var(--grow);
+  }
+}
+/* One 220px tile of the grain in Mesh.tsx. */
+@keyframes mesh-grain {
+  to {
+    background-position: 220px 220px;
+  }
+}
+.demo-glow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+#demo-mesh {
+  position: sticky;
+  inset: auto;
+}
 .hero-content {
   position: relative;
   max-width: 1180px;
   margin: auto;
-  padding: 64px 24px 24px;
+  padding: 112px 24px 24px;
 }
 .hero h1 {
   max-width: 960px;
@@ -130,10 +262,21 @@ button:focus-visible {
   line-height: 1.04;
   letter-spacing: -0.035em;
   font-weight: 650;
-  text-wrap: balance;
+  text-wrap: pretty;
+}
+.hero h1 strong {
+  font-weight: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--green);
+  text-decoration-thickness: 0.045em;
+  text-underline-offset: 0.08em;
+  text-decoration-skip-ink: auto;
+}
+.hero-intro h1 + p {
+  margin-top: 36px;
 }
 .hero-intro p {
-  max-width: 620px;
+  max-width: 1000px;
   margin: 12px auto 0;
   color: var(--muted);
   font-size: clamp(17px, 2vw, 20px);
@@ -156,62 +299,50 @@ button:focus-visible {
   max-width: 900px;
   margin: 24px auto 0;
 }
-.prompt > p {
-  font-size: 12px;
-  color: var(--muted);
-  margin: 0 0 6px;
+#prompt-snippet figure,
+.prompt-fallback {
+  border: none;
 }
-.prompt-code {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+.prompt-fallback {
   width: fit-content;
   max-width: 100%;
-  margin: auto;
-  padding: 14px 16px;
+  margin: 0 auto;
+  padding: 12px 100px 12px 12px;
   text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   border-radius: 12px;
   background: var(--surface);
-  box-shadow:
-    0 0 0 1px #0000000c,
-    0 2px 3px #00000005;
-}
-.prompt-code code {
   font:
     12px/1.6 ui-monospace,
     "SFMono-Regular",
     Consolas,
     monospace;
 }
-.prompt-code button {
-  border: 0;
-  border-radius: 4px;
-  padding: 5px 7px;
-  color: var(--muted);
-  font: inherit;
-  font-size: 11px;
-  background: transparent;
-  cursor: pointer;
+:root[data-scale="large"] .prompt-fallback {
+  font-size: 15px;
 }
-.prompt-code button:hover {
-  background: var(--line);
-  color: var(--ink);
-}
-.hero .availability {
-  margin: 12px 0 0;
-  font-size: 11px;
-  line-height: 1.7;
+.demo-caption {
+  margin: 32px 24px 0;
+  text-align: center;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px;
   color: var(--muted);
 }
 #reader-demo {
-  min-height: 680px;
+  display: flow-root;
+  min-height: calc(100svh - 52px);
 }
 .demo-placeholder {
-  max-width: 760px;
-  margin: 24px auto;
+  width: min(1000px, calc(100% - 32px));
+  height: calc(100svh - 92px);
+  margin: 20px auto;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 12px;
   background: var(--surface);
+  overflow: hidden;
 }
 .browser-bar {
   height: 38px;
@@ -226,56 +357,6 @@ button:focus-visible {
 }
 .demo-fallback {
   padding: 48px;
-  min-height: 480px;
-}
-.home section.examples,
-.home section.conversation,
-.home section.migration {
-  max-width: 1000px;
-  margin: auto;
-  padding: 56px 24px;
-}
-.home section.examples {
-  scroll-margin-top: 80px;
-}
-.home > section h2 {
-  margin: 0 0 16px;
-  font-size: clamp(26px, 3vw, 36px);
-  letter-spacing: -0.035em;
-  font-weight: 650;
-  line-height: 1.15;
-}
-.home > section > div > p {
-  max-width: 720px;
-  line-height: 1.65;
-  color: var(--muted);
-  font-size: 16px;
-}
-.cards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 32px;
-  margin-top: 36px;
-}
-.card {
-  border-top: 1px solid var(--line);
-  padding-top: 24px;
-}
-.card h3 {
-  margin: 0 0 12px;
-  font-size: 18px;
-  letter-spacing: -0.02em;
-  font-weight: 600;
-}
-.card p {
-  font-size: 14px;
-  line-height: 1.65;
-  color: var(--muted);
-}
-.card p:last-child {
-  margin-top: 20px;
-  color: var(--ink);
-  font-weight: 500;
 }
 .document-layout {
   display: grid;
@@ -333,7 +414,7 @@ button:focus-visible {
   line-height: 1.12;
   font-weight: 650;
   margin: 0 0 26px;
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 .prose h2 {
   font-size: 24px;
@@ -392,7 +473,7 @@ button:focus-visible {
   line-height: 1.1;
   font-weight: 650;
   letter-spacing: -0.03em;
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 .footer > div:not(#footer-mesh) {
   display: flex;
@@ -433,8 +514,19 @@ figcaption {
   display: block;
   background: var(--red-wash);
 }
+:root[data-theme="dark"] {
+  --paper: #111;
+  --ink: #eee;
+  --muted: #b4b4b4;
+  --line: #292929;
+  --green: #3dd68c;
+  --red: #ff9592;
+  --surface: #191919;
+  --green-wash: #132d21;
+  --red-wash: #3b1219;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --paper: #111;
     --ink: #eee;
     --muted: #b4b4b4;
@@ -459,22 +551,7 @@ figcaption {
     font-size: 12px;
   }
   .hero-content {
-    padding: 48px 20px 24px;
-  }
-  .prompt-code {
-    gap: 10px;
-  }
-  .prompt-code code {
-    font-size: 11px;
-  }
-  .cards {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  .home section.examples,
-  .home section.conversation,
-  .home section.migration {
-    padding: 36px 20px;
+    padding: 96px 20px 24px;
   }
   .document-layout {
     display: block;

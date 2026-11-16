@@ -2,6 +2,9 @@ export const origin = "https://productdoc.dev";
 export const repository = "https://github.com/tanishqkancharla/diffmap";
 const source = `${repository}/blob/4fc4811`;
 
+export const examplePrompt =
+  "Use npx product-doc to explain how this project works.";
+
 export type Page = {
   path: string;
   title: string;
@@ -19,49 +22,11 @@ export const pages: Page[] = [
     path: "/",
     title: "Build software at the product level.",
     description:
-      "Productdoc turns your agent’s work into visual documents so you can focus on what the software does, the decisions that matter, and whether it matches what you meant to build.",
+      "Productdoc helps you plan and build software by creating interactive, visual documents.",
     label: "A shared understanding, before another line of code",
-    body: `# Build software at the product level.
+    body: `# Build software at **the product level**.
 
-Your agent can write more code than you can reasonably review. Productdoc turns that work into visual documents so you can focus on what the software does, the decisions that matter, and whether it matches what you meant to build.
-
-## Focus on the questions that matter
-
-Follow one real journey from this repository: opening and reviewing a multi-page document. These examples use existing source, the project’s actual plan, and a recorded commit—not a fictional customer story.
-
-### Does this behave the way I expect?
-
-What happens when a reader opens a document? Follow the cover, page links, and browser-local feedback, including what happens when a page is missing.
-
-[Read the explanation](/examples/explain)
-
-### Is this the right approach?
-
-How do you break a long document into pages without losing the reader? See the original multi-page plan, one small change at a time, with decisions and verification.
-
-[Read the plan](/examples/plan)
-
-### What does this change mean for the product?
-
-Did the agent’s guidance change with the product? Review a real commit that moved authoring from one long file to a cover and numbered pages, including a prose before/after.
-
-[Read the review](/examples/review)
-
-## The code is there when you need it.
-
-It just isn’t where every conversation has to start.
-
-Your agent starts with the reader’s question and checks the code. The document explains the behavior, decisions, and failure paths. Diagrams, call stacks, source links, and visible results support the explanation; they do not replace it.
-
-Read it, highlight a passage or code, leave a comment, then use **Copy comments** to return feedback to your agent. Comments stay in that browser until you copy them; they are not a hosted team inbox.
-
-## One product, a broader purpose
-
-Productdoc is the successor to Diffmap, not another layer to install on top. Existing documents stay in .diffmap/specs/. Published Diffmap installs and shared-document URLs are unchanged during release preparation.
-
-[Read the quickstart and release status](/docs/quickstart)
-
-[Coming from Diffmap?](/docs/migration)
+Productdoc helps you plan and build software by creating interactive, visual documents.
 `,
   },
   {

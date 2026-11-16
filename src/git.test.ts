@@ -224,6 +224,54 @@ test("readChanges reads a commit's added, modified, renamed, and deleted files",
   });
 });
 
+test("readChanges separates staged and working contents before the first commit", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-unborn-"));
+  const git = async (...args: string[]) =>
+    execFileAsync("git", args, { cwd: root });
+  const filesFor = async (rev: "working" | "staged" | "unstaged" | "all") => {
+    const changes = await readChanges(root, rev);
+    if (changes instanceof Error) throw changes;
+    return summary(changes).map((file) => [
+      file.path,
+      file.status,
+      file.additions,
+      file.deletions,
+      file.contents,
+    ]);
+  };
+  try {
+    await git("init", "-q");
+    for (const rev of ["working", "staged", "unstaged", "all"] as const)
+      assert.deepEqual(await filesFor(rev), []);
+
+    await fs.writeFile(path.join(root, "draft.md"), "staged\n");
+    await git("add", "draft.md");
+    await fs.writeFile(path.join(root, "draft.md"), "staged\nworking\n");
+    await fs.writeFile(path.join(root, "new.md"), "untracked\n");
+    const working = [
+      ["draft.md", "added", 2, 0, { new: "staged\nworking\n" }],
+      ["new.md", "added", 1, 0, { new: "untracked\n" }],
+    ];
+    assert.deepEqual(await filesFor("working"), working);
+    assert.deepEqual(await filesFor("all"), working);
+    assert.deepEqual(await filesFor("staged"), [
+      ["draft.md", "added", 1, 0, { new: "staged\n" }],
+    ]);
+    assert.deepEqual(await filesFor("unstaged"), [
+      [
+        "draft.md",
+        "modified",
+        1,
+        0,
+        { old: "staged\n", new: "staged\nworking\n" },
+      ],
+      ["new.md", "added", 1, 0, { new: "untracked\n" }],
+    ]);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test("readChanges working includes staged, unstaged, deleted, and untracked files", async () => {
   await withRepo(async (root, git) => {
     await fs.writeFile(path.join(root, "keep.ts"), "one\ntwo\nthree\nstaged\n");

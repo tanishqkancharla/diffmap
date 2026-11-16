@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { once } from "node:events";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -36,7 +37,179 @@ async function runCli(args: string[]) {
   }
 }
 
-test("diffmap --version matches package.json", async () => {
+test(
+  "CLI telemetry attributes products and viewer actions without repository data",
+  { timeout: 60_000 },
+  async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-telemetry-"));
+    const env: NodeJS.ProcessEnv = { ...process.env, XDG_CONFIG_HOME: dir };
+    for (const key of [
+      "DO_NOT_TRACK",
+      "DIFFMAP_TELEMETRY",
+      "DIFFMAP_DEV",
+      "CI",
+      "DIFFMAP_PRODUCT",
+    ])
+      delete env[key];
+    // Intercept every HTTPS request before loading the real CLI: no event can reach PostHog.
+    const preload = `data:text/javascript,${encodeURIComponent(`
+    import https from "node:https";
+    import { EventEmitter } from "node:events";
+    https.request = () => {
+      const request = new EventEmitter();
+      request.end = body => {
+        process.stderr.write("TELEMETRY:" + body + "\\n");
+        queueMicrotask(() => request.emit("close"));
+      };
+      return request;
+    };
+  `)}`;
+    type Event = {
+      event: string;
+      distinct_id: string;
+      properties: Record<string, unknown>;
+    };
+    const eventsFrom = (stderr: string): Event[] =>
+      stderr
+        .split("\n")
+        .filter((line) => line.startsWith("TELEMETRY:"))
+        .map((line) => JSON.parse(line.slice("TELEMETRY:".length)) as Event);
+    const command = async (extra: NodeJS.ProcessEnv = {}) => {
+      const result = await execFileAsync(
+        process.execPath,
+        ["--import", preload, binPath, "guide"],
+        {
+          env: { ...env, ...extra },
+          timeout: 10_000,
+        },
+      );
+      return eventsFrom(result.stderr);
+    };
+    try {
+      const [ordinary] = await command();
+      assert.ok(ordinary);
+      assert.equal(ordinary.event, "command_run");
+      assert.equal(ordinary.properties.command, "guide");
+      assert.equal(ordinary.properties.product, "product-docs");
+      assert.equal(ordinary.properties.surface, "cli");
+      const [product] = await command({ DIFFMAP_PRODUCT: "diffmap" });
+      assert.ok(product);
+      assert.equal(product.properties.product, "product-docs");
+      assert.equal(product.properties.surface, "cli");
+      assert.equal(product.distinct_id, ordinary.distinct_id);
+      const [invalid] = await command({
+        DIFFMAP_PRODUCT: "/private/repository-secret",
+      });
+      assert.equal(invalid?.properties.product, "product-docs");
+      assert.ok(!JSON.stringify(invalid).includes("repository-secret"));
+      for (const optOut of [
+        { DO_NOT_TRACK: "1" },
+        { DIFFMAP_TELEMETRY: "0" },
+        { DIFFMAP_TELEMETRY: "false" },
+        { DIFFMAP_DEV: "1" },
+        { CI: "true" },
+      ])
+        assert.deepEqual(
+          await command({ ...optOut, DIFFMAP_PRODUCT: "product-docs" }),
+          [],
+        );
+
+      await fs.writeFile(
+        path.join(dir, "README.md"),
+        "# Private document title\n",
+      );
+      const server = spawn(
+        process.execPath,
+        ["--import", preload, binPath, "serve", dir, "--format", "jsonl"],
+        {
+          timeout: 20_000,
+          env,
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      );
+      const exited = once(server, "exit");
+      let stderr = "";
+      server.stderr.on("data", (chunk) => {
+        stderr += String(chunk);
+      });
+      try {
+        const url = await new Promise<string>((resolve, reject) => {
+          let stdout = "";
+          server.stdout.on("data", (chunk) => {
+            stdout += String(chunk);
+            const match = /"url"\s*:\s*"([^"]+)"/.exec(stdout);
+            if (match?.[1]) resolve(match[1]);
+          });
+          server.once("error", reject);
+          server.once("exit", () => reject(new Error(stderr)));
+        });
+        for (const event of [
+          { event: "viewer_opened" },
+          { event: "viewer_opened" },
+          {
+            event: "comment_added",
+            target: "lines",
+            product: "diffmap",
+            surface: "cli",
+            text: "private-comment",
+          },
+          { event: "viewer_engaged", trigger: "scroll" },
+        ]) {
+          const response = await fetch(`${url}/__diffmap/telemetry`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(event),
+          });
+          assert.equal(response.status, 204);
+        }
+        await fetch(`${url}/__diffmap/shutdown`, { method: "POST" });
+        const [code] = await exited;
+        assert.equal(code, 0, stderr);
+        const events = eventsFrom(stderr);
+        assert.deepEqual(
+          events.map((event) => [event.event, event.properties.surface]),
+          [
+            ["command_run", "cli"],
+            ["serve_result", "cli"],
+            ["viewer_opened", "viewer"],
+            ["comment_added", "viewer"],
+            ["viewer_engaged", "viewer"],
+          ],
+        );
+        for (const event of events) {
+          assert.equal(event.properties.product, "product-docs");
+          assert.equal(event.distinct_id, ordinary.distinct_id);
+        }
+        assert.equal(
+          events.find((event) => event.event === "comment_added")?.properties
+            .target,
+          "lines",
+        );
+        assert.equal(
+          events.find((event) => event.event === "viewer_engaged")?.properties
+            .trigger,
+          "scroll",
+        );
+        const serialized = JSON.stringify(events);
+        for (const secret of [
+          dir,
+          "Private document title",
+          "private-comment",
+          "repository-secret",
+        ])
+          assert.ok(!serialized.includes(secret), serialized);
+      } finally {
+        if (server.exitCode === null && server.signalCode === null)
+          server.kill("SIGTERM");
+        await exited;
+      }
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+test("product-doc --version matches package.json", async () => {
   const pkg = JSON.parse(
     await fs.readFile(path.join(packageRoot, "package.json"), "utf8"),
   ) as { version: string };
@@ -48,14 +221,25 @@ test("diffmap --version matches package.json", async () => {
   assert.equal(printed, pkg.version);
 });
 
-test("diffmap guide prints guide.md", async () => {
+test("product-doc help exposes the successor identity", async () => {
+  const result = await runCli(["--help"]);
+  assert.equal(result.exitCode, 0, result.stderr);
+  assert.match(result.stdout, /product-doc/);
+  assert.match(result.stdout, /Explain systems, plan work, and review changes/);
+  const update = await runCli(["update", "--help"]);
+  assert.equal(update.exitCode, 0, update.stderr);
+  assert.match(update.stdout, /latest product-doc on npm/);
+  assert.doesNotMatch(update.stdout, /@tanishqkancharla\/diffmap/);
+});
+
+test("product-doc guide prints guide.md", async () => {
   const guide = await fs.readFile(path.join(packageRoot, "guide.md"), "utf8");
   const result = await runCli(["guide"]);
   assert.equal(result.exitCode, 0, result.stderr);
   assert.equal(result.stdout.trim(), guide.trim());
 });
 
-test("diffmap validate checks specs without starting a server", async () => {
+test("product-doc validate checks specs without starting a server", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "diffmap-validate-"));
   const cover = path.join(dir, "README.md");
   try {

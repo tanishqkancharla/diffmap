@@ -11,6 +11,9 @@ import { packageVersion } from "./packageVersion.js";
 const posthogKey = "phc_wmzP7VyBQzTLwsSoGtyxNDvqHUDRpi7NofcTaYBW9pjv";
 const posthogUrl = "https://us.i.posthog.com/i/v0/e/";
 
+// Attribution belongs to this process, including viewer events forwarded later.
+const product = "product-docs";
+
 const pending = new Set<Promise<unknown>>();
 let distinctId: string | Error | undefined;
 
@@ -28,6 +31,7 @@ export function trackCommand(command: string) {
 export function track(
   event: string,
   properties: Record<string, string | number | boolean> = {},
+  surface: "cli" | "viewer" = "cli",
 ) {
   const env = process.env;
   const optedOut =
@@ -59,6 +63,8 @@ export function track(
       distinct_id: distinctId,
       properties: {
         ...properties,
+        product,
+        surface,
         version: packageVersion,
         os: process.platform,
         arch: process.arch,
@@ -69,7 +75,7 @@ export function track(
   );
 }
 
-/** The coding agent running diffmap, from the variables agents set for their commands; their values are never sent. */
+/** The coding agent running productdoc, from the variables agents set for their commands; their values are never sent. */
 function detectInvoker(env: NodeJS.ProcessEnv) {
   if (
     env.AMP_CURRENT_THREAD_ID ||
@@ -108,7 +114,7 @@ function readOrCreateAnonymousId() {
   });
   if (written instanceof Error) return written;
   process.stderr.write(
-    "diffmap sends anonymous usage data (commands, viewer actions, version, OS). Set DIFFMAP_TELEMETRY=0 to turn it off: https://github.com/tanishqkancharla/diffmap#telemetry\n",
+    "productdoc sends anonymous usage data (commands, viewer actions, version, OS). Set DIFFMAP_TELEMETRY=0 to turn it off: https://github.com/tanishqkancharla/diffmap#telemetry\n",
   );
   return id;
 }

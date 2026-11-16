@@ -2,11 +2,10 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import { DiffmapUpdateError } from "./errors.js";
 
-// The unscoped `diffmap` package on npm is unrelated; always use the scoped name.
-export const packageName = "@tanishqkancharla/diffmap";
+// Updates stay on the productdoc package, never the legacy Diffmap package.
+export const packageName = "product-doc";
 const latestSpec = `${packageName}@latest`;
-const registryUrl =
-  "https://registry.npmjs.org/@tanishqkancharla%2Fdiffmap/latest";
+const registryUrl = "https://registry.npmjs.org/product-doc/latest";
 
 type InstallMethod = "npm" | "pnpm" | "bun" | "npx" | "unknown";
 
@@ -36,7 +35,7 @@ type UpdateDeps = {
   runCommand: (command: Command) => Promise<void | Error>;
 };
 
-/** Routes `diffmap --update [...]` to the `update` command so incur's built-in updater never runs. */
+/** Routes `product-doc --update [...]` to the `update` command so incur's built-in updater never runs. */
 export function resolveUpdateArgv(argv: string[]) {
   const separator = argv.indexOf("--");
   const flags = separator === -1 ? argv : argv.slice(0, separator);
@@ -153,7 +152,7 @@ export async function runUpdate(deps: UpdateDeps) {
   if (comparison instanceof Error) return comparison;
   if (comparison >= 0) {
     return {
-      message: `diffmap is already up to date (${current})`,
+      message: `product-doc is already up to date (${current})`,
       status: "up-to-date",
       current,
       latest,
@@ -164,7 +163,7 @@ export async function runUpdate(deps: UpdateDeps) {
   if (method === "npx") {
     const command = `npx ${latestSpec}`;
     return {
-      message: `diffmap ${latest} is available (running ${current} through npx). Run \`${command}\` to use it, or install it globally with \`${formatCommand(globalInstallCommand("npm"))}\`.`,
+      message: `product-doc ${latest} is available (running ${current} through npx). Run \`${command}\` to use it, or install it globally with \`${formatCommand(globalInstallCommand("npm"))}\`.`,
       status: "manual",
       current,
       latest,
@@ -174,7 +173,7 @@ export async function runUpdate(deps: UpdateDeps) {
   if (method === "unknown") {
     const command = formatCommand(globalInstallCommand("npm"));
     return {
-      message: `diffmap ${latest} is available (running ${current}), but diffmap could not tell how it was installed. Update it with \`${command}\` or your package manager's equivalent.`,
+      message: `product-doc ${latest} is available (running ${current}), but product-doc could not tell how it was installed. Update it with \`${command}\` or your package manager's equivalent.`,
       status: "manual",
       current,
       latest,
@@ -186,7 +185,7 @@ export async function runUpdate(deps: UpdateDeps) {
   const installed = await deps.runCommand(install);
   if (installed instanceof Error) return installed;
   return {
-    message: `Updated diffmap from ${current} to ${latest}`,
+    message: `Updated product-doc from ${current} to ${latest}`,
     status: "updated",
     previous: current,
     current: latest,

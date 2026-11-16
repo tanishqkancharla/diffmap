@@ -9,19 +9,6 @@ if (demo) {
   // Progressive enhancement: the whole page and links already exist without JS.
   void import("./demo.tsx").then(({ mountDemo }) => mountDemo(demo));
 }
-document
-  .querySelector<HTMLButtonElement>("[data-copy-prompt]")
-  ?.addEventListener("click", async (event) => {
-    const button = event.currentTarget as HTMLButtonElement;
-    const prompt = button.previousElementSibling?.textContent;
-    if (!prompt) return;
-    try {
-      await navigator.clipboard.writeText(prompt);
-      button.textContent = "Copied";
-    } catch {
-      button.textContent = "Select text to copy";
-    }
-  });
 
 // The preview build drops the whole integration, not just its network calls.
 if (websiteAnalyticsEnabled) {

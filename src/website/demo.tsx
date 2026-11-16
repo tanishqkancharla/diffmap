@@ -1,6 +1,8 @@
 import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
-import { MauiProvider, P } from "maui";
+import { useLayoutEffect } from "react";
+import { MauiProvider, P, flex } from "maui";
+import { useStyles } from "purse-styles";
 import { fetchGitHubChanges } from "../github/fetchRepo.ts";
 import { HostFilesContext } from "../host/files.ts";
 import {
@@ -8,7 +10,7 @@ import {
   sessionStoreChanges,
   sessionStoreFiles,
 } from "../host/sessionStorePr.ts";
-import { Mesh, headerBlobs, footerBlobs } from "../landing/Mesh.tsx";
+import { promptCode } from "../landing/Mesh.tsx";
 import { ScrollDemo } from "../landing/ScrollDemo.tsx";
 import { useDemo } from "../landing/shared.tsx";
 import {
@@ -17,6 +19,8 @@ import {
 } from "../viewer/changesSource.ts";
 import { CommentsContext, useCommentStore } from "../viewer/comments.ts";
 import { ViewerModeContext } from "../viewer/viewerMode.ts";
+import { CodeBlock } from "../viewer/CodeBlock.tsx";
+import { examplePrompt } from "./content.ts";
 import "../viewer/styles.css";
 
 const loadChanges: ChangesLoader = (rev) =>
@@ -24,9 +28,32 @@ const loadChanges: ChangesLoader = (rev) =>
     ? Promise.resolve(sessionStoreChanges)
     : fetchGitHubChanges({ owner: "tanishqkancharla", repo: "diffmap" }, rev);
 
-function Demo() {
+function Prompt({ onReady }: { onReady: () => void }) {
+  const className = useStyles(
+    promptCode,
+    flex({ direction: "column", alignItems: "center" }),
+  );
+  useLayoutEffect(onReady, [onReady]);
+  return (
+    <div className={className}>
+      <CodeBlock
+        lang="text"
+        source={examplePrompt}
+        highlights={[]}
+        notes={[]}
+        title={undefined}
+      />
+    </div>
+  );
+}
+
+function Demo({ onReady }: { onReady: () => void }) {
   const document = useDemo();
   const comments = useCommentStore("productdoc-comments:landing");
+  useLayoutEffect(() => {
+    if (document !== undefined) onReady();
+  }, [document, onReady]);
+  if (document === undefined) return;
   if (document instanceof Error)
     return (
       <P>
@@ -47,32 +74,23 @@ function Demo() {
   );
 }
 
-// Reuse the actual homepage reader, mesh formation, and grain—not a screenshot.
+// The artwork is already in the initial HTML; enhance only the reader/prompt.
 export function mountDemo(root: HTMLElement) {
-  const hero = document.getElementById("hero-mesh");
-  const footer = document.getElementById("footer-mesh");
-  createRoot(root).render(
+  const prompt = document.getElementById("prompt-snippet");
+  const promptFallback = prompt?.firstElementChild;
+  const showPrompt = () => promptFallback?.remove();
+  const fallback = root.firstElementChild;
+  const enhanced = document.createElement("div");
+  enhanced.hidden = true;
+  root.append(enhanced);
+  const showDemo = () => {
+    fallback?.remove();
+    enhanced.hidden = false;
+  };
+  createRoot(enhanced).render(
     <MauiProvider>
-      {hero &&
-        createPortal(
-          <Mesh
-            blobs={headerBlobs}
-            edge="top"
-            mask="linear-gradient(to bottom, black, black 35%, transparent)"
-          />,
-          hero,
-        )}
-      <Demo />
-      {footer &&
-        createPortal(
-          <Mesh
-            blobs={footerBlobs}
-            edge="bottom"
-            mask="linear-gradient(to top, black, black 12%, transparent 90%)"
-            lamp
-          />,
-          footer,
-        )}
+      {prompt && createPortal(<Prompt onReady={showPrompt} />, prompt)}
+      <Demo onReady={showDemo} />
     </MauiProvider>,
   );
 }

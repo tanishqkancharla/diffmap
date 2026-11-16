@@ -1,27 +1,47 @@
-# Living spec
+# Productdoc documents
 
-A spec is a directory at `.diffmap/specs/<short-kebab-case-name>/` that shows the current system, the plan, and the work done, one page per phase. Update it as the plan changes and work lands. For a walkthrough of an existing pull request, use its spec if it has one; otherwise write one in the same place. Commit specs with the code; `.diffmap/` is not ignored. Check the repo's paths and symbols before writing.
+Create a general-purpose visual document that explains what exists, plans future work, or reviews what changed. Lead with the reader's question and the reasoning they need, not a code diff. Start with familiar screens, actions, or workflows when available; otherwise use involved services, messages, and state. Code supports the story rather than setting its outline.
 
-**Settle scope first.** Read the relevant code before writing. When the design, scope, or phase split is unclear, check with the user before writing much: offer the options and your pick.
+A document is a directory at `.diffmap/specs/<short-kebab-case-name>/`. Reuse the effort's existing directory and update it as understanding, plans, and work change; do not create separate explanation, plan, and review copies. Keep existing paths during migration. Commit documents with the relevant work and check source paths before referencing them.
+
+**Migration:** productdoc succeeds Diffmap. The `generate-diffmap` and `generate-product-doc` skills coexist temporarily; reuse existing documents without migrating their paths. The package is `product-doc`, with executable `product-doc`. The existing sharing host remains diffmap.dev until productdoc.dev supports those links.
+
+## Match the document to the question
+
+- **Explain existing behavior:** lead with what happens today, why, and who owns the outcome. Show the relevant failure path as well as the successful one. Link inspected evidence and label uncertainty. An explanation without proposed changes needs no artificial implementation phases.
+- **Plan future work:** lead with the problem, intended outcome, alternatives, and decision. Put the overview in `README.md`, then put each small, independent or commit-sized change on its own numbered page: **one small change per page**. Split by a coherent change someone can review and land, not by source file. Link dependencies instead of repeating the whole plan. Explain Today, Proposed, reasoning, and verification for each phase.
+- **Review changes made:** lead with the observable difference and its reason. Show actual before/after behavior, preview prose changes as well as code, and distinguish local work from released behavior. Update the existing phase pages. Follow the commit-reference rules only for real commits.
+
+A request to explain, plan, or preview does not authorize implementing the proposal. Label unbuilt behavior, illustrative patches, and mockups. A plan's diagram is not proof of executed behavior.
+
+## Draw the reasoning
+
+Use a diagram when readers would otherwise assemble a flow, owner, dependency, or changed relationship from paragraphs. Name nodes and arrows at the reader's level, include the failure or alternative that changes the decision, and put the picture beside that decision. A graph of function names is not a product explanation.
+
+Use a flow diagram for responsibilities and dependencies, a services diagram for messages and state across services, and a call-stack diff for a changed decision within an operation. Keep only calls that explain the consequence and label unlinked pseudocode as illustrative. Show screenshots for visible states and recordings for timing or interaction; inspect them before including them.
+
+Preview prose changes too, including skill instructions, README text, and policies. A `diff` fence shows old/new wording; add the readable result when it helps judge meaning. Label proposed patches rather than presenting them as actual repository changes. Keep source detail behind links unless it changes the reader's decision.
+
+**Settle scope first.** Inspect the relevant evidence before writing; for repository-backed explanations, read the code that owns the behavior. When the design, scope, or phase split is unclear, check with the user before writing much: offer the options and your pick.
 
 ## Serve and share
 
 Run from the repo root:
 
 ```sh
-npx @tanishqkancharla/diffmap validate .diffmap/specs/<name>/ # check after writing or editing, even if already served
-npx @tanishqkancharla/diffmap list                            # reuse the URL if this spec is already served
-npx @tanishqkancharla/diffmap serve .diffmap/specs/<name>/
-npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/    # only when asked; prints https://diffmap.dev/g/<id>
+npx product-doc validate .diffmap/specs/<name>/ # check after writing or editing, even if already served
+npx product-doc list                            # reuse the URL if this spec is already served
+npx product-doc serve .diffmap/specs/<name>/
+npx product-doc share .diffmap/specs/<name>/    # only when asked; prints https://diffmap.dev/g/<id>
 ```
 
-`validate` checks every page's syntax, diagrams, and annotations, and the spec's page names, without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating diffmap itself, restart existing viewers to load its new parser.
+`validate` checks every page's syntax, diagrams, and annotations, and the spec's page names, without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating productdoc itself, restart existing viewers to load its new parser.
 
-Leave the server running and give the user the directory and URL. It reloads a page when you edit it, and the page list when you add, remove, or retitle a page. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the gist, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>`, pinned to a commit.
+Leave the server running and give the user the directory and URL. It reloads a page when you edit it, and the page list when you add, remove, or retitle a page. Inspect the rendered document's diagrams, prose previews, and media before handing it back. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the gist, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>`, pinned to a commit.
 
 ## Shape
 
-Write for someone who needs to understand the change quickly. Start from what changes for the person using it, such as a screen, command, API call, or error, then work back toward the implementation as far as the reader needs.
+Write for someone who needs to understand the system or decision quickly. Start from a recognizable action, workflow, service responsibility, or outcome, then descend into implementation only as far as the reader needs. Explain existing behavior without inventing changes; reserve Today/Proposed comparisons and implementation phases for plans or reviews.
 
 **Pages.** The reader sees one page at a time, with a list of pages beside it and a link to the next page below it.
 
@@ -33,10 +53,10 @@ Write for someone who needs to understand the change quickly. Start from what ch
   media/<phase-slug>/       screenshots and recordings for that page
 ```
 
-- `README.md` is the cover; its first heading is the spec's title. Let the content decide what each section needs, and don't repeat the cover on other pages.
+- `README.md` is the cover; its first heading is the document title shown by the viewer, not a generic product label or the directory name. Keep title and URL slug separate. Let the content decide what each section needs, and don't repeat the cover on other pages.
 - Every other page is `NN-<slug>.md`, numbered from `01` with two digits. The number sets the page's place in the spec; the slug is its URL, so renumbering keeps links and comments. To insert a page, `git mv` the pages after it to new numbers. `validate` rejects a Markdown file without a number.
 - Each page is readable on its own by someone who read the cover and skimmed the pages before it. Open it with a sentence or two that says what earlier pages built that it relies on, linked, as in "[Phase 1](01-sessions-table.md) added the `sessions` table." Then say what this page changes. Define a term on the page that introduces it, and link back to that page when a later page uses it.
-- Link between pages with relative links to the file, as in `[Phase 2](02-write-through.md#tests)`. They open in diffmap and on GitHub.
+- Link between pages with relative links to the file, as in `[Phase 2](02-write-through.md#tests)`. They open in productdoc and on GitHub.
 
 **Phases.** Keep each small enough to commit alone. A phase's page starts with its title as the page's first heading: plain when planned, ⏳ in progress, and ✅ done, so the page list shows progress. After its opening context, give a short **Today** and **Proposed** from the client's view, then explain it however suits the change: a new flow might want a diagram and a call stack, a refactor a call stack diff, a dependency bump a sentence or two. Match the length to the change, and say each thing once, where it belongs. A spec explains the change; it is not a task tracker. End each phase's page with its `changes` fence, after the walkthrough, not right after Today and Proposed; leave it empty until the phase is committed. The page's Diff button opens that commit.
 
@@ -216,7 +236,7 @@ Fences: `mermaid` draws a diagram, `services` an animated diagram of services, t
 
 ## Feedback
 
-When diffmap gets in your way or the user has feedback on it, such as a rendering bug, a confusing error, a missing feature, or advice in this guide that did not work, report it on the diffmap repo. Search first, and comment on a matching issue instead of opening a duplicate:
+When productdoc gets in your way or the user has feedback on it, such as a rendering bug, a confusing error, a missing feature, or advice in this guide that did not work, report it on the existing GitHub repo. Search first, and comment on a matching issue instead of opening a duplicate:
 
 ```sh
 gh issue list --repo tanishqkancharla/diffmap --search "<keywords>" --state all
@@ -226,11 +246,11 @@ gh issue comment "<issue-number>" --repo tanishqkancharla/diffmap --body "<detai
 
 Describe what you did, what you expected, and what happened. Keep titles, issue bodies, and comments de-identified and prose-only: no PII, code or spec snippets, raw logs, screenshots, credentials, or identifying details (including private paths, repository/customer names, and links).
 
-End agent-submitted issue bodies and comments with this footer. Include only the Diffmap version (`npx @tanishqkancharla/diffmap --version`) and agent product name as diagnostic metadata; omit the agent line if unknown:
+End agent-submitted issue bodies and comments with this footer. Include only the Productdoc version (`npx product-doc --version`) and agent product name as diagnostic metadata; omit the agent line if unknown:
 
 ```text
-Reported via Diffmap agent feedback
-Diffmap version: <version>
+Reported via Productdoc agent feedback
+Productdoc version: <version>
 Agent: <product name>
 ```
 
@@ -240,5 +260,5 @@ This is guidance, not enforced anonymization: GitHub still shows the submitting 
 
 ## Look up the rest
 
-- Full reference and fence syntax → [diffmap README](https://github.com/tanishqkancharla/diffmap#link-call-stacks-to-source-changes)
+- Full reference and fence syntax → [productdoc README](https://github.com/tanishqkancharla/diffmap#link-call-stacks-to-source-changes)
 - Worked examples → [annotations](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/annotations/README.md), [diagrams](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/references/README.md), [services](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/services/README.md), and [media](https://github.com/tanishqkancharla/diffmap/blob/main/fixtures/media/README.md) fixtures

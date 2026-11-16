@@ -677,7 +677,7 @@ test("parseViewerDocument fails on broken mermaid with file and diagram", () => 
   assert.match(String(parsed.reason), /Invalid mermaid header: "flwochart TD"/);
   assert.equal(
     parsed.message,
-    'diffmap could not parse mermaid in broken.md (diagram 1, line 3): Invalid mermaid header: "flwochart TD". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.',
+    'product-doc could not parse mermaid in broken.md (diagram 1, line 3): Invalid mermaid header: "flwochart TD". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.',
   );
 });
 
@@ -997,13 +997,13 @@ test("shareMarkdownFile refuses local media before calling gh", async () => {
     });
     assert.equal(
       String(shared),
-      "DiffmapShareError: diffmap share failed: a shared gist cannot show local images or videos (media/before.png, ../after.mp4 in README.md). Link them by https URL, or view the spec with serve",
+      "DiffmapShareError: product-doc share failed: a shared gist cannot show local images or videos (media/before.png, ../after.mp4 in README.md). Link them by https URL, or view the spec with serve",
     );
   });
 });
 
 function mermaidCliMessage(filePath: string) {
-  return `diffmap could not parse mermaid in ${filePath} (diagram 1, line 3): Invalid mermaid header: "flwochart TD". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.`;
+  return `product-doc could not parse mermaid in ${filePath} (diagram 1, line 3): Invalid mermaid header: "flwochart TD". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.`;
 }
 
 test("diffmap serve exits non-zero on broken mermaid", async () => {

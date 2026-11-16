@@ -98,6 +98,11 @@ async function resolveRev(
 }
 
 async function diffSides(root: string, base: Side, head: Side) {
+  if (base === "HEAD") {
+    // Before the first commit, staged and working changes start from no files.
+    const commit = await git(root, ["rev-parse", "--verify", "HEAD"]);
+    base = commit instanceof Error ? EMPTY_TREE : commit.trim();
+  }
   // `git diff A B`, `git diff --cached A`, `git diff A`, and `git diff` cover commit→commit, →index, →worktree, and index→worktree.
   const range =
     typeof head === "string"

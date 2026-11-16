@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generate Product Doc"
+  short_description: "Explain, plan, and review with productdoc visual documents"
+  default_prompt: "Use $generate-product-doc and follow its CLI guide to explain this system, plan future work, or review changes."

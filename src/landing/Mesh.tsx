@@ -1,6 +1,9 @@
 import type { CSSProperties } from "react";
-import { backgroundColor, borderColor, colors, shadowVars } from "maui";
-import { style, useStyles } from "purse-styles";
+import { backgroundColor } from "maui/src/tokens/background.ts";
+import { borderColor } from "maui/src/tokens/borders.ts";
+import { colors } from "maui/src/tokens/colors.ts";
+import { shadowVars } from "maui/src/tokens/shadow.ts";
+import { style } from "purse-styles";
 
 /** A blurred shape, centered horizontally and relative to its mesh's edge (px). */
 export type Blob = {
@@ -146,19 +149,16 @@ export function Mesh(props: {
   edge: "top" | "bottom";
   lamp?: boolean;
 }) {
-  const layer = useStyles(styles.layer);
-  const blob = useStyles(styles.blob);
-  const lamp = useStyles(styles.lamp);
-  const grain = useStyles(styles.grain);
   const masked: CSSProperties = { maskImage: props.mask };
   const origin = props.edge === "top" ? "0%" : "100%";
   return (
     <>
-      <div className={layer} style={masked} aria-hidden>
+      <style>{meshCss}</style>
+      <div className={styles.layer.className} style={masked} aria-hidden>
         {props.blobs.map((shape, index) => (
           <div
             key={index}
-            className={blob}
+            className={styles.blob.className}
             style={{
               left: `calc(50% + ${shape.x}px)`,
               top: `calc(${origin} + ${shape.y}px)`,
@@ -169,9 +169,11 @@ export function Mesh(props: {
             }}
           />
         ))}
-        {props.lamp && <div className={lamp} style={{ top: origin }} />}
+        {props.lamp && (
+          <div className={styles.lamp.className} style={{ top: origin }} />
+        )}
       </div>
-      <div className={grain} style={masked} aria-hidden />
+      <div className={styles.grain.className} style={masked} aria-hidden />
     </>
   );
 }
@@ -219,3 +221,8 @@ const styles = {
     '&:is(:root[data-theme="dark"] *)': { opacity: 0.35 },
   }),
 };
+
+// Keep the artwork renderable without a browser/provider, including its CSS.
+const meshCss = Object.values(styles)
+  .flatMap((element) => element.owned.styleRules)
+  .join("");

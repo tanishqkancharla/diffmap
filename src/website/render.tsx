@@ -2,13 +2,23 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { renderToHtml } from "md4x/napi";
 import { renderMermaidSVG } from "beautiful-mermaid";
 import { Logo } from "../landing/Logo.tsx";
+import { Mesh, headerBlobs, footerBlobs } from "../landing/Mesh.tsx";
 import {
+  examplePrompt,
   markdownPath,
   origin,
   pages,
   repository,
   type Page,
 } from "./content.ts";
+
+// The demo's glow rises above it into the hero, then fades out evenly around
+// the top of the reader instead of stopping at a flat edge.
+const DEMO_LIFT = 300;
+const demoBlobs = headerBlobs.map((blob) => ({
+  ...blob,
+  y: blob.y + DEMO_LIFT,
+}));
 
 function Markdown({ source }: { source: string }) {
   return (
@@ -66,65 +76,55 @@ function Markdown({ source }: { source: string }) {
 }
 
 function Home({ page }: { page: Page }) {
-  const [intro = "", examples = "", feedback = "", migration = ""] =
-    page.body.split(/^## /m);
-  const [exampleIntro = "", ...cards] = examples.split(/^### /m);
   return (
     <>
-      <header className="hero lagoon">
-        <div id="hero-mesh" aria-hidden />
+      <header className="hero">
         <div className="hero-content">
           <div className="hero-intro">
-            <Markdown source={intro} />
+            <Markdown source={page.body} />
           </div>
-          <div className="prompt">
-            <p>Start with a question for your agent</p>
-            <div className="prompt-code">
-              <code>
-                Explain how this system works. Show the decisions, not just the
-                code.
-              </code>
-              <button data-copy-prompt aria-label="Copy example prompt">
-                Copy
-              </button>
-            </div>
+          <div className="prompt" id="prompt-snippet">
+            <pre className="prompt-fallback">
+              <code>{examplePrompt}</code>
+            </pre>
           </div>
-          <p className="availability">
-            Skill installation is not live yet.{" "}
-            <a data-install-cta href="/docs/install">
-              Release status ↗
-            </a>
-          </p>
         </div>
       </header>
-      <div id="reader-demo">
-        <div className="demo-placeholder">
-          <div className="browser-bar">
-            ○ ○ ○ <span>Interactive reader demo</span>
+      <div className="demo-stage" id="examples">
+        <div className="demo-glow" aria-hidden>
+          {/* Sticks when the reader does and ends at the screen's bottom edge,
+              so the glow stays put while the document scrolls, then leaves with it. */}
+          <div
+            id="demo-mesh"
+            style={{
+              top: -DEMO_LIFT,
+              marginTop: -DEMO_LIFT,
+              height: `calc(${DEMO_LIFT}px + 100svh)`,
+            }}
+          >
+            <Mesh
+              blobs={demoBlobs}
+              edge="top"
+              mask={`radial-gradient(ellipse 80% 420px at 50% ${DEMO_LIFT + 190}px, black 25%, 60%, transparent)`}
+            />
           </div>
-          <div className="demo-fallback">
-            <h2>Reasoning first. Code in context.</h2>
-            <p>A document you can read, explore, and comment on.</p>
-            <a href="/examples/explain">Read an example →</a>
+        </div>
+        <p className="demo-caption">
+          <em>Preview an example document</em>
+        </p>
+        <div id="reader-demo">
+          <div className="demo-placeholder">
+            <div className="browser-bar">
+              ○ ○ ○ <span>Interactive reader demo</span>
+            </div>
+            <div className="demo-fallback">
+              <h2>Reasoning first. Code in context.</h2>
+              <p>A document you can read, explore, and comment on.</p>
+              <a href="/examples/explain">Read an example →</a>
+            </div>
           </div>
         </div>
       </div>
-      <section className="examples" id="examples">
-        <Markdown source={`## ${exampleIntro}`} />
-        <div className="cards">
-          {cards.map((card) => (
-            <article key={card} className="card">
-              <Markdown source={`### ${card}`} />
-            </article>
-          ))}
-        </div>
-      </section>
-      <section className="conversation">
-        <Markdown source={`## ${feedback}`} />
-      </section>
-      <section className="migration">
-        <Markdown source={`## ${migration}`} />
-      </section>
     </>
   );
 }
@@ -201,12 +201,19 @@ function Site({ page }: { page: Page }) {
         )}
       </main>
       <footer className="footer">
-        <div id="footer-mesh" aria-hidden />
+        <div id="footer-mesh" aria-hidden>
+          <Mesh
+            blobs={footerBlobs}
+            edge="bottom"
+            mask="linear-gradient(to top, black, black 12%, transparent 90%)"
+            lamp
+          />
+        </div>
         <a className="brand" href="/">
           <Logo size={28} />
           productdoc
         </a>
-        <p>Make the reasoning something you can read.</p>
+        <p>Build software at the product level.</p>
         <div>
           <a href="/privacy">Privacy</a>
           <a href="/docs/migration">From Diffmap</a>
@@ -214,7 +221,7 @@ function Site({ page }: { page: Page }) {
           <a href="/llms.txt">For agents</a>
           <a href={markdownPath(page.path)}>Markdown</a>
         </div>
-        <small>Open source · MIT · Local review preview</small>
+        <small>Open source · MIT</small>
       </footer>
     </>
   );

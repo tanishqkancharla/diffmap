@@ -1,8 +1,11 @@
-# Stages @tanishqkancharla/diffmap from main using npm Trusted Publishing (OIDC).
+# Stages product-doc from main using npm Trusted Publishing (OIDC).
 # Uses `npm stage publish` only (not `npm publish`). A maintainer must approve on npmjs.com.
 # No NPM_TOKEN. Provenance is emitted automatically by trusted publishing; --provenance
 # is also passed so a stage still attests if OIDC is configured.
 #
+# Bootstrap first: an approved, authenticated stage creates the new package's
+# public 0.0.0-stage placeholder. Configure trust only after the package exists.
+# See .diffmap/specs/product-doc-skill/12-release-pipeline.md for the release gate.
 # One-time npmjs.com setup (Package → Settings → Trusted Publisher → GitHub Actions):
 #   Organization or user: tanishqkancharla
 #   Repository:           diffmap
@@ -82,7 +85,7 @@ jobs:
           const fs = require("node:fs");
           const { spawnSync } = require("node:child_process");
           const pkg = require("./package.json");
-          const expected = "@tanishqkancharla/diffmap";
+          const expected = "product-doc";
           const registry = "https://registry.npmjs.org";
 
           if (pkg.name !== expected) {
@@ -304,9 +307,8 @@ jobs:
           // npm view cannot see the staging queue. Restaging the same version
           // is a 409; treat it as a no-op like an already-published version.
           if (
-            /409|EEXIST|already staged|previously staged|previously published|Cannot stage/i.test(
-              output,
-            )
+            /409|EEXIST/i.test(output) &&
+            /(?:already|previously) (?:staged|published)/i.test(output)
           ) {
             console.log(
               `${pkg.name}@${pkg.version} is already staged or published; skipping.`,

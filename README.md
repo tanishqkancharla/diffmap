@@ -1,30 +1,36 @@
-# diffmap
+# productdoc
 
-[![Watch the diffmap launch video](media/launch.jpg)](https://x.com/tanishqk/status/2116212881125691850)
+**Understand the system, decide what to build, and review what changed.** Productdoc turns your coding agent's findings into visual documents, with diagrams, media, and source links behind the reasoning.
 
-**Your coding agent writes more code than you can review.** You should spend your review time on design decisions and risky changes, not boilerplate.
-
-diffmap is an agent skill that lets your agent explain its changes to you visually. The agent writes a spec with interactive diagrams, and each part of a diagram links back to its source code.
-
-> Want a cloud-hosted viewer for sharing diffmaps with your team? [Upvote Diffmap Cloud](https://github.com/tanishqkancharla/diffmap/issues/32) so I know there's interest.
+Use it to explain an existing workflow, plan future work, or review a change. Documents start with the reader's question and familiar UI or involved services—not automatically with code. Plans keep one small, independent or commit-sized change per page.
 
 ## Try it
 
-You can try diffmap before you install it. In a repository that has changes, paste this prompt into your agent:
+**Release status:** the renamed package is prepared in this checkout, not yet published. The commands below describe the release candidate. From this checkout, use `npm run cli -- guide` or `npm run cli -- serve <directory>` until publication; do not expect a public npm install to work yet.
 
-```text
-Write a diffmap spec for the changes on this branch. Use github.com/tanishqkancharla/diffmap
-```
-
-If you like the result, install the skill:
+Install the skill after the package is released:
 
 ```sh
-npx skills add tanishqkancharla/diffmap --skill generate-diffmap
+npx skills add tanishqkancharla/diffmap --skill generate-product-doc
 ```
 
-The skill keeps a spec in `.diffmap/specs/<name>/` that stays true to what is planned and what is already in the tree. diffmap is open source and MIT licensed. Specs are served locally by default, but you can choose to [share one as an unlisted gist](#share-a-spec-with-a-link-experimental) and open it on diffmap.dev.
+Then ask your agent to explain an existing system, plan work, or review changes:
 
-The skill is a short pointer: your agent loads the full instructions from `npx @tanishqkancharla/diffmap guide`, so they update with diffmap itself. When the skill file itself changes, update it with `npx skills update generate-diffmap`.
+```text
+Use generate-product-doc to explain how this app handles sign-in, including what happens when the session expires.
+```
+
+The skill is a short pointer: your agent loads the full instructions from `npx product-doc guide`, so they stay version-matched to the viewer. When the stub itself changes, update it with `npx skills update generate-product-doc`.
+
+The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source and MIT licensed. Documents are served locally by default; [sharing as an unlisted gist](#share-a-spec-with-a-link-experimental) still uses diffmap.dev until productdoc.dev supports those links.
+
+### Migrating from Diffmap
+
+Productdoc is the standalone successor to Diffmap, expanding beyond diff review. The npm package is `product-doc`, its executable is `product-doc`, and its website will be **productdoc.dev**. The GitHub repository keeps its current URL.
+
+Both skills coexist temporarily. Existing published Diffmap packages, the legacy skill, and the live site are unchanged by these local edits; users will be invited to migrate later. Keep existing documents and paths rather than copying them. No legacy binary alias or automatic installation migration is added.
+
+[The original Diffmap launch video](https://x.com/tanishqk/status/2116212881125691850) shows the review workflow this builds on.
 
 ## See the main ideas
 
@@ -63,10 +69,10 @@ agent. ⌘/Ctrl-Enter saves a comment and Escape cancels it.
 ## Run the viewer
 
 ```sh
-npx @tanishqkancharla/diffmap serve .diffmap/specs/<name>/
+npx product-doc serve .diffmap/specs/<name>/
 ```
 
-Bare `npx @tanishqkancharla/diffmap .diffmap/specs/<name>/` is the same as `serve`. A spec is always a directory; `serve`, `validate`, and `share` reject a single Markdown file and say where to move it.
+Bare `npx product-doc .diffmap/specs/<name>/` is the same as `serve`. A spec is always a directory; `serve`, `validate`, and `share` reject a single Markdown file and say where to move it.
 
 Options:
 
@@ -82,7 +88,7 @@ the live-reload connection do not keep it alive.
 Check a spec without starting a server or publishing anything:
 
 ```sh
-npx @tanishqkancharla/diffmap validate .diffmap/specs/<name>/
+npx product-doc validate .diffmap/specs/<name>/
 ```
 
 `validate` uses the viewer's parser to check every page's Markdown, diagrams, and
@@ -90,21 +96,21 @@ annotations, and the spec's page names. It exits 0 with `valid: true` and the
 pages in order on success, and 1 with the error, naming the page, on failure.
 Use `--json` for machine-readable output. It does not resolve source files or
 Git commits. Run it after edits, including when reusing an already-running viewer.
-After updating diffmap itself, restart existing viewers so they use the new parser.
+After updating productdoc itself, restart existing viewers so they use the new parser.
 
 List every running viewer, including viewers using custom ports:
 
 ```sh
-npx @tanishqkancharla/diffmap list
+npx product-doc list
 ```
 
-Update a global install to the latest `@tanishqkancharla/diffmap` on npm. `diffmap --update` does the same thing:
+Update a global install to the latest `product-doc` on npm. `product-doc --update` does the same thing:
 
 ```sh
-diffmap update
+product-doc update
 ```
 
-If you are already on the latest version, it says so and exits. Otherwise it runs the global install for the package manager that installed diffmap (`npm install --global`, `pnpm add --global`, or `bun add --global`) and prints the old and new versions. Under `npx`, or when it cannot tell how diffmap was installed, it prints the command to run instead of installing anything.
+If you are already on the latest version, it says so and exits. Otherwise it runs the global install for the package manager that installed productdoc (`npm install --global`, `pnpm add --global`, or `bun add --global`) and prints the old and new versions. Under `npx`, or when it cannot tell how productdoc was installed, it prints the command to run instead of installing anything.
 
 Request a page with `Accept: text/markdown` to read its current source file
 instead of the rendered HTML. Use the URL printed by `serve`, with the page's
@@ -135,21 +141,21 @@ A spec is a directory of Markdown pages:
   page's headings in the left gutter, and links to the previous and next page
   at the bottom. A page's first heading is its title in that list.
 - A relative link to a page file, such as `[Phase 2](02-write-through.md#tests)`,
-  opens that page, in diffmap and on GitHub.
+  opens that page, in productdoc and on GitHub.
 - Each page keeps its own comments and Diff panel, which opens the page's first
   `changes` card. **Copy comments** copies the comments from every page,
   under each page's title.
 - `serve` reloads a page when its file changes, and every page when you add,
   remove, or retitle one.
 
-Run `npx @tanishqkancharla/diffmap fixtures/sessions-in-postgres` for an example.
+Run `npx product-doc fixtures/sessions-in-postgres` for an example.
 
 ## Share a spec with a link (experimental)
 
 Share an unlisted gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
 
 ```sh
-npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/
+npx product-doc share .diffmap/specs/<name>/
 ```
 
 A spec's pages share one gist. Hosted viewer: `https://diffmap.dev/g/<gistId>` for the cover, and `/<slug>` after it for a page (`#heading` is the table of contents). Gists shared before specs were directories still open, one file at a time. The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
@@ -159,29 +165,25 @@ A spec committed to a GitHub pull request also opens at `https://diffmap.dev/<ow
 ## Library
 
 ```ts
-import {
-  startServer,
-  parseFence,
-  parseViewerDocument,
-} from "@tanishqkancharla/diffmap";
+import { startServer, parseFence, parseViewerDocument } from "product-doc";
 ```
 
-`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The guide that `diffmap guide` prints owns document shape; the viewer does not.
+`parseViewerDocument` turns markdown into the page document with [md4x](https://github.com/unjs/md4x). `startServer` listens. The guide that `product-doc guide` prints owns document shape; the viewer does not.
 
 ## Fences
 
-| Fence info string                              | Viewer                                                                                            |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `mermaid`                                      | Beautiful Mermaid                                                                                 |
-| `services`                                     | Animated service diagram you can play or step through                                             |
-| `mermaid diff` or `services diff`              | The same diagram with [added and removed parts marked](#diagram-diffs)                            |
-| `callstack` or `diff` containing `└──` / `├──` | Interactive stack rows, no file header                                                            |
-| `diff` or `diff:path` with a file path         | Pierre patch with Pierre’s file header                                                            |
-| `diff` with no path                            | Pierre patch, no file header                                                                      |
-| `changes` with a commit, range, or empty body  | Files changed card with a Review button; empty means uncommitted changes                          |
-| `start:end:path`                               | Pierre file excerpt with Pierre’s file header                                                     |
-| `html`                                         | Trusted HTML from this file. diffmap does not sanitize it. Only use it for local files you wrote. |
-| other langs                                    | Highlighted code with optional [titles, highlights, and notes](#highlight-lines-and-add-notes)    |
+| Fence info string                              | Viewer                                                                                               |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `mermaid`                                      | Beautiful Mermaid                                                                                    |
+| `services`                                     | Animated service diagram you can play or step through                                                |
+| `mermaid diff` or `services diff`              | The same diagram with [added and removed parts marked](#diagram-diffs)                               |
+| `callstack` or `diff` containing `└──` / `├──` | Interactive stack rows, no file header                                                               |
+| `diff` or `diff:path` with a file path         | Pierre patch with Pierre’s file header                                                               |
+| `diff` with no path                            | Pierre patch, no file header                                                                         |
+| `changes` with a commit, range, or empty body  | Files changed card with a Review button; empty means uncommitted changes                             |
+| `start:end:path`                               | Pierre file excerpt with Pierre’s file header                                                        |
+| `html`                                         | Trusted HTML from this file. productdoc does not sanitize it. Only use it for local files you wrote. |
+| other langs                                    | Highlighted code with optional [titles, highlights, and notes](#highlight-lines-and-add-notes)       |
 
 Fences keep whitespace. Use them for mermaid, call stacks, and diffs.
 
@@ -225,7 +227,7 @@ Write their notes with `#`. A symbol note matches the row text you see, not
 hidden references. Inside a linked row, symbol notes show on hover only; the
 row itself keeps keyboard focus.
 
-Run `npx @tanishqkancharla/diffmap fixtures/code-notes` for an example.
+Run `npx product-doc fixtures/code-notes` for an example.
 
 ## MDC
 
@@ -305,7 +307,7 @@ in Amp threads.
 loads it from the same commit. `share` fails when a spec uses local media,
 because a gist holds only text files; link media by https URL to share it.
 
-Run `npx @tanishqkancharla/diffmap fixtures/media` for an example.
+Run `npx product-doc fixtures/media` for an example.
 
 ## Link call stacks to source changes
 
@@ -378,7 +380,7 @@ On a GitHub-hosted spec, commit diffs come from the GitHub API. It returns patch
 hunks only, so only lines near changes are reachable, and the Diff button opens
 the pull request's full diff.
 
-A shared gist is a snapshot taken when you run `diffmap share`. It saves every
+A shared gist is a snapshot taken when you run `product-doc share`. It saves every
 referenced commit and every `changes` card, including uncommitted ones, to
 `diffmap-changes.json`, with unchanged supporting files saved at each referenced
 revision separately from the changed-file list. It saves the current contents
@@ -393,7 +395,7 @@ Cmd-click (or Ctrl-click) a TypeScript or JavaScript symbol in the source panel
 to open its definition. Use Back to retrace navigation and return to the reference.
 Resolution uses the workspace's TypeScript configuration and current files.
 
-Run `npx @tanishqkancharla/diffmap fixtures/annotations` for an example
+Run `npx product-doc fixtures/annotations` for an example
 with commit references, multiple files, and unchanged context.
 
 ## Animated service diagrams
@@ -478,7 +480,7 @@ for both, as in a call stack diff. Indentation starts after that column.
 ```
 ````
 
-diffmap draws every line once, so both versions share one layout. Nodes,
+productdoc draws every line once, so both versions share one layout. Nodes,
 edges, sequence participants, and messages that only Today has are red and
 dashed; those only Proposed has are green. A node whose label differs between
 the versions is amber and shows its Proposed label. Each version must also be
@@ -565,8 +567,8 @@ Turn it off with `DIFFMAP_TELEMETRY=0` (or `false`) or `DO_NOT_TRACK=1`. It is a
 
 ## Feedback
 
-Found a bug, hit a confusing error, or want a feature? Search [existing issues](https://github.com/tanishqkancharla/diffmap/issues), then comment on a matching issue or [open a new one](https://github.com/tanishqkancharla/diffmap/issues/new). Describe what you did, what you expected, and what happened, with your Diffmap version (`diffmap --version`). Keep submissions de-identified and prose-only, without PII, code, attachments, or identifying details.
+Found a bug, hit a confusing error, or want a feature? Search [existing issues](https://github.com/tanishqkancharla/diffmap/issues), then comment on a matching issue or [open a new one](https://github.com/tanishqkancharla/diffmap/issues/new). Describe what you did, what you expected, and what happened, with your Productdoc version (`product-doc --version`). Keep submissions de-identified and prose-only, without PII, code, attachments, or identifying details.
 
-Agents follow the [guide's Feedback section](guide.md#feedback) through `gh`, adding the `agent-feedback` label when available and the footer “Reported via Diffmap agent feedback” to issue bodies and comments. Diagnostic metadata is limited to the Diffmap version and agent product name, if known.
+Agents follow the [guide's Feedback section](guide.md#feedback) through `gh`, adding the `agent-feedback` label when available and the footer “Reported via Productdoc agent feedback” to issue bodies and comments. Diagnostic metadata is limited to the Productdoc version and agent product name, if known.
 
 These markers identify the reporting path, not verified origin. This is guidance, not enforced anonymization: GitHub still shows the submitting account.

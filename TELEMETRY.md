@@ -1,6 +1,6 @@
 # Telemetry
 
-The diffmap CLI sends anonymous usage events to [PostHog](https://posthog.com) so we can see which commands and viewer features people use and where they run into problems. This file lists everything it sends. Turn it off with `DIFFMAP_TELEMETRY=0` (or `false`) or `DO_NOT_TRACK=1`; it is also off when `CI` is set.
+The productdoc CLI sends anonymous usage events to [PostHog](https://posthog.com) so we can see which commands and viewer features people use and where they run into problems. This file lists everything it sends. Turn it off with `DIFFMAP_TELEMETRY=0` (or `false`) or `DO_NOT_TRACK=1`; it is also off when `CI` is set.
 
 Events never include file paths, spec contents, comment text, copied text, error messages, or anything else from your repository. Specs shared on diffmap.dev send nothing to PostHog.
 
@@ -9,10 +9,16 @@ Events never include file paths, spec contents, comment text, copied text, error
 | Property      | Value                                                                                                                                                                                                                     |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `distinct_id` | A random ID stored in `~/.config/diffmap/telemetry-id` (or under `$XDG_CONFIG_HOME`)                                                                                                                                      |
-| `version`     | The diffmap version                                                                                                                                                                                                       |
+| `product`     | Always `product-docs` for this runtime; environment variables and browser input cannot relabel it                                                                                                                         |
+| `surface`     | `cli` for command events or `viewer` for actions forwarded by the local viewer; assigned by the CLI, not browser input                                                                                                    |
+| `version`     | The productdoc version                                                                                                                                                                                                    |
 | `os`, `arch`  | Your OS and CPU architecture                                                                                                                                                                                              |
 | `node`        | The Node version                                                                                                                                                                                                          |
 | `invoked_by`  | The coding agent that ran the command: `amp`, `claude-code`, `codex`, `cursor`, `gemini-cli`, `opencode`, `other-agent`, `terminal`, or `unknown`. Read from variables such as `CLAUDECODE`; their values are never sent. |
+
+Productdoc uses the existing PostHog project, event names, anonymous installation ID, and opt-outs. The `diffmap` config directory and `DIFFMAP_TELEMETRY` setting are deliberately retained so existing identity and privacy choices survive migration. This runtime always identifies as `product-docs`, including forwarded viewer events; no environment marker is needed. Existing published Diffmap releases are unchanged, and historical events without the product property remain legacy/unattributed rather than being retroactively relabeled.
+
+This identifies runtime usage, not proof of skill installation, automatic activation, document completion, or reader comprehension. Historical events without these properties remain unattributed. Website reporting and browser-to-CLI identity linking are not added by this change.
 
 ## CLI events
 

@@ -1,7 +1,7 @@
 {
-  "name": "@tanishqkancharla/diffmap",
+  "name": "product-doc",
   "version": "0.13.2",
-  "description": "Serve a spec or code walkthrough as a local page",
+  "description": "Visual documents to explain systems, plan work, and review changes",
   "license": "MIT",
   "author": "Tanishq Kancharla",
   "repository": {
@@ -9,7 +9,7 @@
     "url": "git+https://github.com/tanishqkancharla/diffmap.git"
   },
   "bin": {
-    "diffmap": "bin.js"
+    "product-doc": "bin.js"
   },
   "files": [
     "bin.js",
@@ -36,7 +36,7 @@
     "lint:fix": "oxlint --fix src vite.config.ts vite.gist.config.ts vite.viewer.config.ts bin.js",
     "prepack": "npm run build:viewer && npm run build:lib",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run format:check",
-    "release": "npm publish",
+    "release": "npm stage publish --access public",
     "pretest": "npm run build:viewer && npm run build:lib",
     "test": "DIFFMAP_TELEMETRY=0 tsx --test src/spec.test.ts src/cli.test.ts src/update.test.ts src/parseViewer.test.ts src/git.test.ts src/serve.test.ts src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/host/githubFailure.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts src/viewer/comments.test.ts",
     "typecheck": "tsc --noEmit",
@@ -77,5 +77,5 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "npm@11.5.1"
+  "packageManager": "npm@11.15.0"
 }
