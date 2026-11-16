@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Button,
+  Link,
   PlugOff,
   Refresh,
   colors,
@@ -14,6 +15,7 @@ import type {
   PreviewStoryInfo,
   PreviewViewerMessage,
 } from "../../preview/protocol.js";
+import { usePreviewsSource } from "./config.ts";
 
 export type FrameRequest = {
   path: string[];
@@ -78,6 +80,7 @@ function ConnectedFrame(props: FrameProps & { onRetry: () => void }) {
     callbacks.current = props;
   });
   const origin = new URL(props.page, window.location.href).origin;
+  const deployed = usePreviewsSource().deployment !== undefined;
 
   useEffect(() => {
     if (visible) return;
@@ -238,10 +241,24 @@ function ConnectedFrame(props: FrameProps & { onRetry: () => void }) {
       {status === "unreachable" && (
         <div className={overlay} role="alert">
           <PlugOff size="md" />
-          <span>Can't reach the app's preview page at {props.page}.</span>
+          {deployed ? (
+            <span>
+              The pull request's preview deployment isn't answering at{" "}
+              {props.page}.
+            </span>
+          ) : (
+            <span>Can't reach the app's preview page at {props.page}.</span>
+          )}
           {props.mode === "live" && (
             <>
-              <span>Start the app's dev server, then retry.</span>
+              {deployed ? (
+                <span>
+                  It may still be building: retry in a minute, or <RunLocally />
+                  .
+                </span>
+              ) : (
+                <span>Start the app's dev server, then retry.</span>
+              )}
               <Button size="sm" onClick={props.onRetry}>
                 <Refresh size="xs" />
                 Retry
@@ -256,6 +273,15 @@ function ConnectedFrame(props: FrameProps & { onRetry: () => void }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** The guide's section on serving a spec, for when a block can't show live UI here. */
+export function RunLocally() {
+  return (
+    <Link href="https://github.com/tanishqkancharla/diffmap/blob/main/guide.md#serve-and-share">
+      run this spec with diffmap serve
+    </Link>
   );
 }
 

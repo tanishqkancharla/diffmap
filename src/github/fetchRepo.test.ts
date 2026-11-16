@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   fetchGitHubChanges,
+  fetchPinnedConfig,
   findSymbolLineRange,
   loadPinnedSpec,
 } from "./fetchRepo.ts";
@@ -161,5 +162,53 @@ test("loadPinnedSpec opens a spec's directory at its cover and a page file in it
   assert.equal(
     requested.includes("api.github.com/repos/o/r/contents/.diffmap/specs"),
     false,
+  );
+});
+
+test("fetchPinnedConfig reads the nearest .diffmap/config.json at the pinned commit", async (t) => {
+  const sha = "0123456789abcdef0123456789abcdef01234567";
+  const raw: Record<string, string> = {
+    [`/o/r/${sha}/.diffmap/config.json`]: JSON.stringify({
+      previews: {
+        preview: "https://app-git-{branch}.vercel.app/previews.html",
+      },
+    }),
+    [`/o/r/${sha}/config.json`]: "{}",
+  };
+  t.mock.method(globalThis, "fetch", (url: string) => {
+    const { pathname } = new URL(url);
+    const text = raw[pathname];
+    return Promise.resolve(
+      text === undefined
+        ? new Response("", { status: 404 })
+        : new Response(text),
+    );
+  });
+  assert.deepEqual(
+    await fetchPinnedConfig(
+      { owner: "o", repo: "r", sha },
+      ".diffmap/specs/login",
+    ),
+    {
+      config: {
+        previews: {
+          preview: "https://app-git-{branch}.vercel.app/previews.html",
+        },
+      },
+    },
+  );
+
+  raw[`/o/r/${sha}/.diffmap/specs/bad/.diffmap/config.json`] =
+    '{ "previews": { "preview": 1 } }';
+  const bad = await fetchPinnedConfig(
+    { owner: "o", repo: "r", sha },
+    ".diffmap/specs/bad",
+  );
+  assert.ok("error" in bad);
+  assert.match(bad.error, /^\.diffmap\/specs\/bad\/\.diffmap\/config\.json: /);
+
+  assert.deepEqual(
+    await fetchPinnedConfig({ owner: "o", repo: "other", sha }, "specs"),
+    { config: {} },
   );
 });

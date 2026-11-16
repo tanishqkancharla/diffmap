@@ -20,9 +20,14 @@ import {
 } from "../viewer/changesSource.ts";
 import {
   fetchGitHubChanges,
+  fetchPinnedConfig,
   loadPinnedSpec,
   type PinnedSpec,
 } from "./fetchRepo.ts";
+import {
+  PreviewsSourceContext,
+  type PreviewsSource,
+} from "../viewer/previews/config.ts";
 import { GitHubPinContext } from "./pin.ts";
 import { MediaResolverContext } from "../viewer/Media.tsx";
 import {
@@ -38,7 +43,7 @@ let parserReady: Promise<void> | undefined;
 
 const pullsBySha = new Map<
   string,
-  Pick<PinnedSpec, "pullNumber" | "pullUrl" | "pullRev">
+  Pick<PinnedSpec, "pullNumber" | "pullUrl" | "pullRev" | "pullBranch">
 >();
 
 function readyParser() {
@@ -54,6 +59,7 @@ type GitHubView =
       spec: PinnedSpec;
       document: ViewerDocument;
       loadChanges: ChangesLoader;
+      previews: PreviewsSource;
     };
 
 export function GitHubApp() {
@@ -195,41 +201,43 @@ export function GitHubApp() {
     <GitHubPinContext.Provider value={spec}>
       <MediaResolverContext.Provider value={(src) => rawMediaUrl(spec, src)}>
         <ChangesLoaderContext.Provider value={view.loadChanges}>
-          <ViewerApp
-            defaultRev={spec.pullRev}
-            key={`${spec.owner}/${spec.repo}@${spec.sha}:${spec.path}`}
-            document={view.document}
-            mode="github"
-            pageLoading={loaded.key !== routeKey}
-            spec={
-              pinned !== undefined && current !== undefined
-                ? {
-                    title: pinned.spec.title,
-                    pages: pinned.spec.pages,
-                    current,
-                    href: pageHref,
-                    navigate: (page, hash) => {
-                      window.history.pushState(
-                        {},
-                        "",
-                        `${pageHref(page)}${hash}`,
-                      );
-                      setRoute(readGitHubRoute());
-                    },
-                  }
-                : undefined
-            }
-            headerActions={
-              <GitHubHeader
-                owner={spec.owner}
-                repo={spec.repo}
-                sha={spec.sha}
-                path={spec.path}
-                pullNumber={spec.pullNumber}
-                pullUrl={spec.pullUrl}
-              />
-            }
-          />
+          <PreviewsSourceContext.Provider value={view.previews}>
+            <ViewerApp
+              defaultRev={spec.pullRev}
+              key={`${spec.owner}/${spec.repo}@${spec.sha}:${spec.path}`}
+              document={view.document}
+              mode="github"
+              pageLoading={loaded.key !== routeKey}
+              spec={
+                pinned !== undefined && current !== undefined
+                  ? {
+                      title: pinned.spec.title,
+                      pages: pinned.spec.pages,
+                      current,
+                      href: pageHref,
+                      navigate: (page, hash) => {
+                        window.history.pushState(
+                          {},
+                          "",
+                          `${pageHref(page)}${hash}`,
+                        );
+                        setRoute(readGitHubRoute());
+                      },
+                    }
+                  : undefined
+              }
+              headerActions={
+                <GitHubHeader
+                  owner={spec.owner}
+                  repo={spec.repo}
+                  sha={spec.sha}
+                  path={spec.path}
+                  pullNumber={spec.pullNumber}
+                  pullUrl={spec.pullUrl}
+                />
+              }
+            />
+          </PreviewsSourceContext.Provider>
         </ChangesLoaderContext.Provider>
       </MediaResolverContext.Provider>
     </GitHubPinContext.Provider>
@@ -270,6 +278,7 @@ async function loadView(
       pullNumber: spec.pullNumber,
       pullUrl: spec.pullUrl,
       pullRev: spec.pullRev,
+      pullBranch: spec.pullBranch,
     });
   }
   // A pull request pins to its head commit, and a spec's directory to its cover page.
@@ -292,6 +301,19 @@ async function loadView(
     spec,
     document: parsed,
     loadChanges: (rev) => fetchGitHubChanges(spec, rev),
+    previews: {
+      load: () =>
+        fetchPinnedConfig(
+          spec,
+          spec.pages?.dir ??
+            spec.path.slice(0, Math.max(0, spec.path.lastIndexOf("/"))),
+        ),
+      deployment: {
+        sha: spec.sha,
+        branch: spec.pullBranch,
+        pull: spec.pullNumber,
+      },
+    },
   };
 }
 

@@ -1,11 +1,17 @@
 import { useState, type ReactNode } from "react";
 import { colors, spacing, text } from "maui";
 import { style, useStyles } from "purse-styles";
+import { deploymentUrl } from "../../diffmapConfig.js";
 import type { PreviewStoryInfo } from "../../preview/protocol.js";
 import { fenceTitle, pierreShell } from "../pierre.js";
 import { useViewerMode } from "../viewerMode.ts";
-import { storyLabel, storyLabelFromId, useDiffmapConfig } from "./config.ts";
-import { PreviewFrame } from "./PreviewFrame.tsx";
+import {
+  storyLabel,
+  storyLabelFromId,
+  useDiffmapConfig,
+  usePreviewsSource,
+} from "./config.ts";
+import { PreviewFrame, RunLocally } from "./PreviewFrame.tsx";
 
 /** A `preview` fence: each story it lists, live from the app's preview page, side by side when they fit. */
 export function PreviewBlock(props: {
@@ -71,13 +77,14 @@ export function PreviewBlock(props: {
 
 /** The preview page's URL, or why a block can't show live UI here. */
 export function usePreviewPage(): { url: string } | { message: ReactNode } {
-  const local = useViewerMode() === "local";
+  const mode = useViewerMode();
+  const { deployment } = usePreviewsSource();
   const config = useDiffmapConfig();
-  if (!local)
+  if (mode !== "local" && (mode !== "github" || deployment === undefined))
     return {
       message: (
         <Notice>
-          Live previews show when you run this spec with diffmap serve.
+          Live previews show when you <RunLocally />.
         </Notice>
       ),
     };
@@ -86,13 +93,36 @@ export function usePreviewPage(): { url: string } | { message: ReactNode } {
     return {
       message: <Notice>Can't read .diffmap/config.json: {config.error}</Notice>,
     };
-  const url = config.config.previews?.local;
-  if (url === undefined)
+  if (deployment === undefined) {
+    const url = config.config.previews?.local;
+    if (url === undefined)
+      return {
+        message: (
+          <Notice>
+            Add previews.local to .diffmap/config.json, the URL of the app's
+            preview page, such as http://localhost:5173/previews.html.
+          </Notice>
+        ),
+      };
+    return { url };
+  }
+  const template = config.config.previews?.preview;
+  if (template === undefined)
     return {
       message: (
         <Notice>
-          Add previews.local to .diffmap/config.json, the URL of the app's
-          preview page, such as http://localhost:5173/previews.html.
+          This repo's .diffmap/config.json has no previews.preview, the URL of
+          the preview page on each pull request's deployment. Until it does,
+          live previews show when you <RunLocally />.
+        </Notice>
+      ),
+    };
+  const url = deploymentUrl(template, deployment);
+  if (url instanceof Error)
+    return {
+      message: (
+        <Notice>
+          {url.message} Open this spec from its pull request, or <RunLocally />.
         </Notice>
       ),
     };

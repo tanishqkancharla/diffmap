@@ -1,6 +1,6 @@
 ---
 name: generate-diffmap
-description: Create and update living specs and code walkthroughs with diffmap. Use when planning work, implementing from a spec, updating a spec, or explaining code changes.
+description: Create and update living specs and code walkthroughs with diffmap, including live previews of components and user flows from Storybook stories. Use when planning work, implementing from a spec, updating a spec, explaining code changes, or previewing components and user flows.
 ---
 
 # Living spec

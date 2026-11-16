@@ -7,7 +7,7 @@ import { pipeline, type Duplex } from "node:stream";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ViteDevServer } from "vite";
-import { readDiffmapConfig } from "./diffmapConfig.js";
+import { readDiffmapConfig } from "./readDiffmapConfig.js";
 import { DiffmapFileError, DiffmapServeError } from "./errors.js";
 import { findPage, isMarkdownFile, type SpecPage } from "./spec.js";
 import { parseViewerDocument, type ViewerDocument } from "./parseViewer.js";

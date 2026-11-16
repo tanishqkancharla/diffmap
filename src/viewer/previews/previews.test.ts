@@ -3,7 +3,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { readDiffmapConfig } from "../../diffmapConfig.js";
+import { configCandidates, deploymentUrl } from "../../diffmapConfig.js";
+import { readDiffmapConfig } from "../../readDiffmapConfig.js";
 import { parseFlow } from "../../parseFence.js";
 import { parseViewerDocument } from "../../parseViewer.js";
 import { storyLabel, storyLabelFromId } from "./config.ts";
@@ -119,4 +120,39 @@ test(".diffmap/config.json is found above the spec and checked", async () => {
   );
   const wrong = await readDiffmapConfig(spec);
   assert.ok("error" in wrong);
+});
+
+test("a pull request's preview deployment URL is filled from the pull request", () => {
+  const target = {
+    sha: "abc1234",
+    branch: "cursor/Flow_preview-spec",
+    pull: 40,
+  };
+  assert.equal(
+    deploymentUrl(
+      "https://app-git-{branch}.vercel.app/previews.html?sha={sha}",
+      target,
+    ),
+    "https://app-git-cursor-flow-preview-spec.vercel.app/previews.html?sha=abc1234",
+  );
+  assert.equal(
+    deploymentUrl("https://deploy-preview-{pull}--app.netlify.app/", target),
+    "https://deploy-preview-40--app.netlify.app/",
+  );
+  const byCommit = deploymentUrl(
+    "https://deploy-preview-{pull}--app.netlify.app/",
+    { sha: "abc1234" },
+  );
+  assert.ok(byCommit instanceof Error);
+  assert.match(byCommit.message, /\{pull\}/);
+});
+
+test("on GitHub, the config nearest the spec wins, up to the repo root", () => {
+  assert.deepEqual(configCandidates(".diffmap/specs/login"), [
+    ".diffmap/specs/login/.diffmap/config.json",
+    ".diffmap/specs/.diffmap/config.json",
+    ".diffmap/.diffmap/config.json",
+    ".diffmap/config.json",
+  ]);
+  assert.deepEqual(configCandidates(""), [".diffmap/config.json"]);
 });

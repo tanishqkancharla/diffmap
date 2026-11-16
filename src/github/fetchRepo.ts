@@ -12,6 +12,11 @@ import {
   type SpecPage,
 } from "../spec.ts";
 import { WORKING, type Changes, type Rev } from "../changes.ts";
+import {
+  configCandidates,
+  parseDiffmapConfig,
+  type ConfigLoad,
+} from "../diffmapConfig.ts";
 import { githubChangedFiles, type GitHubFile } from "./patch.ts";
 import {
   GitHubRequestError,
@@ -40,6 +45,8 @@ export type PinnedSpec = {
   pullUrl?: string;
   /** `base..head` of the pull request, for the Diff panel's default view. */
   pullRev?: Rev;
+  /** The pull request's head branch, for a preview deployment's URL. */
+  pullBranch?: string;
 };
 
 export type GitHubSpecResult =
@@ -48,7 +55,7 @@ export type GitHubSpecResult =
 
 type PullApi = {
   html_url?: string;
-  head?: { sha?: string };
+  head?: { sha?: string; ref?: string };
   base?: { sha?: string };
 };
 
@@ -88,6 +95,7 @@ export async function loadPinnedSpec(input: {
   let pullNumber = input.pull;
   let pullUrl: string | undefined;
   let pullRev: Rev | undefined;
+  let pullBranch: string | undefined;
   if (sha === undefined) {
     if (pullNumber === undefined) {
       return { status: "error", message: "Need a pull number or commit SHA." };
@@ -105,6 +113,7 @@ export async function loadPinnedSpec(input: {
       resolved.baseSha === undefined
         ? undefined
         : `${resolved.baseSha}..${sha}`;
+    pullBranch = resolved.branch;
   }
 
   const pin = { owner: input.owner, repo: input.repo, sha };
@@ -121,6 +130,7 @@ export async function loadPinnedSpec(input: {
       pullNumber,
       pullUrl,
       pullRev,
+      pullBranch,
     },
   };
 }
@@ -249,6 +259,51 @@ export async function fetchPinnedBlob(
   return request;
 }
 
+const configCache = new Map<string, Promise<ConfigLoad>>();
+
+/** The nearest `.diffmap/config.json` above the spec at the pinned commit, read from raw.githubusercontent.com. */
+export function fetchPinnedConfig(
+  pin: { owner: string; repo: string; sha: string },
+  specDir: string,
+): Promise<ConfigLoad> {
+  const key = `${pin.owner}/${pin.repo}@${pin.sha}:${specDir}`;
+  const pending = configCache.get(key);
+  if (pending !== undefined) return pending;
+  const request = (async (): Promise<ConfigLoad> => {
+    const files = configCandidates(specDir);
+    const reads = files.map(async (file) => {
+      const response = await fetch(
+        `https://raw.githubusercontent.com/${pin.owner}/${pin.repo}/${pin.sha}/${file.split("/").map(encodeURIComponent).join("/")}`,
+      );
+      if (response.status === 404) return undefined;
+      if (!response.ok)
+        throw new Error(`GitHub answered ${String(response.status)}.`);
+      return response.text();
+    });
+    // The nearest file wins, so a failed read farther up may never be awaited.
+    for (const read of reads) read.catch(() => undefined);
+    for (const [index, read] of reads.entries()) {
+      const text = await read;
+      if (text === undefined) continue;
+      try {
+        return { config: parseDiffmapConfig(text) };
+      } catch (error) {
+        return {
+          error: `${files[index]!}: ${error instanceof Error ? error.message : String(error)}`,
+        };
+      }
+    }
+    return { config: {} };
+  })().catch((cause: unknown) => {
+    configCache.delete(key);
+    return {
+      error: `Couldn't read .diffmap/config.json from GitHub: ${cause instanceof Error ? cause.message : String(cause)}`,
+    };
+  });
+  configCache.set(key, request);
+  return request;
+}
+
 export function findSymbolLineRange(contents: string, symbol: string) {
   const name = symbol.includes(".")
     ? symbol.slice(symbol.lastIndexOf(".") + 1)
@@ -272,7 +327,13 @@ async function resolvePullHead(
   pull: number,
   signal?: AbortSignal,
 ): Promise<
-  | { status: "ok"; sha: string; baseSha: string | undefined; htmlUrl: string }
+  | {
+      status: "ok";
+      sha: string;
+      baseSha: string | undefined;
+      branch: string | undefined;
+      htmlUrl: string;
+    }
   | GitHubFailure
 > {
   const response = await githubFetch(
@@ -291,10 +352,12 @@ async function resolvePullHead(
     };
   }
   const baseSha = payload?.base?.sha;
+  const branch = payload?.head?.ref;
   return {
     status: "ok",
     sha,
     baseSha: typeof baseSha === "string" ? baseSha : undefined,
+    branch: typeof branch === "string" ? branch : undefined,
     htmlUrl:
       typeof payload?.html_url === "string"
         ? payload.html_url

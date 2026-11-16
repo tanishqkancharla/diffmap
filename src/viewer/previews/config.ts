@@ -1,27 +1,45 @@
-import { useEffect, useState } from "react";
-import type { DiffmapConfig } from "../../diffmapConfig.js";
+import { createContext, useContext, useEffect, useState } from "react";
+import type { ConfigLoad, DeploymentTarget } from "../../diffmapConfig.js";
 
-export type ConfigLoad = { config: DiffmapConfig } | { error: string };
+export type { ConfigLoad };
 
-let load: Promise<ConfigLoad> | undefined;
+/** Where preview and flow blocks read `.diffmap/config.json`, and, on diffmap.dev, the pull request that fills `previews.preview`. */
+export type PreviewsSource = {
+  load: () => Promise<ConfigLoad>;
+  deployment?: DeploymentTarget;
+};
+
+let served: Promise<ConfigLoad> | undefined;
 
 /** `serve`'s reading of `.diffmap/config.json`, fetched once per page. */
-export function useDiffmapConfig() {
-  const [config, setConfig] = useState<ConfigLoad | undefined>(undefined);
-  useEffect(() => {
-    load ??= fetch("/__diffmap/config").then(
+const servedConfig: PreviewsSource = {
+  load: () =>
+    (served ??= fetch("/__diffmap/config").then(
       // SAFETY: `serve` answers with this shape.
       async (response) => (await response.json()) as ConfigLoad,
       (error: unknown) => ({ error: String(error) }),
-    );
+    )),
+};
+
+export const PreviewsSourceContext =
+  createContext<PreviewsSource>(servedConfig);
+
+export function usePreviewsSource() {
+  return useContext(PreviewsSourceContext);
+}
+
+export function useDiffmapConfig() {
+  const { load } = usePreviewsSource();
+  const [config, setConfig] = useState<ConfigLoad | undefined>(undefined);
+  useEffect(() => {
     let current = true;
-    void load.then((next) => {
+    void load().then((next) => {
       if (current) setConfig(next);
     });
     return () => {
       current = false;
     };
-  }, []);
+  }, [load]);
   return config;
 }
 
