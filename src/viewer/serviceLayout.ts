@@ -24,8 +24,6 @@ export type ServiceLink = {
   forward: boolean;
   /** Some event goes b → a. */
   backward: boolean;
-  /** The longest label on the link. */
-  label: string | undefined;
   /** In a diff, `+` or `-` when every event on the link has that sign. */
   sign: Sign;
 };
@@ -45,6 +43,8 @@ export type ServiceLayout = {
   sizes: Map<string, Size>;
   boxes: Map<string, Rect>;
   routes: Map<string, Point[]>;
+  /** Space reserved by ELK for all simultaneous messages on each link. */
+  labels: Map<string, Rect>;
 };
 
 export function serviceLinks(diagram: ServiceDiagram): ServiceLink[] {
@@ -66,15 +66,11 @@ export function serviceLinks(diagram: ServiceDiagram): ServiceLink[] {
         b,
         forward: false,
         backward: false,
-        label: undefined,
         sign: event.sign,
       };
       if (forward) link.forward = true;
       else link.backward = true;
       if (link.sign !== event.sign) link.sign = " ";
-      // Measure the pill as drawn.
-      const shown = pillText(event);
-      if (shown.length > (link.label?.length ?? 0)) link.label = shown;
       links.set(id, link);
     }
   return [...links.values()];
@@ -99,22 +95,24 @@ function contains(service: Service, name: string): boolean {
 
 /**
  * `sizes` are each service's own header and state; a parent grows around its
- * children. `label` is the largest event label, which must fit between layers.
+ * children. Labels reserve the largest simultaneous message stack on each link.
  */
 export async function layoutServices(input: {
   diagram: ServiceDiagram;
   links: ServiceLink[];
   sizes: Map<string, Size>;
-  label: Size;
+  labels: Map<string, Size>;
   direction: "RIGHT" | "DOWN";
 }): Promise<ServiceLayout> {
-  // Room for a label pill on the edge between two layers. Each parent lays out
-  // its own children, so parents need it too.
-  const betweenLayers = String(
-    input.direction === "RIGHT"
-      ? Math.max(40, input.label.width + 24)
-      : Math.max(40, input.label.height + 28),
-  );
+  const label = {
+    width: Math.max(0, ...[...input.labels.values()].map((size) => size.width)),
+    height: Math.max(
+      0,
+      ...[...input.labels.values()].map((size) => size.height),
+    ),
+  };
+  // ELK adds the measured edge labels to this gap, including message stacks.
+  const betweenLayers = "40";
   const node = (service: Service): ElkNode => {
     const own = input.sizes.get(service.name)!;
     if (service.children.length === 0)
@@ -126,11 +124,8 @@ export async function layoutServices(input: {
     );
     const room = (size: number) => (inner ? size + 24 : 0);
     const top =
-      own.height +
-      4 +
-      (input.direction === "DOWN" ? room(input.label.height) : 0);
-    const left =
-      16 + (input.direction === "RIGHT" ? room(input.label.width) : 0);
+      own.height + 4 + (input.direction === "DOWN" ? room(label.height) : 0);
+    const left = 16 + (input.direction === "RIGHT" ? room(label.width) : 0);
     return {
       id: service.name,
       layoutOptions: {
@@ -155,17 +150,29 @@ export async function layoutServices(input: {
       "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
       "elk.json.edgeCoords": "ROOT",
       "elk.json.shapeCoords": "ROOT",
-      "elk.padding": "[top=8,left=8,bottom=8,right=8]",
+      // Leave room around target badges as well as the boxes and labels.
+      "elk.padding": "[top=24,left=24,bottom=24,right=24]",
       "elk.spacing.nodeNode": "32",
       "elk.layered.spacing.nodeNodeBetweenLayers": betweenLayers,
       "elk.spacing.edgeNode": "16",
       "elk.spacing.edgeEdge": "12",
+      "elk.edgeLabels.inline": "false",
     },
     children: input.diagram.services.map(node),
     edges: input.links.map((link): ElkExtendedEdge => ({
       id: link.id,
       sources: [link.a],
       targets: [link.b],
+      labels: input.labels.has(link.id)
+        ? [
+            {
+              id: `${link.id}-messages`,
+              text: "messages",
+              ...input.labels.get(link.id)!,
+              layoutOptions: { "elk.edgeLabels.placement": "CENTER" },
+            },
+          ]
+        : [],
     })),
   };
   const result = await (await loadElk()).layout(graph);
@@ -198,5 +205,18 @@ export async function layoutServices(input: {
     sizes: input.sizes,
     boxes,
     routes,
+    labels: new Map(
+      (result.edges ?? []).flatMap((edge) =>
+        (edge.labels ?? []).map((placed) => [
+          edge.id,
+          {
+            x: placed.x!,
+            y: placed.y!,
+            width: placed.width!,
+            height: placed.height!,
+          },
+        ]),
+      ),
+    ),
   };
 }

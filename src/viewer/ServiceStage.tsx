@@ -36,7 +36,6 @@ import {
   pillText,
   serviceLinks,
   type Point,
-  type Rect,
   type ServiceLayout,
   type ServiceLink,
   type Size,
@@ -45,6 +44,7 @@ import {
 export const TRAVEL_MS = 750;
 const NOTE_WIDTH = 200;
 const NOTE_GAP = 28;
+const MESSAGE_GAP = 6;
 
 /** A step's note and the element it explains: an event label, a state row, or a service. */
 type StepNote = {
@@ -88,11 +88,12 @@ export function ServiceStage(props: StageProps) {
   const widest = useMemo(() => widestState(diagram), [diagram]);
   const outer = useRef<HTMLDivElement>(null);
   const measure = useRef<HTMLDivElement>(null);
+  const [scrollLeft, setScrollLeft] = useState(0);
   const [placed, setPlaced] = useState<{
     layout: ServiceLayout;
-    /** Each link's widest label pill. */
-    labels: Map<string, Size>;
-    scale: number;
+    /** Each event's wrapped label size. */
+    labels: Map<ServiceEvent, Size>;
+    overflow: boolean;
     /** Where the canvas starts, so the diagram is centered. */
     left: number;
     /** Notes stack under the diagram when no column beside it fits. */
@@ -130,17 +131,49 @@ export function ServiceStage(props: StageProps) {
           ],
         ),
       );
-      const label = { width: 0, height: 0 };
-      const labels = new Map<string, Size>();
+      // A vertical route puts its labels beside half of the widest service.
+      const serviceWidth = Math.max(
+        0,
+        ...[...sizes.values()].map((size) => size.width),
+      );
+      measure.current!.style.setProperty(
+        "--label-width",
+        `${Math.min(220, Math.max(80, available - serviceWidth / 2 - 56))}px`,
+      );
+      const labels = new Map<ServiceEvent, Size>();
       for (const element of measure.current!.querySelectorAll(
-        "[data-measure-link]",
+        "[data-measure-event]",
       )) {
-        const size = sizeOf(element);
-        labels.set(element.getAttribute("data-measure-link")!, size);
-        label.width = Math.max(label.width, size.width);
-        label.height = Math.max(label.height, size.height);
+        const [step, event] = element
+          .getAttribute("data-measure-event")!
+          .split(":")
+          .map(Number);
+        labels.set(diagram.steps[step!]!.events[event!]!, sizeOf(element));
       }
-      const input = { diagram, links, sizes, label };
+      const stacks = new Map<string, Size>();
+      for (const step of diagram.steps) {
+        const groups = new Map<string, Size>();
+        for (const event of step.events) {
+          const size = labels.get(event);
+          if (size === undefined) continue;
+          const id = linkId(event.from, event.to);
+          const before = groups.get(id);
+          groups.set(id, {
+            width: Math.max(before?.width ?? 0, size.width),
+            height:
+              (before === undefined ? 0 : before.height + MESSAGE_GAP) +
+              size.height,
+          });
+        }
+        for (const [id, size] of groups) {
+          const before = stacks.get(id);
+          stacks.set(id, {
+            width: Math.max(before?.width ?? 0, size.width),
+            height: Math.max(before?.height ?? 0, size.height),
+          });
+        }
+      }
+      const input = { diagram, links, sizes, labels: stacks };
       const fits = (layout: ServiceLayout) =>
         layout.width + gutter <= available;
       // Left to right reads best; go top to bottom when that fits better.
@@ -149,9 +182,9 @@ export function ServiceStage(props: StageProps) {
         ? right
         : await layoutServices({ ...input, direction: "DOWN" });
       const best = down.width < right.width ? down : right;
-      const scale = Math.min(1, available / best.width);
-      const width = best.width * scale;
-      const left = (available - width) / 2;
+      // Keep text at its authored font size; oversized graphs can scroll locally.
+      const width = best.width;
+      const left = Math.max(0, (available - width) / 2);
       // The diagram stays centered. Notes sit beside it when the space on its
       // right holds them, and underneath otherwise, so the diagram never
       // shrinks or shifts to make room.
@@ -159,7 +192,7 @@ export function ServiceStage(props: StageProps) {
         setPlaced({
           layout: best,
           labels,
-          scale,
+          overflow: width > available,
           left,
           notesBelow: left < gutter,
         });
@@ -199,15 +232,6 @@ export function ServiceStage(props: StageProps) {
   const pill = useStyles(styles.pill);
 
   const layout = placed?.layout;
-  // Event labels steer clear of these; a parent's box is room for them.
-  const leafBoxes =
-    layout === undefined
-      ? []
-      : flat.flatMap(({ service }) =>
-          service.children.length === 0
-            ? [layout.boxes.get(service.name)!]
-            : [],
-        );
   // Notes appear once the step's events have landed.
   const settled = props.phase === "settled";
   const notes = useMemo(
@@ -249,9 +273,7 @@ export function ServiceStage(props: StageProps) {
     [settled, props.events, props.updates, props.notes],
   );
   const notesX =
-    placed === undefined
-      ? 0
-      : placed.left + placed.layout.width * placed.scale + NOTE_GAP;
+    placed === undefined ? 0 : placed.left + placed.layout.width + NOTE_GAP;
   const canvasRef = useRef<HTMLDivElement>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const [noteLayout, setNoteLayout] = useState<{
@@ -274,10 +296,13 @@ export function ServiceStage(props: StageProps) {
             ? undefined
             : placed.layout.boxes.get(note.service)!;
         // Event leaders start at the label; state leaders at the box edge.
-        const x =
-          owner === undefined
-            ? target.right - origin.left
-            : placed.left + (owner.x + owner.width) * placed.scale;
+        const x = placed.notesBelow
+          ? owner === undefined
+            ? target.left - origin.left + outer.current!.scrollLeft - 10
+            : placed.left + owner.x + owner.width + 10
+          : owner === undefined
+            ? target.right - origin.left + outer.current!.scrollLeft
+            : placed.left + owner.x + owner.width;
         return {
           id: note.id,
           from: { x, y: target.top - origin.top + target.height / 2 },
@@ -287,7 +312,7 @@ export function ServiceStage(props: StageProps) {
       .toSorted((a, b) => a.from.y - b.from.y);
     const items = new Map<string, { top: number; from: Point; n: number }>();
     let bottom = placed.notesBelow
-      ? placed.layout.height * placed.scale + 8
+      ? placed.layout.height + 8
       : Number.NEGATIVE_INFINITY;
     for (const [index, note] of measured.entries()) {
       const top = placed.notesBelow
@@ -306,13 +331,36 @@ export function ServiceStage(props: StageProps) {
     layout === undefined
       ? 120
       : Math.max(
-          layout.height * placed!.scale,
+          layout.height + 16,
           notes.length > 0 && noteLayout !== undefined
             ? noteLayout.bottom + 4
             : 0,
         );
   return (
-    <div ref={outer} className={stage} style={{ height }}>
+    <div
+      ref={outer}
+      className={stage}
+      style={{ height }}
+      onScroll={(event) => setScrollLeft(event.currentTarget.scrollLeft)}
+      tabIndex={placed?.overflow ? 0 : undefined}
+      data-diagram-scroll={placed?.overflow || undefined}
+      role="region"
+      aria-label="Service diagram"
+      aria-description={
+        placed?.overflow
+          ? "Scroll horizontally to see all services. Focus this diagram to scroll with arrow keys."
+          : undefined
+      }
+    >
+      {placed?.overflow && (
+        <Text
+          size="xs"
+          color="lowContrast"
+          style={{ position: "sticky", left: 0 }}
+        >
+          Scroll horizontally to see all services.
+        </Text>
+      )}
       <div ref={measure} className={measureLayer} aria-hidden="true" inert>
         {flat.map(({ service }) => (
           <section
@@ -332,13 +380,19 @@ export function ServiceStage(props: StageProps) {
             />
           </section>
         ))}
-        {links.map(
-          (link) =>
-            link.label !== undefined && (
-              <div key={link.id} className={pill} data-measure-link={link.id}>
-                {link.label}
-              </div>
-            ),
+        {diagram.steps.flatMap((step, stepIndex) =>
+          step.events.map(
+            (event, eventIndex) =>
+              (event.label !== "" || event.note !== undefined) && (
+                <div
+                  key={`${stepIndex}:${eventIndex}`}
+                  className={pill}
+                  data-measure-event={`${stepIndex}:${eventIndex}`}
+                >
+                  {pillText(event)}
+                </div>
+              ),
+          ),
         )}
       </div>
       {layout !== undefined && (
@@ -349,7 +403,6 @@ export function ServiceStage(props: StageProps) {
             left: placed!.left,
             width: layout.width,
             height: layout.height,
-            transform: `scale(${placed!.scale})`,
           }}
         >
           {flat.map(({ service }) => {
@@ -438,31 +491,31 @@ export function ServiceStage(props: StageProps) {
             const route = trimmedRoute(layout, link, parents);
             // Replies travel the shared route backward.
             const points = event.from === link.a ? route : route.toReversed();
-            const twin = props.events
+            const preceding = props.events
               .slice(0, index)
-              .filter((other) => linkId(other.from, other.to) === id).length;
-            // A service talking to itself loops off its side; label its corner.
-            const self =
-              link.a === link.b ? layout.boxes.get(link.a) : undefined;
-            // A link along the canvas edge would push half its label off it.
-            const size = placed!.labels.get(id);
-            const half = (size?.width ?? 0) / 2;
-            const middle = labelPoint(route, size, leafBoxes);
-            const at =
-              self === undefined
-                ? {
-                    x: Math.min(Math.max(middle.x, half), layout.width - half),
-                    y: middle.y,
-                  }
-                : { x: self.x + self.width - 8, y: self.y };
+              .filter((other) => linkId(other.from, other.to) === id);
+            const reserved = layout.labels.get(id);
+            const size = placed!.labels.get(event);
+            const offset = preceding.reduce((sum, other) => {
+              const previousSize = placed!.labels.get(other);
+              return (
+                sum +
+                (previousSize === undefined
+                  ? 0
+                  : previousSize.height + MESSAGE_GAP)
+              );
+            }, 0);
             return (
               <EventMarks
                 key={`${props.stepKey}-${index}`}
                 {...props}
                 event={event}
                 points={points}
-                label={{ x: at.x, y: at.y + twin * 22 }}
-                anchor={self === undefined ? "center" : "end"}
+                label={{
+                  x: (reserved?.x ?? 0) + (reserved?.width ?? 0) / 2,
+                  y: (reserved?.y ?? 0) + offset,
+                }}
+                width={size?.width}
                 index={index}
               />
             );
@@ -499,7 +552,7 @@ export function ServiceStage(props: StageProps) {
           {notes.map((note) => {
             const item = noteLayout?.items.get(note.id);
             return (
-              <motion.div
+              <div
                 key={`${props.stepKey}-${note.id}`}
                 ref={(element) => {
                   if (element === null) noteRefs.current.delete(note.id);
@@ -509,17 +562,18 @@ export function ServiceStage(props: StageProps) {
                 data-below={placed?.notesBelow}
                 style={{
                   left: placed?.notesBelow ? 0 : notesX,
+                  transform: placed?.notesBelow
+                    ? `translateX(${scrollLeft}px)`
+                    : undefined,
                   top: item?.top ?? 0,
                   visibility: item === undefined ? "hidden" : "visible",
                 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
               >
                 {placed?.notesBelow && item !== undefined && (
                   <span className={noteNumber}>{item.n}</span>
                 )}
                 {note.text}
-              </motion.div>
+              </div>
             );
           })}
         </>
@@ -533,7 +587,7 @@ function EventMarks(
     event: ServiceEvent;
     points: Point[];
     label: Point;
-    anchor: "center" | "end";
+    width: number | undefined;
     index: number;
     phase: StageProps["phase"];
   } & SourceNavigation,
@@ -572,12 +626,15 @@ function EventMarks(
       {(label !== undefined || props.event.note !== undefined) && (
         <motion.div
           className={labelAnchor}
-          style={{ left: props.label.x, top: props.label.y }}
-          data-anchor={props.anchor}
+          style={{
+            left: props.label.x,
+            top: props.label.y,
+            width: props.width,
+          }}
           data-event-label={props.index}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay }}
+          initial={{ visibility: "hidden" }}
+          animate={{ visibility: "visible" }}
+          transition={{ delay, duration: 0 }}
         >
           {label !== undefined &&
             (annotation === undefined ? (
@@ -826,13 +883,13 @@ const tones = (["idle", "active"] as const).flatMap((state) =>
     const active = state === "active";
     const line = active
       ? (scale?.[9] ?? colors.accent[9])
-      : (scale?.[8] ?? colors.gray[7]);
+      : (scale?.[9] ?? colors.gray[9]);
     return {
       id: `${state}-${{ "+": "added", "-": "removed", " ": "same" }[sign]}`,
       state,
       sign,
       line,
-      head: active || scale !== undefined ? line : colors.gray[8],
+      head: line,
     };
   }),
 );
@@ -893,38 +950,6 @@ function cumulativeLengths(points: Point[]) {
   });
 }
 
-/** The middle of the route's longest segment, usually the gap between layers. */
-/** The middle of the longest segment whose label clears every leaf box. */
-function labelPoint(
-  points: Point[],
-  label: Size | undefined,
-  boxes: Rect[],
-): Point {
-  const middles = points
-    .slice(1)
-    .map((to, index) => {
-      const from = points[index]!;
-      return {
-        length: Math.hypot(to.x - from.x, to.y - from.y),
-        at: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
-      };
-    })
-    .toSorted((a, b) => b.length - a.length);
-  const clear =
-    label === undefined
-      ? undefined
-      : middles.find(({ at }) =>
-          boxes.every(
-            (box) =>
-              Math.abs(at.x - (box.x + box.width / 2)) >=
-                (box.width + label.width) / 2 ||
-              Math.abs(at.y - (box.y + box.height / 2)) >=
-                (box.height + label.height) / 2,
-          ),
-        );
-  return (clear ?? middles[0])?.at ?? points[0]!;
-}
-
 const described = {
   "&[data-described='true']": {
     textDecorationLine: "underline",
@@ -935,7 +960,15 @@ const described = {
 };
 
 const styles = {
-  stage: style({ position: "relative", minWidth: 0, overflow: "hidden" }),
+  stage: style(
+    {
+      position: "relative",
+      minWidth: 0,
+      overflowX: "auto",
+      overflowY: "hidden",
+    },
+    focusRing(),
+  ),
   // Lays out every box at its natural size without showing or taking space.
   measureLayer: style({
     position: "absolute",
@@ -949,12 +982,15 @@ const styles = {
       minWidth: 120,
       maxWidth: 240,
     },
-    "& > [data-measure-link]": { position: "absolute", width: "max-content" },
+    "& > [data-measure-event]": {
+      position: "absolute",
+      width: "max-content",
+      maxWidth: "var(--label-width)",
+    },
   }),
   canvas: style({
     position: "absolute",
     top: 0,
-    transformOrigin: "0 0",
   }),
   noteLines: style({
     position: "absolute",
@@ -963,8 +999,9 @@ const styles = {
     height: "100%",
     overflow: "visible",
     pointerEvents: "none",
+    zIndex: 3,
     "& path": { stroke: colors.accent[7], strokeWidth: 1 },
-    "& circle": { fill: colors.accent[9] },
+    "& circle": { fill: colors.gray[12] },
     "& text": {
       fill: backgroundColor.app,
       fontSize: 9,
@@ -976,8 +1013,8 @@ const styles = {
   // Sits on the note's top-left corner, so it doesn't push the text over.
   noteNumber: style({
     position: "absolute",
-    top: -7,
-    left: -7,
+    top: 4,
+    left: 4,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -987,7 +1024,7 @@ const styles = {
     fontSize: 9,
     fontWeight: 600,
     color: backgroundColor.app,
-    backgroundColor: colors.accent[9],
+    backgroundColor: colors.gray[12],
   }),
   overlay: style({
     position: "absolute",
@@ -1097,22 +1134,22 @@ const styles = {
   labelAnchor: style({
     position: "absolute",
     zIndex: 1,
-    transform: "translate(-50%, -50%)",
-    "&[data-anchor='end']": { transform: "translate(-100%, -50%)" },
+    transform: "translateX(-50%)",
   }),
   pill: style(
-    radius.pill,
+    radius.sm,
     text({ size: "xs", monospace: true }),
     spacing.padding({ x: 3 }),
     {
       display: "block",
+      paddingBlock: 0,
       maxWidth: 220,
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
+      whiteSpace: "normal",
+      overflowWrap: "anywhere",
+      textAlign: "start",
       border: `1px solid ${colors.accent[7]}`,
       backgroundColor: backgroundColor.app,
-      color: colors.accent[11],
+      color: colors.gray[12],
       "&[data-change='+']": {
         borderColor: colors.green[7],
         color: colors.green[11],
@@ -1137,6 +1174,7 @@ const styles = {
       position: "absolute",
       width: "max-content",
       maxWidth: NOTE_WIDTH,
+      overflowWrap: "anywhere",
       border: `1px solid ${colors.accent[7]}`,
       backgroundColor: backgroundColor.app,
       // Under the diagram: centered, and wider since there is room.
@@ -1144,6 +1182,7 @@ const styles = {
         right: 0,
         marginInline: "auto",
         maxWidth: "min(100%, 420px)",
+        paddingLeft: 24,
       },
     },
   ),
