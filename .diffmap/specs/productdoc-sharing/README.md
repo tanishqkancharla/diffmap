@@ -15,7 +15,7 @@ The person clicks **Share** in the viewer's header, beside the Diff button. The 
 - **Copy link**, and one main button that applies the changes: **Share**, **Share with 2 people**, **Update access**, or **Done**. While uploading it reads **Sharing…**, and on failure **Retry**, with the reason.
 - **Share with team**, greyed out, marked "Coming soon".
 
-The first time, sharing asks the person to sign in to productdoc.dev with Google or GitHub, in a popup. People added by email get an invitation; those without an account sign in with that address to open the document. Agents share the same way with `npx product-doc share`.
+[Phase 1](02-share-dialog.md) runs the proposed dialog live, from its stories. The first time, sharing asks the person to sign in to productdoc.dev with Google or GitHub, in a popup. People added by email get an invitation; those without an account sign in with that address to open the document. Agents share the same way with `npx product-doc share`.
 
 ## Problem
 
@@ -23,16 +23,16 @@ The first time, sharing asks the person to sign in to productdoc.dev with Google
 
 **Reading a shared gist.** The gist viewer ([[src/gist/GistApp.tsx#GistApp]]) reads the gist from GitHub's API in the reader's browser, without a token. Compared with the local viewer, it is missing:
 
-| What the reader loses on a shared gist | Why | Fixed in |
-| --- | --- | --- |
-| Screenshots and recordings | A gist holds only text, so `share` refuses local media | [Phase 1](02-share-dialog.md) |
-| Loading past 60 loads an hour per network | The browser calls GitHub's API without a token | [Phase 1](02-share-dialog.md) |
-| Large documents | The diffs are one JSON file, and GitHub serves a gist file over 10 MB only by cloning the gist | [Phase 1](02-share-dialog.md) |
-| Limiting who can read it | A gist is readable by anyone with its link | [Phase 2](03-restricted-and-invites.md) |
-| One link that follows the document as it changes | Each share is a new gist | [Phase 3](04-live-link.md) |
-| Live UI from preview and flow blocks | They load the app's preview page from a dev server on the sharing machine, or from a pull request's preview deployment | [Phase 4](05-previews-and-html.md) |
-| HTML the document includes | Hosted viewers show a placeholder, so a stranger's script never runs on the reader's site | [Phase 4](05-previews-and-html.md) |
-| Cmd-click to a definition, and choosing a commit range | Both ask the local server, which runs TypeScript and git | [Phase 5](06-definitions-and-ranges.md) |
+| What the reader loses on a shared gist                 | Why                                                                                                                    | Fixed in                                |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Screenshots and recordings                             | A gist holds only text, so `share` refuses local media                                                                 | [Phase 1](02-share-dialog.md)           |
+| Loading past 60 loads an hour per network              | The browser calls GitHub's API without a token                                                                         | [Phase 1](02-share-dialog.md)           |
+| Large documents                                        | The diffs are one JSON file, and GitHub serves a gist file over 10 MB only by cloning the gist                         | [Phase 1](02-share-dialog.md)           |
+| Limiting who can read it                               | A gist is readable by anyone with its link                                                                             | [Phase 2](03-restricted-and-invites.md) |
+| One link that follows the document as it changes       | Each share is a new gist                                                                                               | [Phase 3](04-live-link.md)              |
+| Live UI from preview and flow blocks                   | They load the app's preview page from a dev server on the sharing machine, or from a pull request's preview deployment | [Phase 4](05-previews-and-html.md)      |
+| HTML the document includes                             | Hosted viewers show a placeholder, so a stranger's script never runs on the reader's site                              | [Phase 4](05-previews-and-html.md)      |
+| Cmd-click to a definition, and choosing a commit range | Both ask the local server, which runs TypeScript and git                                                               | [Phase 5](06-definitions-and-ranges.md) |
 
 ## Solution
 

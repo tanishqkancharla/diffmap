@@ -6,14 +6,14 @@ The [cover](README.md) describes the share dialog. This page covers the platform
 
 productdoc.dev and diffmap.dev share one Vercel project today. It serves productdoc's website from one function, `api/docs.ts`, and the viewer as static files, and keeps each site on its own host ([[src/website/README.md]]). Sharing needs what that project lacks: storage for files, functions for the API and sign-in, a database, a way to push updates to open pages, and email for invitations. Cloudflare has all of them on one platform, billed together:
 
-| Need | Cloudflare | Why it fits |
-| --- | --- | --- |
-| Files: pages, media, snapshots, built preview pages | R2 | No charge for bandwidth. Readers load the same screenshots, recordings, and preview bundles again and again, so bandwidth would be most of the bill elsewhere. $0.015 per GB-month stored. |
-| API, sign-in, and serving shared documents | Workers, with the viewer as static assets | One Worker answers every route, so the viewer, the API, and the sign-in cookies share the productdoc.dev origin. |
-| Accounts, documents, versions, access | D1 | SQLite beside the Worker. Better Auth runs on it. |
-| Live updates | Durable Objects | One object per document holds the WebSockets of everyone reading it and wakes only when a version arrives. |
-| Invitations | Email Sending | Sends from the Worker through a binding, with no API key to manage. |
-| A separate domain for code from documents | Workers routes on `*.productdocusercontent.com` | The free certificate covers every first-level subdomain, so each document gets its own origin. |
+| Need                                                | Cloudflare                                      | Why it fits                                                                                                                                                                                |
+| --------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Files: pages, media, snapshots, built preview pages | R2                                              | No charge for bandwidth. Readers load the same screenshots, recordings, and preview bundles again and again, so bandwidth would be most of the bill elsewhere. $0.015 per GB-month stored. |
+| API, sign-in, and serving shared documents          | Workers, with the viewer as static assets       | One Worker answers every route, so the viewer, the API, and the sign-in cookies share the productdoc.dev origin.                                                                           |
+| Accounts, documents, versions, access               | D1                                              | SQLite beside the Worker. Better Auth runs on it.                                                                                                                                          |
+| Live updates                                        | Durable Objects                                 | One object per document holds the WebSockets of everyone reading it and wakes only when a version arrives.                                                                                 |
+| Invitations                                         | Email Sending                                   | Sends from the Worker through a binding, with no API key to manage.                                                                                                                        |
+| A separate domain for code from documents           | Workers routes on `*.productdocusercontent.com` | The free certificate covers every first-level subdomain, so each document gets its own origin.                                                                                             |
 
 On Vercel, Blob storage bills bandwidth, functions cannot hold WebSockets open, and the database and email would be third-party services.
 
@@ -64,7 +64,8 @@ type DocumentVersion = {
   changes: Record<Rev, string>; // rev → blob of its Changes snapshot
   sourceFiles: string; // blob of the files excerpts and rev-less references read
   definitions?: string; // Phase 5
-  previews?: { blobs: Record<string, string> } | { screenshots: Record<string, string> }; // Phase 4
+  previews?:
+    { blobs: Record<string, string> } | { screenshots: Record<string, string> }; // Phase 4
 };
 // [!note Rev] The same `Rev` and `Changes` types `share` already writes into a gist, from src/changes.ts.
 ```
