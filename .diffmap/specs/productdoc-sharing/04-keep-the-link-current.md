@@ -6,8 +6,6 @@ The Notion feel: once shared, the link shows the latest edits, and nobody gets s
 
 **Proposed**
 
-## The document folder remembers
-
 ```json [.diffmap/specs/session-store/.productdoc.json]
 {
   "link": "https://productdoc.dev/d/k3v9q2xa7m",
@@ -16,17 +14,35 @@ The Notion feel: once shared, the link shows the latest edits, and nobody gets s
 // [!note L3] The version these files were last published or pulled as.
 ```
 
-- It's committed with the document, so a new agent on another machine sees the document is shared.
-- Agents don't need memory or skill state. The file, and the commands that read it, tell them.
+- **The folder remembers.** `.productdoc.json` is committed with the document, so any agent on any machine sees it's shared. Agents need no memory or skill state.
+- **`product-doc publish`** validates, then uploads changed files as a new version. Once a document is shared, agents run it instead of `validate`.
+- **`validate` nudges.** On a shared document it passes, then says `2 pages differ from the link. Run product-doc publish.`
+- **`serve` publishes on save** while it runs.
+- **Two agents at once.** `publish` refuses when the link has moved past the folder's version, and says to run `pull`. `pull` writes the newer pages into the folder, and git merges them. Nothing is overwritten silently.
+- **Readers** see changed pages reload in place, through a Durable Object per document. Each version keeps its own link, `/d/<id>@3`. The last 50 are kept.
+- **Not covered:** an edit made without running productdoc publishes the next time anyone runs productdoc on the document. A fresh machine needs a sign-in approval, or `PRODUCTDOC_TOKEN`.
 
-## Publishing
+## Expected flows
 
-- `product-doc publish [dir]` validates, then uploads changed files as a new version. Agents run it instead of `validate` once a document is shared.
-- `validate` on a shared document passes, then says: `Shared at productdoc.dev/d/k3v9q2xa7m. 2 pages differ from the link. Run product-doc publish.`
-- `publish` on an unshared document says to run `share` first.
-- `serve` publishes on save while it runs, and shows how far behind the link is:
+**Your agent keeps the link current**
 
-```preview [The header when the link is behind]
+1. You shared a document, and your teammate has the link open.
+2. You ask your agent to change a page. When it's done, it publishes.
+3. The page your teammate is reading updates in place. They keep their place and their comments.
+
+**A new agent picks up the document**
+
+1. A week later, a different agent on another machine is asked to update the document.
+2. After editing, it checks the document. productdoc tells it the document is shared and needs publishing.
+3. It publishes. If that machine isn't signed in, you get a sign-in link to approve first.
+
+**The viewer shows the link is behind**
+
+1. An agent edited two pages but didn't publish.
+2. You open the document locally. The header reads **Shared · 2 to publish**.
+3. You open the dialog and click **Publish 2 edits**. The header goes back to **Shared**.
+
+```preview [The header button]
 share-header-button--shared
 share-header-button--unpublished
 ```
@@ -37,22 +53,28 @@ share-dialog--unpublished-edits
     share-dialog--published: The upload finishes
 ```
 
-## Two agents at once
+**Two agents edit at once**
 
-- `publish` refuses when the link has moved past the folder's version, and says to run `pull`.
-- `pull` writes the link's pages into the folder, so `git diff` shows what changed. There's no custom merge.
-- Nothing is overwritten silently.
+1. Two agents on different machines both edit the document. The first one publishes.
+2. The second one's publish stops, and says someone else published first.
+3. It pulls their changes, sees them in git, merges, and publishes. Both sets of edits are on the link.
 
-## Readers
+**A reader looks at an earlier version**
 
-- Open copies of the link reload changed pages through the document's Durable Object, keeping scroll and comments.
-- "Updated 5 minutes ago", with a menu of earlier versions. `/d/<id>@3` pins version 3.
-- 50 versions are kept.
+1. A reviewer opens the link. The header says when it last updated.
+2. They open the versions menu and pick version 6. The page says they're on an older version.
+3. They paste that version's link into a review. It keeps showing version 6, even after later edits.
 
-## What's not covered
+```flow [Looking at an earlier version]
+share-shared-page--with-versions
+  share-shared-page--versions-open: Click "Updated 5 minutes ago"
+    share-shared-page--old-version: Pick version 6
+```
 
-- Edits made without running productdoc (a hand edit, then a commit) publish the next time anyone runs productdoc on the document.
-- A fresh machine needs a sign-in approval, or `PRODUCTDOC_TOKEN`.
+**Sharing a document that's already shared**
+
+1. You ask an agent to share a document that's already shared.
+2. It publishes to the same link, instead of making a new one.
 
 ## Todos
 
@@ -66,7 +88,6 @@ share-dialog--unpublished-edits
 - [ ] `/d/<id>@<n>`, the versions menu, and pruning to 50 versions
 - [ ] `PRODUCTDOC_TOKEN`
 - [ ] Guide and skill: once shared, finish edits with `product-doc publish`
-- [ ] Tests: two machines publishing, pull then publish, burst of saves
 
 ```changes
 

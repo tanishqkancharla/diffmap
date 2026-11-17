@@ -39,6 +39,13 @@ link = shareDocument(dir)
 2. The agent gives you a sign-in link. You open it, sign in with Google, and approve.
 3. The agent gives you the document's link, and tells you which source files are now public.
 
+```flow [Allowing the terminal to share as you]
+share-device-sign-in--sign-in
+  share-device-sign-in--confirm: Click "Continue with Google" and pick your account
+    share-device-sign-in--approved: Check the code matches, and click "Allow"
+    share-device-sign-in--denied: Click "Cancel"
+```
+
 **Someone reads it**
 
 1. You send the link to a teammate and shut your laptop.
@@ -46,6 +53,10 @@ link = shareDocument(dir)
 3. They click through the pages, look at the screenshots, play the recording, and read the diffs and code, the same as you see locally.
 4. Live UI blocks say they're coming later.
 5. They send a link to one section, and it opens at that section.
+
+```preview [What a reader sees around the document]
+share-shared-page--public
+```
 
 **Their agent reads it**
 
@@ -85,6 +96,11 @@ link = shareDocument(dir)
 2. Anyone opening the link sees that you stopped sharing it.
 3. Nobody else can stop sharing your documents.
 
+```preview [Opening a link that's no longer shared]
+share-shared-page--stopped
+share-shared-page--removed
+```
+
 **Signing out**
 
 1. You sign out.
@@ -94,11 +110,22 @@ link = shareDocument(dir)
 
 1. You ignore the sign-in link.
 2. After a while, sharing gives up and tells you, without uploading anything.
+3. If you open the link later, it says the code expired.
+
+```preview [Opening an expired sign-in link]
+share-device-sign-in--expired
+```
 
 **Reporting a document**
 
 1. A reader finds something abusive and clicks Report.
 2. Once an admin removes it, the link says the document was removed.
+
+```flow [Reporting a document]
+share-shared-page--public
+  share-shared-page--report-open: Click "Report"
+    share-shared-page--reported: Say what's wrong, and send it
+```
 
 **Everything else still works**
 
