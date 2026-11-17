@@ -68,7 +68,7 @@ const meta = {
     contents: "7 pages, 4 screenshots, 1 recording (6.2 MB)",
     sourceFiles: ["src/store.ts", "src/session.ts", "src/store.test.ts"],
     cover: <Cover />,
-    features: { restricted: true, live: true },
+    features: { restricted: true },
     api: server.api,
     onClose: () => {},
   },
@@ -77,7 +77,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const note = (story: string) => ({ docs: { description: { story } } });
-const firstPhase = { restricted: false, live: false };
+const firstPhase = { restricted: false };
 
 // A flow starts at PublicFirstShare or FirstShare. Each later story is one step from the story it follows,
 // and the shared steps (SigningIn, Sharing, Shared, UploadFailed) work after either start.
@@ -187,9 +187,9 @@ export const UploadFailed: Story = {
   },
 };
 
-export const SharedAgain: Story = {
+export const UpToDate: Story = {
   parameters: note(
-    "Proposed, once a document keeps one link. Opening the dialog on a shared document shows its link and when it last updated. Sharing again uploads a new version to the same link.",
+    "Proposed. A shared document whose link shows the latest edits. There is nothing to publish, so the main button closes the dialog.",
   ),
   args: {
     account: owner,
@@ -198,22 +198,53 @@ export const SharedAgain: Story = {
       link,
       access: "public",
       people: [],
-      live: false,
       updated: "5 minutes ago",
+      unpublished: 0,
     },
   },
 };
 
-export const LiveOption: Story = {
+export const UnpublishedEdits: Story = {
   parameters: note(
-    "Proposed, once links can be live. The option is on by default: while this viewer is open, each saved edit reaches readers, and when it closes the link keeps the last version.",
+    "Proposed. Two pages changed since the last publish, say by an agent that didn't run product-doc publish. The main button publishes them.",
   ),
-  args: { features: { restricted: false, live: true } },
+  loaders: [() => server.reset()],
+  args: {
+    account: owner,
+    features: firstPhase,
+    shared: {
+      link,
+      access: "public",
+      people: [],
+      updated: "2 hours ago",
+      unpublished: 2,
+    },
+  },
+};
+
+export const Publishing: Story = {
+  parameters: note("Proposed. Publishing uploads only the changed pages."),
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Publish 2 edits" }),
+    );
+    await canvas.findByText(/^Uploading/);
+  },
+};
+
+export const Published: Story = {
+  parameters: note(
+    "Proposed. The link shows the latest edits, and open copies of it reload the changed pages.",
+  ),
+  loaders: [() => server.finishUpload({ link })],
+  play: async ({ canvas }) => {
+    await canvas.findByText(/^Shared · up to date/);
+  },
 };
 
 export const SharedWithPeople: Story = {
   parameters: note(
-    "Proposed, with Restricted and live links. The dialog lists who has access, and the status says the link is live.",
+    "Proposed, once Restricted lands. The dialog lists who has access.",
   ),
   args: {
     account: owner,
@@ -221,8 +252,8 @@ export const SharedWithPeople: Story = {
       link,
       access: "restricted",
       people: ["ada@acme.com", "grace@acme.com"],
-      live: true,
       updated: "5 minutes ago",
+      unpublished: 0,
     },
   },
 };

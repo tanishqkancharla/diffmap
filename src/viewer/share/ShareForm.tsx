@@ -3,7 +3,6 @@ import * as errore from "errore";
 import {
   Avatar,
   Button,
-  Checkbox,
   Flex,
   Menu,
   MenuItem,
@@ -45,8 +44,9 @@ export type SharedDocument = {
   link: string;
   access: Access;
   people: string[];
-  live: boolean;
   updated: string;
+  /** Pages changed locally since the version at the link. */
+  unpublished: number;
 };
 
 /** What the dialog asks of the local server. */
@@ -55,11 +55,10 @@ export type ShareApi = {
   startSignIn(): Promise<{ code: string; url: string }>;
   /** Resolves once the person approves the code. */
   signedIn(): Promise<Account>;
-  /** Uploads a version with this access, and resolves with the link. */
+  /** Uploads the document's current pages as a new version with this access, and resolves with the link. */
   share(request: {
     access: Access;
     people: string[];
-    live: boolean;
   }): Promise<{ link: string } | { error: string }>;
 };
 
@@ -100,8 +99,8 @@ export function ShareForm(props: {
   contents: string;
   sourceFiles: string[];
   cover: ReactNode;
-  /** Which build phases have landed: Restricted access, and links that follow the document as it changes. */
-  features: { restricted: boolean; live: boolean };
+  /** Which build phases have landed. */
+  features: { restricted: boolean };
   api: ShareApi;
   onClose(): void;
 }) {
@@ -112,7 +111,6 @@ export function ShareForm(props: {
       (props.features.restricted ? "restricted" : "public"),
   );
   const [people, setPeople] = useState(props.shared?.people ?? []);
-  const [live, setLive] = useState(props.shared?.live ?? props.features.live);
   const [email, setEmail] = useState("");
   const [invalid, setInvalid] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -140,7 +138,7 @@ export function ShareForm(props: {
     access !== savedAccess ||
     added.length > 0 ||
     removed.length > 0 ||
-    live !== shared.live;
+    shared.unpublished > 0;
   const canShare = access === "public" || people.length > 0;
   const actionLabel =
     shared === undefined
@@ -160,17 +158,23 @@ export function ShareForm(props: {
             : removed.length > 0
               ? `Unshare with ${plural(removed.length, "person", "people")}`
               : changed
-                ? "Update"
+                ? `Publish ${plural(shared.unpublished, "edit", "edits")}`
                 : "Done";
 
   const upload = async () => {
     setPhase({ name: "sharing" });
-    const result = await props.api.share({ access, people, live });
+    const result = await props.api.share({ access, people });
     if ("error" in result) {
       setPhase({ name: "failed", reason: result.error });
       return;
     }
-    setShared({ link: result.link, access, people, live, updated: "just now" });
+    setShared({
+      link: result.link,
+      access,
+      people,
+      updated: "just now",
+      unpublished: 0,
+    });
     setPhase({ name: "idle" });
   };
 
@@ -348,24 +352,6 @@ export function ShareForm(props: {
           </>
         )}
 
-        {props.features.live && (
-          <Flex column gap={2}>
-            <Checkbox
-              label="Update the link as you edit"
-              checked={live}
-              setChecked={setLive}
-            />
-            <Text
-              size="xs"
-              color="lowContrast"
-              style={{ whiteSpace: "normal" }}
-            >
-              While this viewer is open, readers see each edit you save. When it
-              closes, the link keeps the last version.
-            </Text>
-          </Flex>
-        )}
-
         <div className={team} aria-disabled="true">
           <Users size="sm" />
           <Text size="sm" color="lowContrast" style={{ flex: 1 }}>
@@ -408,9 +394,9 @@ export function ShareForm(props: {
         )}
         {shared !== undefined && phase.name === "idle" && (
           <Text size="xs" color="lowContrast" role="status">
-            {shared.live
-              ? `Shared · live · updated ${shared.updated}`
-              : `Shared · updated ${shared.updated}`}
+            {shared.unpublished > 0
+              ? `Shared · ${plural(shared.unpublished, "edit", "edits")} not published yet`
+              : `Shared · up to date · published ${shared.updated}`}
           </Text>
         )}
       </div>
