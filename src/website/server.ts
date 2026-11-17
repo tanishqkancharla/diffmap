@@ -35,7 +35,7 @@ export function createWebsiteServer(out = path.resolve("dist")) {
       // Serve only generated public assets; /pages contains internal representations.
       if (
         /^\/assets\/[\w.-]+$/.test(pathname) ||
-        /^\/(?:llms\.txt|robots\.txt|sitemap\.xml|productdoc-logo\.svg|productdoc-social\.(?:svg|png)|og\.png)$/.test(
+        /^\/(?:productdoc-logo\.svg|productdoc-social\.(?:svg|png)|og\.png)$/.test(
           pathname,
         )
       ) {

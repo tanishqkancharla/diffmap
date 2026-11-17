@@ -325,11 +325,11 @@ Using the CLI through npx does not create a global product-doc installation. If 
     path: "/docs/migration",
     title: "Coming from Diffmap",
     description:
-      "One successor product, with existing documents and shared links preserved during migration.",
+      "Use Productdoc alongside Diffmap while preserving existing documents, skills and shared links.",
     label: "Documentation · Migration",
     body: `# Coming from Diffmap
 
-Productdoc replaces Diffmap, which is being retired. New installs should use generate-product-doc and the product-doc CLI. The scope expands from reviewing changes to explaining existing systems and planning future work too; the folded-map logo stays. Diffmap is not a second onboarding path.
+Productdoc and Diffmap are available alongside one another. Productdoc lives at productdoc.dev and expands visual documents to explaining existing systems and planning future work as well as reviewing changes. Diffmap keeps its original website at diffmap.dev; it is not being retired as part of this rollout.
 
 ## What stays put
 
@@ -337,7 +337,7 @@ Keep documents in .diffmap/specs/. Do not remove existing installs or shared-doc
 
 ## What is changing
 
-The name is Productdoc, the destination domain is productdoc.dev, the public npm package and executable are product-doc, and the public successor skill is generate-product-doc. Install the successor skill and use its CLI guide; a legacy Diffmap installation does not automatically migrate. Once Productdoc is working, remove the legacy skill from the same agent and scope in which it was installed so new requests do not select it.
+For Productdoc, the public npm package and executable are product-doc, and the skill is generate-product-doc. Install that skill and use its CLI guide when asking for Productdoc documents. The generate-diffmap skill remains available too; installing Productdoc does not require removing or replacing it. Keep each tool's existing installation and use the skill you intend.
 
 Retained configuration names such as DIFFMAP_TELEMETRY and the diffmap configuration directory preserve existing privacy choices during migration.
 
