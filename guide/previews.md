@@ -53,12 +53,16 @@ Name stories by their Storybook ID. In a `flow`, the first line is the starting 
 
    Add a `flows` key only to change a flow's defaults: `"transitions": "render"` draws each state from the start instead of playing the step on the live UI, and `"viewport": { "width": 1280, "height": 800 }` sets the size of the expanded flow.
 
+**Choose the states from the real UI.** Read the component, the screens that use it, and how its state changes. Map where the person starts, what they do, and the success, loading, validation, failure, retry, and permission states that matter to the change. Don't invent screens to fill out a flow.
+
 **Write the stories.**
 
 - Reuse the team's stories where they exist. Write new ones next to the component, in Storybook's format, with a `title`.
+- Render the real component, through its props and the story's fixtures. If it mixes server calls with rendering, propose pulling out a small presentational component; never keep a lookalike copy of the UI for previews.
 - Answer every request from the story's `parameters.msw.handlers`, never a live backend: previews must not sign anyone in, charge a card, or change real data. Use fixed values, not timestamps or random content.
 - In a flow, each story after the first is one step from the story it is indented under. Its `play` does what the person does next, through `canvas` and `userEvent`, and its handlers give the server's answer to that step. Don't repeat the parent's steps: diffmap plays the path for you.
+- Reach each state through the controls a person uses: click the real buttons, type one keystroke at a time, open the real menu and pick its item. The app's own transitions, such as a menu opening or a validation message appearing, then play in the preview as they do in the app. Set state directly only when no control reaches it.
 - Model events from outside the app, such as an email link or a provider's approval, as their own step with an action, not as buttons added to the UI.
 - Write each story's `parameters.docs.description.story` as the state's note: what just happened, what is saved or still pending, and what the person can do next. Mark behavior that does not exist yet as proposed.
 
-**Check before handing back.** With the app's dev server running, open each story on its own at `<previews.local>?story=<id>`, and each flow state at `?story=<id>&path=<ids from the start>`. Fix what the page lists as wrong with a story file. Then open the spec with `serve`, step through every state of each flow, and compare the states with the running app. The blocks show live UI only while the dev server runs; on a pull request, they load its preview deployment.
+**Check before handing back.** With the app's dev server running, open each story on its own at `<previews.local>?story=<id>`, and each flow state at `?story=<id>&path=<ids from the start>`. Fix what the page lists as wrong with a story file. Then open the spec with `serve`, step through every state of each flow, and compare the states with the running app, in light and dark themes and at a narrow width. The blocks show live UI only while the dev server runs; on a pull request, they load its preview deployment.
