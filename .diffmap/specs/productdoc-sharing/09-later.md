@@ -1,8 +1,8 @@
 # Later: pull requests and teams
 
-[Phases 1](02-share-dialog.md) to [5](06-definitions-and-ranges.md) let a person share a document publicly or with people they add by email. This page notes two things that come after, and what the first version already does to leave room for them. Neither is planned in detail.
+[Phases 1](02-publish-from-the-cli.md) to [7](08-definitions-and-ranges.md) let a person share a document publicly or with people they add by email. This page notes two things that come after, and what the first version already does to leave room for them. Neither is planned in detail.
 
-**Today, after Phase 5**
+**Today, after Phase 7**
 
 A document reaches productdoc.dev only when someone shares it. A document on a pull request is still read from GitHub, at its diffmap.dev pull request link, which only works for public repos. Each shared document has one owner, and is Public or Restricted to a list of emails.
 
@@ -10,9 +10,9 @@ A document reaches productdoc.dev only when someone shares it. A document on a p
 
 ## Pull requests, by upload instead of GitHub
 
-Instead of reading a pull request's document from GitHub, CI shares it on each push. A GitHub Action runs `product-doc share` and comments the link on the pull request. It signs in with the GitHub Actions OIDC token, which proves which repo and workflow it is, so the repo needs no stored secret. The document's `source` is the repo and the document's path in it, so every push updates one link, and readers see each push live as in [Phase 3](04-live-link.md).
+Instead of reading a pull request's document from GitHub, CI shares it on each push. A GitHub Action runs `product-doc share` and comments the link on the pull request. It signs in with the GitHub Actions OIDC token, which proves which repo and workflow it is, so the repo needs no stored secret. The document's `source` is the repo and the document's path in it, so every push updates one link, and readers see each push live as in [Phase 4](05-live-link.md).
 
-This works the same for private repos, since nothing loads from GitHub. Previews come from the uploaded build, as in [Phase 4](05-previews-and-html.md), instead of the pull request's preview deployment. Productdoc then needs no reader that loads from GitHub. diffmap.dev keeps its own.
+This works the same for private repos, since nothing loads from GitHub. Previews come from the uploaded build, as in [Phase 6](07-previews-and-html.md), instead of the pull request's preview deployment. Productdoc then needs no reader that loads from GitHub. diffmap.dev keeps its own.
 
 ## Teams
 

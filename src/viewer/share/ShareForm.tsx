@@ -100,16 +100,19 @@ export function ShareForm(props: {
   contents: string;
   sourceFiles: string[];
   cover: ReactNode;
+  /** Which build phases have landed: Restricted access, and links that follow the document as it changes. */
+  features: { restricted: boolean; live: boolean };
   api: ShareApi;
   onClose(): void;
 }) {
   const [account, setAccount] = useState(props.account);
   const [shared, setShared] = useState(props.shared);
   const [access, setAccess] = useState<Access>(
-    props.shared?.access ?? "restricted",
+    props.shared?.access ??
+      (props.features.restricted ? "restricted" : "public"),
   );
   const [people, setPeople] = useState(props.shared?.people ?? []);
-  const [live, setLive] = useState(props.shared?.live ?? true);
+  const [live, setLive] = useState(props.shared?.live ?? props.features.live);
   const [email, setEmail] = useState("");
   const [invalid, setInvalid] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -211,7 +214,9 @@ export function ShareForm(props: {
           </Button>
         </Flex>
 
-        <BrowserFrame link={shared?.link}>{props.cover}</BrowserFrame>
+        {access === "public" && (
+          <BrowserFrame link={shared?.link}>{props.cover}</BrowserFrame>
+        )}
 
         <Flex column gap={2}>
           <Text size="xs" color="lowContrast">
@@ -233,6 +238,7 @@ export function ShareForm(props: {
               }}
               selectionMode="single"
               selectedKeys={[access]}
+              disabledKeys={props.features.restricted ? [] : ["restricted"]}
             >
               {options.map((option) => (
                 <MenuItem
@@ -342,11 +348,23 @@ export function ShareForm(props: {
           </>
         )}
 
-        <Checkbox
-          label="Keep this link updated while this viewer runs"
-          checked={live}
-          setChecked={setLive}
-        />
+        {props.features.live && (
+          <Flex column gap={2}>
+            <Checkbox
+              label="Update the link as you edit"
+              checked={live}
+              setChecked={setLive}
+            />
+            <Text
+              size="xs"
+              color="lowContrast"
+              style={{ whiteSpace: "normal" }}
+            >
+              While this viewer is open, readers see each edit you save. When it
+              closes, the link keeps the last version.
+            </Text>
+          </Flex>
+        )}
 
         <div className={team} aria-disabled="true">
           <Users size="sm" />
@@ -391,8 +409,8 @@ export function ShareForm(props: {
         {shared !== undefined && phase.name === "idle" && (
           <Text size="xs" color="lowContrast" role="status">
             {shared.live
-              ? `Shared · updates as you edit · last updated ${shared.updated}`
-              : `Shared · paused · last updated ${shared.updated}`}
+              ? `Shared · live · updated ${shared.updated}`
+              : `Shared · updated ${shared.updated}`}
           </Text>
         )}
       </div>
@@ -472,7 +490,7 @@ function BrowserFrame(props: {
             <Globe size="xs" />
             <Text size="xs" color="lowContrast">
               {props.link === undefined
-                ? "productdoc.dev"
+                ? "productdoc.dev/d/8f3k2x…"
                 : props.link.replace(/^https:\/\//, "")}
             </Text>
           </div>

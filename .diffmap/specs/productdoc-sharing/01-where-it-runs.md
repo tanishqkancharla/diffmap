@@ -29,7 +29,7 @@ The Worker runs [Better Auth](https://www.better-auth.com) on D1 with three plug
 
 - **Google and GitHub** as social providers. A person can sign in with either.
 - **Account linking.** Signing in with Google and later with GitHub, under the same verified email, joins both to one account. Google and GitHub are trusted providers, since both verify email addresses. From the account menu, a person can also link a GitHub account whose email differs, so invitations to either address reach them.
-- **Device authorization**, for the CLI and the local viewer. Neither can receive a redirect from productdoc.dev, since the local viewer may be on a remote VM behind a forwarded port. [Phase 1](02-share-dialog.md) describes the flow. It returns a Better Auth session token, which the **bearer** plugin accepts on API requests.
+- **Device authorization**, for the CLI and the local viewer. Neither can receive a redirect from productdoc.dev, since the local viewer may be on a remote VM behind a forwarded port. [Phase 1](02-publish-from-the-cli.md#signing-in) describes the flow. It returns a Better Auth session token, which the **bearer** plugin accepts on API requests.
 
 Browsers on productdoc.dev keep Better Auth's session in an `HttpOnly`, `SameSite=Lax` cookie.
 
@@ -63,9 +63,9 @@ type DocumentVersion = {
   media: Record<string, string>; // path in the document → blob
   changes: Record<Rev, string>; // rev → blob of its Changes snapshot
   sourceFiles: string; // blob of the files excerpts and rev-less references read
-  definitions?: string; // Phase 5
+  definitions?: string; // Phase 7
   previews?:
-    { blobs: Record<string, string> } | { screenshots: Record<string, string> }; // Phase 4
+    { blobs: Record<string, string> } | { screenshots: Record<string, string> }; // Phase 6
 };
 // [!note Rev] The same `Rev` and `Changes` types `share` already writes into a gist, from src/changes.ts.
 ```
@@ -77,7 +77,7 @@ Splitting the diffs by rev, instead of one JSON file as in a gist, means a reade
 - 25 MB per file, so a short recording fits but a long screen capture does not.
 - 200 MB per version, counting built preview pages.
 - 2 GB per person across all their documents.
-- 30 new links an hour per person, and at most one new version every two seconds per document, which is the pace of [live updates](04-live-link.md).
+- 30 new links an hour per person, and at most one new version every two seconds per document, which is the pace of [live updates](05-live-link.md).
 - 100 people per Restricted document, and 200 invitations a day per person, so the invitation email cannot be used to send spam.
 - Media must be an image or video type the viewer already renders. The Worker sends it with that type and `X-Content-Type-Options: nosniff`, so an "image" cannot run as a page.
 
@@ -91,9 +91,9 @@ At a few thousand shared documents averaging 20 MB, storage is about 60 GB, unde
 
 productdoc.dev will host documents from anyone who signs in, and will hold sign-in cookies, so:
 
-1. **No code from a document runs on productdoc.dev.** The shared viewer treats HTML as hosted viewers do today ([[src/viewer/Fence.tsx#Fence]] shows a placeholder when `useViewerMode()` is not `"local"`). [Phase 4](05-previews-and-html.md) runs HTML and preview pages in frames on `<id>.productdocusercontent.com`, a different site, so their script cannot read productdoc.dev's cookies or call its API as the reader. productdocusercontent.com goes on the Public Suffix List, so one document's subdomain cannot set cookies for another's.
+1. **No code from a document runs on productdoc.dev.** The shared viewer treats HTML as hosted viewers do today ([[src/viewer/Fence.tsx#Fence]] shows a placeholder when `useViewerMode()` is not `"local"`). [Phase 6](07-previews-and-html.md) runs HTML and preview pages in frames on `<id>.productdocusercontent.com`, a different site, so their script cannot read productdoc.dev's cookies or call its API as the reader. productdocusercontent.com goes on the Public Suffix List, so one document's subdomain cannot set cookies for another's.
 2. **Pages on productdocusercontent.com only open inside productdoc.dev.** The Worker answers them only when the browser is loading a frame (`Sec-Fetch-Dest: iframe`), and sends `frame-ancestors https://productdoc.dev`. An uploaded fake login page cannot be sent to people directly.
 3. **Sharing publishes code, so it says what it uploads.** The dialog and the CLI list every source file the share includes. Sharing refuses files git ignores, such as `.env`, and files that look like they hold keys, naming the file and line. The person removes the file from the document, or allows that one file after checking it.
 4. **Restricted documents never reach a shared cache.** Their blobs are sent `Cache-Control: private`. Public blobs never change, so they are cached for a year.
 
-productdoc.dev sends a `Content-Security-Policy` that allows only its own scripts, and `frame-ancestors 'none'`, so no other site can frame the share dialog or the sign-in page. Every shared page has a **Report** link; an admin can take a document down, which deletes it as [Stop sharing](04-live-link.md#stop-sharing) does.
+productdoc.dev sends a `Content-Security-Policy` that allows only its own scripts, and `frame-ancestors 'none'`, so no other site can frame the share dialog or the sign-in page. Every shared page has a **Report** link; an admin can take a document down, which deletes it as [Stop sharing](04-one-link-per-document.md#stop-sharing) does.

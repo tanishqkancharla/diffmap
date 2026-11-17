@@ -1,6 +1,6 @@
-# Phase 5: Definitions and commit ranges
+# Phase 7: Definitions and commit ranges
 
-[Phase 1](02-share-dialog.md) shares the diffs and files a document shows. Two features in the Diff panel still ask the local server for things a shared document does not have: Cmd-click to a definition, and the commit range picker. This phase works out what each needs when the document is shared, and says what stays local.
+[Phase 1](02-publish-from-the-cli.md) shares the diffs and files a document shows. Two features in the Diff panel still ask the local server for things a shared document does not have: Cmd-click to a definition, and the commit range picker. This phase works out what each needs when the document is shared, and says what stays local.
 
 **Today**
 
@@ -36,6 +36,14 @@ Every range the document's pages use is already snapshotted for its changes card
 
 - Arbitrary commit ranges, and names whose definitions are outside the files the document shows and their imports.
 - **Close server**, since a shared document has no server to close.
+
+## Todos
+
+- [ ] Build the definitions table at share time, following imports one step
+- [ ] List the extra files it uploads with the others, under the same checks
+- [ ] Cmd-click in the shared viewer reads the table instead of the local server
+- [ ] Snapshot the full range, and limit the shared range picker to snapshotted ranges
+- [ ] Hide Close server in the shared viewer
 
 ```changes
 
