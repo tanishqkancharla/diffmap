@@ -20,6 +20,7 @@ https://productdoc.dev/d/k3v9q2xa7m
 - `/d/<id>` renders with the hosted viewer ([[src/host/HostApp.tsx#HostApp]]). Previews and HTML show placeholders until [Phase 5](06-previews-and-html.md).
 - Sharing refuses gitignored files and anything that looks like a key, naming the file. `--allow <file>` overrides one file after checking it.
 - `product-doc share --stop` deletes the link.
+- Public documents show a bar above the viewer: who shared it, and a "Share your own" link to productdoc.dev. Search engines may index them.
 - **Errors you can fix offer an agent prompt.** A screen that stops you, such as an expired sign-in, shows a prompt to copy to your agent, like "Sign me in to productdoc again and finish sharing."
 
 ```callstack [Sharing]
@@ -50,7 +51,7 @@ share-device-sign-in--sign-in
 **Someone reads it**
 
 1. You send the link to a teammate and shut your laptop.
-2. They open it without signing in, and see the cover.
+2. They open it without signing in, and see the cover under a bar saying who shared it publicly, with a link to productdoc.dev.
 3. They click through the pages, look at the screenshots, play the recording, and read the diffs and code, the same as you see locally.
 4. Live UI blocks say they're coming later.
 5. They send a link to one section, and it opens at that section.
@@ -136,7 +137,7 @@ share-device-sign-in--expired
 - [ ] `product-doc login` and `logout`
 - [ ] Upload API: create, upload blobs, commit a version
 - [ ] `product-doc share`, with the limit and secret checks, writing `.productdoc.json`
-- [ ] `/d/<id>` in the hosted viewer, with Markdown for agents
+- [ ] `/d/<id>` in the hosted viewer, with Markdown for agents and the public bar
 - [ ] `share --stop`, an admin takedown command, and abuse@productdoc.dev
 - [ ] An agent prompt on each error screen a person can fix
 - [ ] Update the guide's sharing section

@@ -2,20 +2,23 @@ import { useState, type ReactNode } from "react";
 import {
   Banner,
   Button,
-  Flex,
+  Close,
+  Lock,
   Menu,
   MenuItem,
   MenuTrigger,
+  P,
   Text,
   backgroundColor,
-  borderColor,
+  border,
   flex,
-  radius,
   spacing,
   text,
 } from "maui";
-import { ChevronDown, Github, Google, Lock } from "maui/icons";
+import { ChevronDown, Flag, Github, Google } from "maui/icons";
 import { style, useStyles } from "purse-styles";
+import { StatusPage } from "../StatusPage.tsx";
+import { ProductdocWordmark } from "./ProductdocWordmark.tsx";
 import type { Access, Account } from "./ShareForm.tsx";
 
 /**
@@ -30,7 +33,6 @@ export type SharedPageApi = {
 };
 
 export function SharedPage(props: {
-  title: string;
   owner: string;
   status: "shared" | "stopped" | "removed";
   access: Access;
@@ -41,55 +43,61 @@ export function SharedPage(props: {
   /** Newest first. Undefined until links keep their versions. */
   versions: Version[] | undefined;
   api: SharedPageApi;
-  children: ReactNode;
+  /** The hosted viewer, with these actions in its header. */
+  viewer: (headerActions: ReactNode) => ReactNode;
 }) {
   const [reader, setReader] = useState(props.reader);
   const [viewing, setViewing] = useState(props.versions?.[0]);
   const page = useStyles(styles.page);
-  const header = useStyles(styles.header);
-  const gate = useStyles(styles.gate);
-  const heading = useStyles(styles.heading);
+  const bar = useStyles(styles.bar);
+  const link = useStyles(styles.link);
+  const viewer = useStyles(styles.viewer);
+  const wordmark = <ProductdocWordmark />;
 
   if (props.status !== "shared") {
     return (
-      <div className={page}>
-        <section className={gate}>
-          <h1 className={heading}>
-            {props.status === "stopped"
-              ? `${props.owner} stopped sharing this document`
-              : "This document was removed"}
-          </h1>
-          <Text size="sm" color="lowContrast" style={{ whiteSpace: "normal" }}>
-            {props.status === "stopped"
-              ? "Ask them for a new link if you still need it."
-              : "It broke productdoc's rules for shared content."}
-          </Text>
-        </section>
-      </div>
+      <StatusPage
+        wordmark={wordmark}
+        tone="neutral"
+        icon={props.status === "stopped" ? Close : Flag}
+        title={
+          props.status === "stopped"
+            ? `${props.owner} stopped sharing this document`
+            : "This document was removed"
+        }
+      >
+        <P>
+          {props.status === "stopped"
+            ? "Ask them for a new link if you still need it."
+            : "It broke productdoc’s rules for shared documents."}
+        </P>
+      </StatusPage>
     );
   }
 
   if (props.access === "restricted" && reader === undefined) {
+    const signIn = () => void props.api.signIn().then(setReader);
     return (
-      <div className={page}>
-        <section className={gate}>
-          <Lock size="md" />
-          <h1 className={heading}>Sign in to open this document</h1>
-          <Text size="sm" color="lowContrast" style={{ whiteSpace: "normal" }}>
-            Use the email address it was shared with.
-          </Text>
-          <Flex column gap={3}>
-            <Button onPress={() => void props.api.signIn().then(setReader)}>
+      <StatusPage
+        wordmark={wordmark}
+        tone="neutral"
+        icon={Lock}
+        title="Sign in to open this document"
+        actions={
+          <>
+            <Button onPress={signIn}>
               <Google size="sm" />
               Continue with Google
             </Button>
-            <Button onPress={() => void props.api.signIn().then(setReader)}>
+            <Button onPress={signIn}>
               <Github size="sm" />
               Continue with GitHub
             </Button>
-          </Flex>
-        </section>
-      </div>
+          </>
+        }
+      >
+        <P>Use the email address it was shared with.</P>
+      </StatusPage>
     );
   }
 
@@ -99,62 +107,70 @@ export function SharedPage(props: {
     !props.people.includes(reader.email)
   ) {
     return (
-      <div className={page}>
-        <section className={gate}>
-          <Lock size="md" />
-          <h1 className={heading}>You don’t have access</h1>
-          <Text size="sm" color="lowContrast" style={{ whiteSpace: "normal" }}>
-            You’re signed in as {reader.email}. If it was shared with another
-            address, switch accounts or link that account to this one.
-          </Text>
-          <Flex row gap={3}>
+      <StatusPage
+        wordmark={wordmark}
+        tone="warning"
+        icon={Lock}
+        title="You don’t have access"
+        actions={
+          <>
             <Button onPress={() => setReader(undefined)}>Switch account</Button>
             <Button>Link another account</Button>
-          </Flex>
-        </section>
-      </div>
+          </>
+        }
+      >
+        <P>
+          You’re signed in as {reader.email}. If it was shared with another
+          address, switch accounts or link that account to this one.
+        </P>
+      </StatusPage>
     );
   }
 
   const latest = props.versions?.[0];
+  const versions =
+    props.versions !== undefined && viewing !== undefined ? (
+      <MenuTrigger>
+        <Button variant="quiet" aria-label="Versions">
+          {viewing === latest
+            ? `Updated ${viewing.published}`
+            : `Version ${String(viewing.n)}`}
+          <ChevronDown size="xs" />
+        </Button>
+        <Menu
+          selectionMode="single"
+          selectedKeys={[String(viewing.n)]}
+          onAction={(key) =>
+            setViewing(props.versions!.find((v) => String(v.n) === key))
+          }
+        >
+          {props.versions.map((version) => (
+            <MenuItem
+              key={version.n}
+              id={String(version.n)}
+              textValue={`Version ${String(version.n)}`}
+            >
+              Version {version.n} · {version.published}
+              {version === latest ? " (latest)" : ""}
+            </MenuItem>
+          ))}
+        </Menu>
+      </MenuTrigger>
+    ) : undefined;
+
   return (
     <div className={page}>
-      <header className={header}>
-        <Text size="sm" fontWeight={600}>
-          productdoc
-        </Text>
-        <Text size="sm" style={{ flex: 1, minWidth: 0 }}>
-          {props.title}
-        </Text>
-        {props.versions !== undefined && viewing !== undefined && (
-          <MenuTrigger>
-            <Button variant="quiet" aria-label="Versions">
-              {viewing === latest
-                ? `Updated ${viewing.published}`
-                : `Version ${String(viewing.n)}`}
-              <ChevronDown size="xs" />
-            </Button>
-            <Menu
-              selectionMode="single"
-              selectedKeys={[String(viewing.n)]}
-              onAction={(key) =>
-                setViewing(props.versions!.find((v) => String(v.n) === key))
-              }
-            >
-              {props.versions.map((version) => (
-                <MenuItem
-                  key={version.n}
-                  id={String(version.n)}
-                  textValue={`Version ${String(version.n)}`}
-                >
-                  Version {version.n} · {version.published}
-                  {version === latest ? " (latest)" : ""}
-                </MenuItem>
-              ))}
-            </Menu>
-          </MenuTrigger>
-        )}
-      </header>
+      {props.access === "public" && (
+        <div className={bar}>
+          <ProductdocWordmark />
+          <Text size="sm" color="lowContrast">
+            {props.owner} shared this publicly
+          </Text>
+          <a className={link} href="https://productdoc.dev">
+            Share your own →
+          </a>
+        </div>
+      )}
       {viewing !== undefined && viewing !== latest && (
         <Banner
           tone="info"
@@ -167,41 +183,33 @@ export function SharedPage(props: {
           You’re viewing version {viewing.n}, from {viewing.published}.
         </Banner>
       )}
-      {props.children}
+      <div className={viewer}>{props.viewer(versions)}</div>
     </div>
   );
 }
 
 const styles = {
-  page: style(
-    flex({ direction: "column", gap: 4 }),
-    spacing.padding({ all: 4 }),
-    {
-      width: "100%",
-      maxWidth: 560,
-      minHeight: 300,
-      boxSizing: "border-box",
-      backgroundColor: backgroundColor.app,
-    },
+  page: style(flex({ direction: "column" }), {
+    height: "100vh",
+    overflow: "hidden",
+    backgroundColor: backgroundColor.app,
+  }),
+  bar: style(
+    flex({ direction: "row", alignItems: "center", gap: 3 }),
+    spacing.padding({ x: 6, y: 2 }),
+    border(["bottom"], "border"),
+    text({ size: "sm", fontWeight: 600, color: "highContrast" }),
+    { flexShrink: 0, backgroundColor: backgroundColor.elementHover },
   ),
-  header: style(
-    flex({ alignItems: "center", gap: 4 }),
-    spacing.padding({ x: 4, y: 2 }),
-    { borderBottom: `1px solid ${borderColor.border}` },
-  ),
-  gate: style(
-    radius.lg,
-    flex({ direction: "column", gap: 4 }),
-    spacing.padding({ x: 8, y: 8 }),
-    {
-      alignSelf: "center",
-      marginTop: spacing.value(8),
-      width: "100%",
-      maxWidth: 380,
-      boxSizing: "border-box",
-      border: `1px solid ${borderColor.outline}`,
-      backgroundColor: backgroundColor.element,
-    },
-  ),
-  heading: style(text({ size: "lg", fontWeight: 600 }), { margin: 0 }),
+  link: style(text({ size: "sm", fontWeight: 500 }), {
+    marginLeft: "auto",
+    color: "inherit",
+  }),
+  // The viewer fills the viewport, so it scrolls inside what is left under the bar.
+  viewer: style({
+    flex: "1 1 auto",
+    minHeight: 0,
+    overflow: "hidden",
+    "& > div": { height: "100%" },
+  }),
 };

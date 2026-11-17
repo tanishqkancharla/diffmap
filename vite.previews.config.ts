@@ -11,6 +11,13 @@ export default defineConfig({
   cacheDir: path.join(packageRoot, "node_modules/.vite-previews"),
   plugins: [react()],
   resolve: {
+    // The sharing stories parse the landing page's demo document in the browser.
+    alias: {
+      "md4x/napi": path.join(
+        packageRoot,
+        "node_modules/md4x/lib/standalone.mjs",
+      ),
+    },
     dedupe: [
       "react",
       "react-dom",
