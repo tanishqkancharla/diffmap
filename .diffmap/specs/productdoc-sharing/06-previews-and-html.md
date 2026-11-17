@@ -28,6 +28,7 @@ Live UI and HTML blocks work on a shared link, with nothing running on the shari
   - `connect-src 'self'`, so stories can't reach real APIs.
   - Restricted documents use signed links and `Partitioned` cookies.
 - `https://productdoc.dev` joins [[src/preview/protocol.ts#isViewerOrigin]].
+- **Open question:** instead of `previews.build`, keep standalone stories in the document folder that import the real components, and have productdoc bundle them itself.
 
 ## Todos
 
