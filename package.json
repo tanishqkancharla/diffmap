@@ -41,8 +41,8 @@
     "check-affected": "npm run check",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "lint": "oxlint --deny-warnings src vite.config.ts vite.gist.config.ts vite.viewer.config.ts bin.js",
-    "lint:fix": "oxlint --fix src vite.config.ts vite.gist.config.ts vite.viewer.config.ts bin.js",
+    "lint": "oxlint --deny-warnings src vite.config.ts vite.gist.config.ts vite.viewer.config.ts vite.previews.config.ts bin.js",
+    "lint:fix": "oxlint --fix src vite.config.ts vite.gist.config.ts vite.viewer.config.ts vite.previews.config.ts bin.js",
     "prepack": "npm run build:viewer && npm run build:lib",
     "prepublishOnly": "npm run check",
     "release": "npm stage publish --access public",
@@ -53,7 +53,8 @@
     "build:gist": "vite build",
     "build:viewer": "vite build --config vite.viewer.config.ts",
     "build:lib": "node -e \"fs.rmSync('lib', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
-    "preview:gist": "vite preview --config vite.gist.config.ts --host 127.0.0.1 --port 4178"
+    "preview:gist": "vite preview --config vite.gist.config.ts --host 127.0.0.1 --port 4178",
+    "previews": "vite --config vite.previews.config.ts"
   },
   "dependencies": {
     "@pierre/diffs": "1.6.1",
