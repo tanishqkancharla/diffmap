@@ -125,6 +125,7 @@ function Composer(props: {
     if (element === null || CSS.supports("field-sizing", "content")) return;
     element.style.height = "auto";
     element.style.height = `${element.scrollHeight}px`;
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- The value is the trigger; the effect reads the element.
   }, [value]);
   const input = useStyles(textFieldStyles.input({}), styles.textarea);
   const buttons = useStyles(styles.buttons);
