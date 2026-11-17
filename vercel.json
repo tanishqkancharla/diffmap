@@ -10,13 +10,15 @@
       "includeFiles": "dist/{pages/**,404.html,viewer.html,llms.txt,robots.txt,sitemap.xml}"
     }
   },
+  "routes": [
+    { "src": "^/(?:index\\.html)?$", "dest": "/api/docs?path=/" },
+    {
+      "src": "^/(llms\\.txt|robots\\.txt|sitemap\\.xml)$",
+      "dest": "/api/docs?path=/$1"
+    }
+  ],
   "rewrites": [
-    { "source": "/", "destination": "/api/docs?path=/" },
-    { "source": "/index.html", "destination": "/api/docs?path=/" },
     { "source": "/index.md", "destination": "/api/docs?path=/index.md" },
-    { "source": "/llms.txt", "destination": "/api/docs?path=/llms.txt" },
-    { "source": "/robots.txt", "destination": "/api/docs?path=/robots.txt" },
-    { "source": "/sitemap.xml", "destination": "/api/docs?path=/sitemap.xml" },
     { "source": "/docs/:path*", "destination": "/api/docs?path=/docs/:path*" },
     {
       "source": "/examples/:path*",
