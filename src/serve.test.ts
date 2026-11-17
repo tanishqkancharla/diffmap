@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 import { DiffmapServeError } from "./errors.js";
+import { createWebsiteServer } from "./website/server.js";
 import { startServer, type DiffmapServer, type ViewerEvent } from "./serve.js";
 
 const execFileAsync = promisify(execFile);
@@ -18,6 +19,109 @@ const packageRoot = path.resolve(srcDir, "..");
 const cliPath = path.join(srcDir, "cli.ts");
 const sampleSpec = path.join(packageRoot, "fixtures", "sample-spec");
 const localUrlPattern = /http:\/\/127\.0\.0\.1:\d+/g;
+
+test("website hosts keep Diffmap home and shared routes separate from Productdoc", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "website-hosts-"));
+  await fs.mkdir(path.join(dir, "pages"));
+  for (const [file, body] of Object.entries({
+    "viewer.html": "Original Diffmap landing and shared viewer",
+    "pages/index.html": "Productdoc homepage",
+    "pages/index.md": "# Productdoc homepage",
+    "pages/docs--install.html": "Install Productdoc",
+    "llms.txt": "Productdoc agent discovery",
+  })) {
+    await fs.writeFile(path.join(dir, file), body);
+  }
+  const server = createWebsiteServer(dir);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = boundPort(server);
+  const request = (
+    host: string,
+    pathname = "/",
+    method = "GET",
+    accept = "text/html",
+  ) =>
+    new Promise<{ status: number; body: string; location: string | undefined }>(
+      (resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: "127.0.0.1",
+            port,
+            path: pathname,
+            method,
+            headers: { host, accept },
+          },
+          (res) => {
+            let body = "";
+            res.setEncoding("utf8");
+            res.on("data", (chunk: string) => {
+              body += chunk;
+            });
+            res.on("end", () =>
+              resolve({
+                status: res.statusCode!,
+                body,
+                location: res.headers.location,
+              }),
+            );
+          },
+        );
+        req.on("error", reject);
+        req.end();
+      },
+    );
+  try {
+    for (const host of ["diffmap.dev", "WWW.DIFFMAP.DEV:443"]) {
+      for (const pathname of ["/", "/index.html"]) {
+        const response = await request(host, pathname);
+        assert.equal(response.status, 200);
+        assert.equal(
+          response.body,
+          "Original Diffmap landing and shared viewer",
+        );
+        assert.equal(response.location, undefined);
+      }
+      for (const pathname of ["/index.md", "/docs/install", "/llms.txt"]) {
+        const response = await request(host, pathname);
+        assert.equal(response.status, 404);
+        assert.doesNotMatch(response.body, /Productdoc/);
+      }
+      assert.equal((await request(host, "/", "HEAD")).body, "");
+    }
+    for (const host of ["productdoc.dev", "localhost", "diffmap.dev.example"]) {
+      assert.equal((await request(host)).body, "Productdoc homepage");
+      assert.equal(
+        (await request(host, "/", "GET", "text/markdown")).body,
+        "# Productdoc homepage",
+      );
+      assert.equal(
+        (await request(host, "/docs/install")).body,
+        "Install Productdoc",
+      );
+      assert.equal(
+        (await request(host, "/llms.txt")).body,
+        "Productdoc agent discovery",
+      );
+    }
+    for (const host of ["diffmap.dev", "productdoc.dev"]) {
+      for (const pathname of [
+        "/g/example",
+        "/owner/repo/pull/49/spec",
+        "/owner/repo/commit/abc/spec",
+      ]) {
+        const response = await request(host, pathname);
+        assert.equal(response.status, 200);
+        assert.equal(
+          response.body,
+          "Original Diffmap landing and shared viewer",
+        );
+      }
+    }
+  } finally {
+    await closeTcp(server);
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
 
 function httpUrlPort(url: string) {
   const parsed = new URL(url);

@@ -45,7 +45,39 @@ export async function respondPage(
     res.writeHead(405).end();
     return;
   }
-  const normalized = pathname === "/" ? "/" : pathname.replace(/\/$/, "");
+  const normalized =
+    pathname === "/" || pathname === "/index.html"
+      ? "/"
+      : pathname.replace(/\/$/, "");
+  const host = req.headers.host?.split(":")[0]?.toLowerCase();
+  if (host === "diffmap.dev" || host === "www.diffmap.dev") {
+    // The original landing page is already in the shared viewer bundle.
+    // Productdoc's docs/discovery pages must not replace the old site either.
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.writeHead(normalized === "/" ? 200 : 404);
+    res.end(
+      req.method === "HEAD"
+        ? undefined
+        : await fs.readFile(path.join(out, "viewer.html")),
+    );
+    return;
+  }
+  const discoveryTypes: Record<string, string> = {
+    "/llms.txt": "text/plain; charset=utf-8",
+    "/robots.txt": "text/plain; charset=utf-8",
+    "/sitemap.xml": "application/xml; charset=utf-8",
+  };
+  const discoveryType = discoveryTypes[normalized];
+  if (discoveryType) {
+    res.setHeader("Content-Type", discoveryType);
+    res.writeHead(200);
+    res.end(
+      req.method === "HEAD"
+        ? undefined
+        : await fs.readFile(path.join(out, normalized.slice(1))),
+    );
+    return;
+  }
   const page = pages.find(
     (p) => p.path === normalized || markdownPath(p.path) === normalized,
   );

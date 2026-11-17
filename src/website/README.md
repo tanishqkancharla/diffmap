@@ -31,3 +31,7 @@ The public `product-doc` runtime and `generate-product-doc` GitHub skill are ava
 Search crawling is allowed; GPTBot, ClaudeBot and Google-Extended training use is conservatively disallowed independently. This policy is not an access-control guarantee. The preview sends `X-Robots-Tag: noindex`; the generated sitemap/canonicals target the live productdoc.dev website.
 
 The production rollout verified HTTPS, current onboarding copy, HTML/Markdown negotiation in both request orders, missing-page 404s, and gist/GitHub viewer shells on productdoc.dev and www.diffmap.dev. Vercel attached the new domain to the existing project and updated its managed apex ALIAS; the other six DNS records and all three existing project-domain assignments were preserved. These checks do not establish historical shared-document contents or every CDN bot policy. Existing old-domain shared links must not become marketing redirects.
+
+## Host separation
+
+The shared deployment must keep the original Diffmap homepage on diffmap.dev/www.diffmap.dev and Productdoc on productdoc.dev. `respondPage` selects the existing `viewer.html`/Landing entry for Diffmap's homepage; Productdoc-only documentation/discovery requests on those hosts return 404 instead of cross-product content. Explicit discovery rewrites keep static llms/robots/sitemap files from bypassing this boundary. Shared gist and GitHub viewer rewrites, static assets, the existing apex-to-www redirect, domain assignments and DNS stay unchanged. No banner is added.

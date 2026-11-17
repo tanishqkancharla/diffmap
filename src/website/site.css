@@ -296,7 +296,7 @@ button:focus-visible {
   opacity: 0.8;
 }
 .prompt {
-  max-width: 900px;
+  max-width: 80ch;
   margin: 24px auto 0;
 }
 #prompt-snippet figure,
