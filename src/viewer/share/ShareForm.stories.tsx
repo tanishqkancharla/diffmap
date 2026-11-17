@@ -68,6 +68,7 @@ const meta = {
     contents: "7 pages, 4 screenshots, 1 recording (6.2 MB)",
     sourceFiles: ["src/store.ts", "src/session.ts", "src/store.test.ts"],
     cover: <Cover />,
+    features: { restricted: true, live: true },
     api: server.api,
     onClose: () => {},
   },
@@ -76,13 +77,23 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const note = (story: string) => ({ docs: { description: { story } } });
+const firstPhase = { restricted: false, live: false };
 
-// Each story after FirstShare is one step from the story it follows in the flow.
+// A flow starts at PublicFirstShare or FirstShare. Each later story is one step from the story it follows,
+// and the shared steps (SigningIn, Sharing, Shared, UploadFailed) work after either start.
+
+export const PublicFirstShare: Story = {
+  args: { features: firstPhase },
+  loaders: [() => server.reset()],
+  parameters: note(
+    "Proposed, as the dialog first ships. Public is the only access; Restricted is greyed out until its phase lands. The browser frame shows the cover at a link like the one sharing will make. The person isn't signed in yet.",
+  ),
+};
 
 export const FirstShare: Story = {
   loaders: [() => server.reset()],
   parameters: note(
-    "Proposed. The person clicked Share in the viewer's header for the first time. Restricted is the default, so nothing becomes public unless they choose it. They aren't signed in yet; sharing asks them to.",
+    "Proposed, once Restricted lands. Restricted is the default, so nothing becomes public unless the person chooses it. There is no browser frame: only Public shows how the link will look.",
   ),
 };
 
@@ -114,13 +125,27 @@ export const PeopleAdded: Story = {
   },
 };
 
+export const ChoosePublic: Story = {
+  parameters: note(
+    "Proposed. Choosing Public shows the browser frame, and the note under the options says anyone with the link can read the uploaded source files.",
+  ),
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Access: Restricted" }),
+    );
+    const menu = await within(document.body).findByRole("menu");
+    await userEvent.click(within(menu).getByText("Public"));
+    await canvas.findByRole("button", { name: "Access: Public" });
+  },
+};
+
 export const SigningIn: Story = {
   parameters: note(
     "Proposed. Sharing starts device sign-in on the local server and opens productdoc.dev in a popup with the code filled in. The dialog shows the same code so the person can check they match. Nothing is uploaded yet.",
   ),
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(
-      canvas.getByRole("button", { name: "Share with 2 people" }),
+      canvas.getByRole("button", { name: /^Share( with \d+ people)?$/ }),
     );
     await canvas.findByText("4F2A-91BC");
   },
@@ -138,11 +163,11 @@ export const Sharing: Story = {
 
 export const Shared: Story = {
   parameters: note(
-    "Proposed. The upload finished. Ada and Grace get invitations, Copy link works, and the link follows the document while this viewer runs.",
+    "Proposed. The upload finished. The browser frame shows the real link, Copy link works, and the main button closes the dialog. With Restricted, the people added get invitations now.",
   ),
   loaders: [() => server.finishUpload({ link })],
   play: async ({ canvas }) => {
-    await canvas.findByText(/^Shared · updates as you edit/);
+    await canvas.findByText(/^Shared · /);
   },
 };
 
@@ -162,23 +187,33 @@ export const UploadFailed: Story = {
   },
 };
 
-export const ChoosePublic: Story = {
+export const SharedAgain: Story = {
   parameters: note(
-    "Proposed. Public needs no list of people. The note under the options says who can read the source files the document uploads.",
+    "Proposed, once a document keeps one link. Opening the dialog on a shared document shows its link and when it last updated. Sharing again uploads a new version to the same link.",
   ),
-  play: async ({ canvas, userEvent }) => {
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Access: Restricted" }),
-    );
-    const menu = await within(document.body).findByRole("menu");
-    await userEvent.click(within(menu).getByText("Public"));
-    await canvas.findByRole("button", { name: "Access: Public" });
+  args: {
+    account: owner,
+    features: firstPhase,
+    shared: {
+      link,
+      access: "public",
+      people: [],
+      live: false,
+      updated: "5 minutes ago",
+    },
   },
 };
 
-export const AlreadyShared: Story = {
+export const LiveOption: Story = {
   parameters: note(
-    "Proposed. Opening the dialog on a document already shared shows its link, who has access, and when it last updated.",
+    "Proposed, once links can be live. The option is on by default: while this viewer is open, each saved edit reaches readers, and when it closes the link keeps the last version.",
+  ),
+  args: { features: { restricted: false, live: true } },
+};
+
+export const SharedWithPeople: Story = {
+  parameters: note(
+    "Proposed, with Restricted and live links. The dialog lists who has access, and the status says the link is live.",
   ),
   args: {
     account: owner,

@@ -1,22 +1,34 @@
-import { Button, Text } from "maui";
+import { Button, colors, radius } from "maui";
 import { Users } from "maui/icons";
+import { style, useStyles } from "purse-styles";
 
-/** Proposed in .diffmap/specs/productdoc-sharing: the header's Share button, with the link's state beside it once shared. */
-export function ShareButton(props: {
-  state: "not-shared" | "live" | "paused";
-  onPress(): void;
-}) {
+export type ShareState = "not-shared" | "shared" | "live";
+
+const labels: Record<ShareState, string> = {
+  "not-shared": "Share",
+  shared: "Shared",
+  live: "Shared · Live",
+};
+
+/** Proposed in .diffmap/specs/productdoc-sharing: the header's Share button, whose label says whether the document is shared and live. */
+export function ShareButton(props: { state: ShareState; onPress(): void }) {
+  const dot = useStyles(styles.dot);
   return (
-    <>
-      {props.state !== "not-shared" && (
-        <Text size="xs" color="lowContrast">
-          {props.state === "live" ? "Shared · live" : "Shared · paused"}
-        </Text>
-      )}
-      <Button variant="quiet" onPress={props.onPress}>
+    <Button variant="quiet" onPress={props.onPress}>
+      {props.state === "live" ? (
+        <span className={dot} aria-hidden="true" />
+      ) : (
         <Users size="sm" />
-        Share
-      </Button>
-    </>
+      )}
+      {labels[props.state]}
+    </Button>
   );
 }
+
+const styles = {
+  dot: style(radius.circle, {
+    width: 8,
+    height: 8,
+    backgroundColor: colors.green[9],
+  }),
+};

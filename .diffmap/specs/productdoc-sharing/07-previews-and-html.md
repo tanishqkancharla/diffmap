@@ -1,6 +1,6 @@
-# Phase 4: Previews and HTML
+# Phase 6: Previews and HTML
 
-[Phase 1](02-share-dialog.md) shares everything the viewer draws itself. This phase adds the two things that run the document's own code: preview and flow blocks, and HTML the document includes. Both are uploaded with the document, so they keep working after the sharing machine shuts down, and both run on `<id>.productdocusercontent.com`, the separate domain from [Where it runs](01-where-it-runs.md#security).
+[Phase 1](02-publish-from-the-cli.md) shares everything the viewer draws itself. This phase adds the two things that run the document's own code: preview and flow blocks, and HTML the document includes. Both are uploaded with the document, so they keep working after the sharing machine shuts down, and both run on `<id>.productdocusercontent.com`, the separate domain from [Where it runs](01-where-it-runs.md#security).
 
 **Today**
 
@@ -27,7 +27,7 @@ The preview page is a small part of the app: the app's components, styles, and f
 // [!note L4] New in this phase: how to build the preview page as static files.
 ```
 
-When a document has preview or flow blocks, sharing runs `build.command`, then uploads `build.dir` as part of the version, and the blocks load `https://<id>.productdocusercontent.com/v<n>/previews/previews.html`. The build uses relative paths (`base: "./"` in Vite) and includes MSW's `mockServiceWorker.js`, so the stories' fake server works from static files. Only files that changed since the last version upload. With [live updates](04-live-link.md) on, `serve` rebuilds when a story or component file changes, at most once every 30 seconds, since a build takes longer than a page edit. The share dialog shows "Building previews…" while it runs.
+When a document has preview or flow blocks, sharing runs `build.command`, then uploads `build.dir` as part of the version, and the blocks load `https://<id>.productdocusercontent.com/v<n>/previews/previews.html`. The build uses relative paths (`base: "./"` in Vite) and includes MSW's `mockServiceWorker.js`, so the stories' fake server works from static files. Only files that changed since the last version upload. With [live updates](05-live-link.md) on, `serve` rebuilds when a story or component file changes, at most once every 30 seconds, since a build takes longer than a page edit. The share dialog shows "Building previews…" while it runs.
 
 The frame protocol already fits. The viewer takes the frame's origin from the page URL ([[src/viewer/previews/PreviewFrame.tsx]]). The preview page only accepts messages from the local viewer and www.diffmap.dev ([[src/preview/protocol.ts#isViewerOrigin]]), so `https://productdoc.dev` joins that list and its `frame-ancestors`. Apps rebuild their preview page with the new release to pick it up. For uploaded builds the Worker sends `frame-ancestors` itself.
 
@@ -46,12 +46,25 @@ A built preview page is the app's real code, so it runs under these rules:
 - **Its own site per document.** Each document's subdomain is its own origin, so its service worker, storage, and cookies are apart from every other document's. Each version sits under its own path (`/v<n>/`), so a new version's service worker never serves an old one's files.
 - **No real backend.** Preview pages get `connect-src 'self'`, so any request the stories' fake server does not answer fails instead of reaching a real API from the reader's browser. A story that mocks another origin's URLs lists that origin in `previews.connect`.
 - **Only inside productdoc.dev.** The Worker answers usercontent pages only for frames of productdoc.dev, so an uploaded page cannot be used as a standalone phishing site.
-- **Restricted documents stay restricted.** Frames of a Restricted document need the signed link and cookie from [Phase 2](03-restricted-and-invites.md#previews-and-html-in-restricted-documents).
+- **Restricted documents stay restricted.** Frames of a Restricted document need the signed link and cookie from [Phase 5](06-restricted-and-invites.md#previews-and-html-in-restricted-documents).
 - **Counted in the limits.** The built directory counts toward the 200 MB per version, and sharing names the largest files when it is over.
 
 ## The guide
 
 [[guide.md]]'s live previews section, says to add `previews.build` so shared documents show live UI, with Vite and Next.js recipes for a static preview build.
+
+## Todos
+
+- [ ] `previews.build` in the config schema, and `validate` checks it
+- [ ] `share` runs the build and uploads the changed files of `build.dir`
+- [ ] The usercontent Worker on `<id>.productdocusercontent.com`, with per-version paths and its headers
+- [ ] Add `https://productdoc.dev` to `isViewerOrigin` and to the preview page's `frame-ancestors`
+- [ ] Screenshot capture for documents without a build, and still images in preview and flow blocks
+- [ ] HTML fences and raw HTML blocks in frames, sized to their content
+- [ ] Rebuild previews while live, at most once every 30 seconds, and "Building previews…" in the dialog
+- [ ] Signed links and `Partitioned` cookies for frames of Restricted documents
+- [ ] Put productdocusercontent.com on the Public Suffix List
+- [ ] The guide's Vite and Next.js recipes for `previews.build`
 
 ```changes
 
