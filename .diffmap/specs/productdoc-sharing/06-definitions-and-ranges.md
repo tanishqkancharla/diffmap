@@ -17,7 +17,10 @@ In a shared document, Cmd-click works on any name in a file the document shows, 
 ```ts [The definitions blob]
 type SharedDefinitions = {
   // "src/store.ts@a1b2c3d" → line → column → definition
-  names: Record<string, Record<number, Record<number, { path: string; start: number; end: number }>>>;
+  names: Record<
+    string,
+    Record<number, Record<number, { path: string; start: number; end: number }>>
+  >;
   // files definitions land in that the document does not already include
   files: Record<string, string>;
 };

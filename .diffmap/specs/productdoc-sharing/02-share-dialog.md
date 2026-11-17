@@ -8,29 +8,32 @@ The local viewer's header has the document's title, the Diff button, and Close s
 
 **Proposed**
 
-The header gains a quiet **Share** button between the Diff button and Close server. It opens the dialog:
+The header gains a quiet **Share** button between the Diff button and Close server. Once a document is shared, the header says whether its link follows each edit:
 
-```text [The share dialog, sharing for the first time]
-┌──────────────────────────────────────────────┐
-│ Share "Session store"                      × │
-│ ┌──────────────────────────────────────────┐ │
-│ │ ● ● ●   productdoc.dev                      │ │
-│ │ (the document's cover, as it will look)      │ │
-│ └──────────────────────────────────────────┘ │
-│ Access                                       │
-│ [ Public: Anyone with the link has access ▾ ]│
-│ ☑ Keep this link updated                     │
-│ Share with team                  Coming soon │
-│ 3 source files become public: src/store.ts…  │
-│                                              │
-│ [ Copy link ]                      [ Share ] │
-└──────────────────────────────────────────────┘
+```preview [The header's Share button]
+share-header-button--not-shared
+share-header-button--shared-live
+share-header-button--shared-paused
 ```
 
-- Clicking **Share** for the first time opens a popup to sign in with Google or GitHub, then uploads. The button reads **Sharing…** with progress, then the dialog shows the link with **Copy link** and the main button becomes **Done**.
-- If the upload fails, the dialog says why, such as "recording.mp4 is 41 MB; the limit is 25 MB", and the button reads **Retry**.
-- Opening the dialog on a document already shared shows its link, its access, and when it last updated.
-- The line about source files lists every file the share makes public, and expands to the full list.
+The button opens the share dialog. The flow below runs the proposed dialog with a stand-in for the local server and productdoc.dev, so nothing is uploaded and no one signs in. Its Restricted states land in [Phase 2](03-restricted-and-invites.md); this phase ships the Public path.
+
+```flow [Sharing a document for the first time]
+share-dialog--first-share
+  share-dialog--people-added: Add ada@acme.com and grace@acme.com
+    share-dialog--signing-in: Click "Share with 2 people"
+      share-dialog--sharing: Approve the code in the productdoc.dev popup
+        share-dialog--shared: The upload finishes
+        share-dialog--upload-failed: productdoc.dev refuses an upload over the limit
+  share-dialog--choose-public: Choose Public
+  share-dialog--invalid-email: Add "ada@acme"
+```
+
+- Clicking **Share** for the first time starts sign-in, then uploads. The button reads **Signing in…**, then **Sharing…**, and once the upload finishes the main button becomes **Done** and **Copy link** works.
+- If the upload fails, the dialog says why, such as "recording.mp4 is 41 MB; the limit is 25 MB", keeps the person's choices, and the button reads **Retry**.
+- The note above the buttons lists every source file the share uploads, and who can read them.
+
+These blocks load the viewer's own preview page, which `npm run previews` serves from this checkout. The proposed form is [[src/viewer/share/ShareForm.tsx#ShareForm]], and its stories are in [[src/viewer/share/ShareForm.stories.tsx]]. Nothing in the viewer renders it yet.
 
 Agents share from the CLI:
 

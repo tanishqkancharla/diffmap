@@ -18,7 +18,10 @@ The preview page is a small part of the app: the app's components, styles, and f
 {
   "previews": {
     "local": "http://localhost:5173/previews.html",
-    "build": { "command": "vite build --config vite.previews.config.ts", "dir": "dist-previews" }
+    "build": {
+      "command": "vite build --config vite.previews.config.ts",
+      "dir": "dist-previews"
+    }
   }
 }
 // [!note L4] New in this phase: how to build the preview page as static files.

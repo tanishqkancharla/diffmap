@@ -14,6 +14,12 @@ The dialog's access menu offers **Restricted**, "Only people you've added get ac
 - **People with access**: the owner first, then each person added, each with a remove button. While there are unsaved changes, the heading reads "People · changes apply when you share".
 - The main button names the change: **Share with 2 people**, **Unshare with 1 person**, **Restrict access**, **Make public**, or **Update access**.
 
+The flow in [Phase 1](02-share-dialog.md) runs these states live. Opening the dialog on a document already shared lists who has access and when the link last updated:
+
+```preview [The dialog on a document already shared]
+share-dialog--already-shared
+```
+
 The CLI takes the same choices: `product-doc share <dir> --restricted --add ada@acme.com --add grace@acme.com`, or `--public`.
 
 ## Invitations
