@@ -52,4 +52,4 @@ D1   Better Auth tables, plus
 - No document code runs on productdoc.dev. Previews and HTML run in frames on productdocusercontent.com ([Phase 5](06-previews-and-html.md)).
 - Publishing lists the source files it makes public, and refuses gitignored files and anything that looks like a key.
 - Restricted blobs are `Cache-Control: private`.
-- Each shared page has a Report link, and admins can take a document down.
+- Admins can take a document down, from reports to abuse@productdoc.dev. A Report button waits until abuse shows up.

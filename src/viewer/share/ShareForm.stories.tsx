@@ -13,7 +13,7 @@ const link = "https://productdoc.dev/d/k3v9q2xa7m";
  * Stands in for `product-doc serve` and productdoc.dev. Each story's loader says how they answer its step,
  * so events from outside the dialog, such as approving the code in the popup, are steps of their own.
  */
-type UploadResult = { link: string } | { error: string };
+type UploadResult = { link: string } | { error: string; prompt?: string };
 const pending = () => {};
 const server = (() => {
   let approve: (account: Account) => void = pending;
@@ -35,10 +35,7 @@ const server = (() => {
         url: "https://productdoc.dev/device?code=4F2A-91BC",
       }),
       signedIn: () => new Promise<Account>((resolve) => (approve = resolve)),
-      share: () =>
-        new Promise<{ link: string } | { error: string }>(
-          (resolve) => (finish = resolve),
-        ),
+      share: () => new Promise<UploadResult>((resolve) => (finish = resolve)),
     } satisfies ShareApi,
   };
 })();
@@ -173,13 +170,14 @@ export const Shared: Story = {
 
 export const UploadFailed: Story = {
   parameters: note(
-    "Proposed. productdoc.dev refused the upload. The dialog says which file is over which limit, keeps the person's choices, and offers Retry.",
+    "Proposed. productdoc.dev refused the upload. The dialog says which file is over which limit, offers a prompt to copy to an agent that can fix it, and keeps the person's choices for Retry.",
   ),
   loaders: [
     () =>
       server.finishUpload({
-        error:
-          "recording.mp4 is 41 MB; the limit is 25 MB. Trim it or remove it from the document.",
+        error: "recording.mp4 is 41 MB; the limit is 25 MB.",
+        prompt:
+          "Make recording.mp4 in session-store smaller than 25 MB, then share it again.",
       }),
   ],
   play: async ({ canvas }) => {

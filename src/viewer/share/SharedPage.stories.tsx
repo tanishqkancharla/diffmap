@@ -11,7 +11,6 @@ const personal: Account = { name: "Ada", email: "ada@gmail.com" };
 let next: Account = invited;
 const api: SharedPageApi = {
   signIn: async () => next,
-  report: async () => {},
 };
 
 function Document() {
@@ -56,27 +55,8 @@ const note = (story: string) => ({ docs: { description: { story } } });
 
 export const Public: Story = {
   parameters: note(
-    "Proposed. A reader opens a public link without signing in. The hosted viewer shows the document under a header with its title and Report.",
+    "Proposed. A reader opens a public link without signing in. The hosted viewer shows the document under a header with its title.",
   ),
-};
-
-export const ReportOpen: Story = {
-  parameters: note("Proposed. The reader says what's wrong."),
-  play: async ({ canvas, userEvent }) => {
-    await userEvent.click(canvas.getByRole("button", { name: "Report" }));
-    await canvas.findByLabelText("What's wrong?");
-  },
-};
-
-export const Reported: Story = {
-  parameters: note(
-    "Proposed. The report reaches an admin, who can take the document down.",
-  ),
-  play: async ({ canvas, userEvent }) => {
-    await userEvent.type(canvas.getByLabelText("What's wrong?"), "Spam");
-    await userEvent.click(canvas.getByRole("button", { name: "Send report" }));
-    await canvas.findByText("Thanks. An admin will review this document.");
-  },
 };
 
 export const Stopped: Story = {
@@ -86,7 +66,9 @@ export const Stopped: Story = {
 
 export const Removed: Story = {
   args: { status: "removed" },
-  parameters: note("Proposed. An admin took the document down."),
+  parameters: note(
+    "Proposed. An admin took the document down, after an abuse email.",
+  ),
 };
 
 export const WithVersions: Story = {

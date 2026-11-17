@@ -14,6 +14,7 @@ import {
 } from "maui";
 import { CheckCircle, Github, Google } from "maui/icons";
 import { style, useStyles } from "purse-styles";
+import { AgentPrompt } from "./AgentPrompt.tsx";
 import type { Account } from "./ShareForm.tsx";
 
 /**
@@ -58,9 +59,10 @@ export function DevicePage(props: {
         <>
           <h1 className={heading}>This code expired</h1>
           <Text size="sm" color="lowContrast" style={{ whiteSpace: "normal" }}>
-            Codes last 10 minutes. Run the command again in your terminal to get
-            a new one.
+            Codes last 10 minutes, so sharing stopped without uploading
+            anything.
           </Text>
+          <AgentPrompt prompt="Sign me in to productdoc again and finish sharing." />
         </>
       ) : phase === "sign-in" ? (
         <>
@@ -117,9 +119,12 @@ export function DevicePage(props: {
           Go back to your terminal. Sharing continues there.
         </Banner>
       ) : (
-        <Banner tone="neutral" layout="stacked" title="Sign-in cancelled">
-          Nothing was shared. You can close this tab.
-        </Banner>
+        <>
+          <Banner tone="neutral" layout="stacked" title="Sign-in cancelled">
+            Nothing was shared. You can close this tab.
+          </Banner>
+          <AgentPrompt prompt="Sign me in to productdoc again and finish sharing." />
+        </>
       )}
     </section>
   );

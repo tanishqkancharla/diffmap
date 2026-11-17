@@ -29,6 +29,7 @@ import {
   WarningTriangle,
 } from "maui/icons";
 import { style, useStyles } from "purse-styles";
+import { AgentPrompt } from "./AgentPrompt.tsx";
 
 /**
  * Proposed in .diffmap/specs/productdoc-sharing: the share dialog's form, modeled on Halo's ShareAppForm.
@@ -59,14 +60,14 @@ export type ShareApi = {
   share(request: {
     access: Access;
     people: string[];
-  }): Promise<{ link: string } | { error: string }>;
+  }): Promise<{ link: string } | { error: string; prompt?: string }>;
 };
 
 type Phase =
   | { name: "idle" }
   | { name: "signing-in"; code: string }
   | { name: "sharing" }
-  | { name: "failed"; reason: string };
+  | { name: "failed"; reason: string; prompt?: string };
 
 const options = [
   {
@@ -165,7 +166,7 @@ export function ShareForm(props: {
     setPhase({ name: "sharing" });
     const result = await props.api.share({ access, people });
     if ("error" in result) {
-      setPhase({ name: "failed", reason: result.error });
+      setPhase({ name: "failed", reason: result.error, prompt: result.prompt });
       return;
     }
     setShared({
@@ -391,6 +392,9 @@ export function ShareForm(props: {
               Couldn’t share. {phase.reason}
             </Text>
           </div>
+        )}
+        {phase.name === "failed" && phase.prompt !== undefined && (
+          <AgentPrompt prompt={phase.prompt} />
         )}
         {shared !== undefined && phase.name === "idle" && (
           <Text size="xs" color="lowContrast" role="status">
