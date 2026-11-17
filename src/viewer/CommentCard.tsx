@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import {
   backgroundColor,
   Button,
@@ -113,6 +119,13 @@ function Composer(props: {
     const frame = requestAnimationFrame(() => textarea.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, []);
+  // Browsers without `field-sizing: content` grow the textarea here instead.
+  useLayoutEffect(() => {
+    const element = textarea.current;
+    if (element === null || CSS.supports("field-sizing", "content")) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  }, [value]);
   const input = useStyles(textFieldStyles.input({}), styles.textarea);
   const buttons = useStyles(styles.buttons);
   const blank = value.trim() === "";
@@ -136,7 +149,6 @@ function Composer(props: {
         aria-label="Comment"
         placeholder="Add a comment…"
         ref={textarea}
-        rows={3}
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={onKeyDown}
@@ -178,11 +190,15 @@ const styles = {
     },
   ),
   row: style(flex({ direction: "row", alignItems: "start", gap: 2 })),
+  // Trimmed to its capitals and padded back to whole lines, so the first
+  // line's capitals center in the same line-tall box as the actions.
   body: style(text({ size: "sm", color: "highContrast" }), {
     flex: 1,
     minWidth: 0,
     whiteSpace: "pre-wrap",
     overflowWrap: "anywhere",
+    textBox: "trim-both cap alphabetic",
+    paddingBlock: "calc((1lh - 1cap) / 2)",
   }),
   // One body line tall, so the buttons sit on the first line. Hidden until the
   // card is hovered or has keyboard focus; touch screens have no hover.
@@ -191,7 +207,7 @@ const styles = {
     height: "1lh",
     opacity: 0,
     "@media (hover: none)": { opacity: 1 },
-    "& > button:has(> svg:only-child)": {
+    "& > button:has([data-button-content] > svg:only-child)": {
       height: "100%",
       width: "auto",
       aspectRatio: "1",
@@ -202,9 +218,12 @@ const styles = {
     display: "block",
     height: "auto",
     minHeight: "60px",
-    resize: "vertical",
+    resize: "none",
+    fieldSizing: "content",
     fontFamily: "inherit",
-    "&:focus-visible": { boxShadow: shadowVars.control },
+    background: backgroundColor.elementHover,
+    boxShadow: "none",
+    "&:focus-visible": { boxShadow: "none" },
   }),
   buttons: style(flex({ direction: "row", justifyContent: "end", gap: 2 }), {}),
 };
