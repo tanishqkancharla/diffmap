@@ -15,7 +15,8 @@
     {
       "src": "^/(llms\\.txt|robots\\.txt|sitemap\\.xml)$",
       "dest": "/api/docs?path=/$1"
-    }
+    },
+    { "src": "^/pages(?:/.*)?$", "dest": "/api/docs?path=/404" }
   ],
   "rewrites": [
     { "source": "/index.md", "destination": "/api/docs?path=/index.md" },
@@ -26,7 +27,6 @@
     },
     { "source": "/privacy", "destination": "/api/docs?path=/privacy" },
     { "source": "/privacy.md", "destination": "/api/docs?path=/privacy.md" },
-    { "source": "/pages/:path*", "destination": "/api/docs?path=/404" },
     { "source": "/g", "destination": "/viewer.html" },
     { "source": "/g/:path*", "destination": "/viewer.html" },
     {
