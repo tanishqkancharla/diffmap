@@ -7,7 +7,6 @@ import {
   MenuItem,
   MenuTrigger,
   Text,
-  TextField,
   backgroundColor,
   borderColor,
   flex,
@@ -15,7 +14,7 @@ import {
   spacing,
   text,
 } from "maui";
-import { ChevronDown, Flag, Github, Google, Lock } from "maui/icons";
+import { ChevronDown, Github, Google, Lock } from "maui/icons";
 import { style, useStyles } from "purse-styles";
 import type { Access, Account } from "./ShareForm.tsx";
 
@@ -28,7 +27,6 @@ export type Version = { n: number; published: string };
 
 export type SharedPageApi = {
   signIn(): Promise<Account>;
-  report(reason: string): Promise<void>;
 };
 
 export function SharedPage(props: {
@@ -47,13 +45,10 @@ export function SharedPage(props: {
 }) {
   const [reader, setReader] = useState(props.reader);
   const [viewing, setViewing] = useState(props.versions?.[0]);
-  const [report, setReport] = useState<"closed" | "open" | "sent">("closed");
-  const [reason, setReason] = useState("");
   const page = useStyles(styles.page);
   const header = useStyles(styles.header);
   const gate = useStyles(styles.gate);
   const heading = useStyles(styles.heading);
-  const reportCard = useStyles(styles.report);
 
   if (props.status !== "shared") {
     return (
@@ -159,10 +154,6 @@ export function SharedPage(props: {
             </Menu>
           </MenuTrigger>
         )}
-        <Button variant="quiet" onPress={() => setReport("open")}>
-          <Flag size="sm" />
-          Report
-        </Button>
       </header>
       {viewing !== undefined && viewing !== latest && (
         <Banner
@@ -174,41 +165,6 @@ export function SharedPage(props: {
           }
         >
           You’re viewing version {viewing.n}, from {viewing.published}.
-        </Banner>
-      )}
-      {report === "open" && (
-        <form
-          className={reportCard}
-          aria-label="Report this document"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void props.api.report(reason).then(() => setReport("sent"));
-          }}
-        >
-          <Text size="sm" fontWeight={500}>
-            Report this document
-          </Text>
-          <TextField
-            aria-label="What's wrong?"
-            placeholder="What's wrong?"
-            value={reason}
-            onChange={setReason}
-          />
-          <Flex row gap={3} justifyContent="end">
-            <Button onPress={() => setReport("closed")}>Cancel</Button>
-            <Button
-              type="submit"
-              variant="primary"
-              isDisabled={reason.trim() === ""}
-            >
-              Send report
-            </Button>
-          </Flex>
-        </form>
-      )}
-      {report === "sent" && (
-        <Banner tone="success" onDismiss={() => setReport("closed")}>
-          Thanks. An admin will review this document.
         </Banner>
       )}
       {props.children}
@@ -248,13 +204,4 @@ const styles = {
     },
   ),
   heading: style(text({ size: "lg", fontWeight: 600 }), { margin: 0 }),
-  report: style(
-    radius.md,
-    flex({ direction: "column", gap: 4 }),
-    spacing.padding({ all: 6 }),
-    {
-      border: `1px solid ${borderColor.outline}`,
-      backgroundColor: backgroundColor.element,
-    },
-  ),
 };

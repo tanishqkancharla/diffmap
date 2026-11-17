@@ -20,6 +20,7 @@ https://productdoc.dev/d/k3v9q2xa7m
 - `/d/<id>` renders with the hosted viewer ([[src/host/HostApp.tsx#HostApp]]). Previews and HTML show placeholders until [Phase 5](06-previews-and-html.md).
 - Sharing refuses gitignored files and anything that looks like a key, naming the file. `--allow <file>` overrides one file after checking it.
 - `product-doc share --stop` deletes the link.
+- **Errors you can fix offer an agent prompt.** A screen that stops you, such as an expired sign-in, shows a prompt to copy to your agent, like "Sign me in to productdoc again and finish sharing."
 
 ```callstack [Sharing]
 link = shareDocument(dir)
@@ -82,7 +83,8 @@ share-shared-page--public
 **A file is too big**
 
 1. The document has a long screen recording.
-2. Sharing stops before anything is uploaded, and says which file is too big and the limit.
+2. Sharing stops before anything is uploaded, and the agent tells you which file is too big and the limit.
+3. You ask the agent to trim it, and it shares.
 
 **The connection drops while sharing**
 
@@ -110,22 +112,16 @@ share-shared-page--removed
 
 1. You ignore the sign-in link.
 2. After a while, sharing gives up and tells you, without uploading anything.
-3. If you open the link later, it says the code expired.
+3. If you open the link later, it says the code expired, and offers a prompt to copy to your agent: "Sign me in to productdoc again and finish sharing."
 
 ```preview [Opening an expired sign-in link]
 share-device-sign-in--expired
 ```
 
-**Reporting a document**
+**A document gets taken down**
 
-1. A reader finds something abusive and clicks Report.
-2. Once an admin removes it, the link says the document was removed.
-
-```flow [Reporting a document]
-share-shared-page--public
-  share-shared-page--report-open: Click "Report"
-    share-shared-page--reported: Say what's wrong, and send it
-```
+1. Someone emails abuse@productdoc.dev about a shared document.
+2. An admin takes it down. The link says the document was removed.
 
 **Everything else still works**
 
@@ -141,7 +137,8 @@ share-shared-page--public
 - [ ] Upload API: create, upload blobs, commit a version
 - [ ] `product-doc share`, with the limit and secret checks, writing `.productdoc.json`
 - [ ] `/d/<id>` in the hosted viewer, with Markdown for agents
-- [ ] `share --stop`, the Report link, and admin takedown
+- [ ] `share --stop`, an admin takedown command, and abuse@productdoc.dev
+- [ ] An agent prompt on each error screen a person can fix
 - [ ] Update the guide's sharing section
 
 ```changes

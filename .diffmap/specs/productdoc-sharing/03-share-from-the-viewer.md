@@ -59,7 +59,8 @@ share-header-button--shared
 **A file is too big**
 
 1. You click **Share**, and the dialog says which file is over the limit.
-2. You trim the recording, then click **Retry**, and it shares.
+2. It offers a prompt to copy to your agent: "Make recording.mp4 in session-store smaller than 25 MB, then share it again."
+3. Your agent trims it, and you click **Retry**.
 
 **The browser blocks the popup**
 
