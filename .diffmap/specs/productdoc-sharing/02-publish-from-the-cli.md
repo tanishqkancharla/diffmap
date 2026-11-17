@@ -33,74 +33,77 @@ link = shareDocument(dir)
 
 ## Expected flows
 
-Each flow should pass end to end against a staging Worker. Most become automated tests; the browser steps can use a test account.
+**Sharing for the first time**
 
-**First share on a fresh machine**
+1. You ask your agent to share the document.
+2. The agent gives you a sign-in link. You open it, sign in with Google, and approve.
+3. The agent gives you the document's link, and tells you which source files are now public.
 
-1. With no `~/.config/product-doc/auth.json`, run `npx product-doc share .diffmap/specs/session-store/`. It prints a sign-in link with the code filled in, and waits.
-2. Open the link, sign in with Google, and approve. The CLI prints "Signed in as …", the upload summary, the source files made public, and the link.
-3. `auth.json` exists, readable only by the user. `.diffmap/specs/session-store/.productdoc.json` holds the link.
+**Someone reads it**
 
-**A reader opens the link with the sharing machine off**
+1. You send the link to a teammate and shut your laptop.
+2. They open it without signing in, and see the cover.
+3. They click through the pages, look at the screenshots, play the recording, and read the diffs and code, the same as you see locally.
+4. Live UI blocks say they're coming later.
+5. They send a link to one section, and it opens at that section.
 
-1. Shut down the machine that shared. In a signed-out browser, open the link. The cover renders with the document's title.
-2. Open each page from the page list. `/d/<id>/<page-slug>` loads that page, and `#heading` scrolls to the section.
-3. Screenshots show, and the recording plays.
-4. Changes cards and the Diff panel show the same diffs as `serve`. Code excerpts and references show the right lines.
-5. Preview and HTML blocks show a placeholder saying they arrive later.
-6. The response has `X-Robots-Tag: noindex`.
+**Their agent reads it**
 
-**An agent reads the link**
-
-1. `curl -H "Accept: text/markdown" https://productdoc.dev/d/<id>/<page-slug>` returns that page's Markdown.
+1. Your teammate gives the link to their agent.
+2. The agent reads the document's text and can answer questions about it.
 
 **Sharing again**
 
-1. Edit a page, then run `share` on the same folder. No sign-in prompt appears, and a new link is printed.
-2. `.productdoc.json` holds the new link. The old link still shows the old version.
+1. You ask your agent to fix a page and share again. It doesn't ask you to sign in.
+2. You get a new link with the fix. The old link still shows the old version.
 
-**Signing in with the other provider**
+**Sharing from another machine**
 
-1. On a second machine, run `product-doc login` and sign in with GitHub, using the same verified email as the Google account. It prints the same account.
-2. Run `product-doc share --stop <link from the first machine>`. It succeeds, since both machines are the same owner.
+1. On a different machine, you sign in with GitHub instead of Google.
+2. You're the same account: you can stop sharing a link you made on the first machine.
 
-**Refusing secrets**
+**Something private would be shared**
 
-1. Reference `.env`, a gitignored file, in a page, and run `share`. It fails, naming `.env`. Nothing is uploaded and no link is made.
-2. Reference a file containing a key such as `sk_live_…`. It fails, naming the file and line.
-3. Run `share --allow src/config.ts`. It uploads.
+1. The document shows a file that holds a password or key.
+2. Sharing stops before anything is uploaded, and names the file.
+3. You remove it from the document, or confirm that file is fine, and share again.
 
-**Refusing files over the limit**
+**A file is too big**
 
-1. Add a 41 MB recording and run `share`. It fails before uploading anything, naming the file and the 25 MB limit.
+1. The document has a long screen recording.
+2. Sharing stops before anything is uploaded, and says which file is too big and the limit.
 
-**An interrupted upload**
+**The connection drops while sharing**
 
-1. Kill `share` partway through uploading. No link is printed, and the document's ID answers 404.
-2. Run `share` again. It finishes and prints a link that shows the whole document.
+1. Your Wi-Fi cuts out halfway through.
+2. You get no link, and nothing half-uploaded is visible to anyone.
+3. Sharing again works.
 
 **Stopping sharing**
 
-1. Run `product-doc share --stop <link>`. The link answers "The owner stopped sharing this document."
-2. Another account running `--stop` on someone else's link gets "not yours", and the link keeps working.
+1. You ask your agent to stop sharing the document.
+2. Anyone opening the link sees that you stopped sharing it.
+3. Nobody else can stop sharing your documents.
 
 **Signing out**
 
-1. Run `product-doc logout`. `auth.json` is deleted, and using the old token on the API gets 401.
-2. The next `share` asks to sign in again.
+1. You sign out.
+2. The next time you share, you're asked to sign in again.
 
-**Sign-in that expires**
+**You don't finish signing in**
 
-1. Run `share` and don't approve the code. After the code expires, the CLI says so and exits without uploading.
+1. You ignore the sign-in link.
+2. After a while, sharing gives up and tells you, without uploading anything.
 
 **Reporting a document**
 
-1. A reader clicks Report on a shared page and submits a reason. An admin sees the report and takes the document down. The link then answers that the document was removed.
+1. A reader finds something abusive and clicks Report.
+2. Once an admin removes it, the link says the document was removed.
 
-**productdoc.dev after the move**
+**Everything else still works**
 
-1. The productdoc.dev home page, its Markdown versions, `llms.txt`, `robots.txt`, and the sitemap answer as they did on Vercel.
-2. diffmap.dev and its gist and pull request links work unchanged.
+1. The productdoc.dev website looks and works as before.
+2. diffmap.dev and links already shared there work as before.
 
 ## Todos
 
