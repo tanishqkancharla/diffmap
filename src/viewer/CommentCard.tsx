@@ -26,6 +26,7 @@ export function CommentCard(props: {
   const store = useComments();
   const [editing, setEditing] = useState(false);
   const card = useStyles(styles.card);
+  const row = useStyles(styles.row);
   const body = useStyles(styles.body);
   const actions = useStyles(styles.actions);
   const comment = props.comment;
@@ -73,7 +74,7 @@ export function CommentCard(props: {
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <>
+        <div className={row}>
           <div className={body}>{comment.body}</div>
           <div className={actions} data-actions="">
             <Button
@@ -93,7 +94,7 @@ export function CommentCard(props: {
               <Trash size="sm" />
             </Button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -171,22 +172,31 @@ const styles = {
       backgroundColor: backgroundColor.element,
       cursor: "default",
       "&[data-active='true']": { boxShadow: shadowVars.medium },
-      "&:hover > [data-actions], &:focus-within > [data-actions], &[data-active='true'] > [data-actions]":
-        { opacity: 1 },
+      "&:hover [data-actions], &:has(:focus-visible) [data-actions]": {
+        opacity: 1,
+      },
     },
   ),
+  row: style(flex({ direction: "row", alignItems: "start", gap: 2 })),
   body: style(text({ size: "sm", color: "highContrast" }), {
+    flex: 1,
+    minWidth: 0,
     whiteSpace: "pre-wrap",
     overflowWrap: "anywhere",
-    paddingRight: "52px",
   }),
-  // Hidden until the card is hovered, focused, or active. Touch screens have no hover.
-  actions: style(flex({ direction: "row", gap: 1 }), {
-    position: "absolute",
-    top: "4px",
-    right: "4px",
+  // One body line tall, so the buttons sit on the first line. Hidden until the
+  // card is hovered or has keyboard focus; touch screens have no hover.
+  actions: style(text({ size: "sm" }), flex({ direction: "row", gap: 1 }), {
+    flexShrink: 0,
+    height: "1lh",
     opacity: 0,
     "@media (hover: none)": { opacity: 1 },
+    "& > button:has(> svg:only-child)": {
+      height: "100%",
+      width: "auto",
+      aspectRatio: "1",
+      paddingBlock: 0,
+    },
   }),
   textarea: style({
     display: "block",
@@ -194,6 +204,7 @@ const styles = {
     minHeight: "60px",
     resize: "vertical",
     fontFamily: "inherit",
+    "&:focus-visible": { boxShadow: shadowVars.control },
   }),
   buttons: style(flex({ direction: "row", justifyContent: "end", gap: 2 }), {}),
 };
