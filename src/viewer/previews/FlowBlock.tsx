@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   ActivityIndicator,
@@ -86,6 +92,7 @@ export function FlowBlock(props: {
   const wrapper = useRef<HTMLDivElement>(null);
   const figure = useRef<HTMLElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
+  const [controlsRef, controlsHeight] = useHeldHeight();
   const { isReviewed, setReviewed } = useReviewedStates();
 
   const indexOf = (story: string) =>
@@ -394,6 +401,7 @@ export function FlowBlock(props: {
               initialPath={[states[0]!.story]}
               mode="live"
               lazy
+              holdHeight
               request={request}
               renderWidth={expanded ? viewport?.width : undefined}
               renderHeight={expanded ? viewport?.height : undefined}
@@ -413,7 +421,11 @@ export function FlowBlock(props: {
                 );
               }}
             />
-            <div className={controls}>
+            <div
+              ref={controlsRef}
+              className={controls}
+              style={{ minHeight: controlsHeight }}
+            >
               {note !== undefined && <div className={noteClass}>{note}</div>}
               <Button
                 size="sm"
@@ -595,6 +607,30 @@ export function FlowBlock(props: {
   );
 }
 
+/**
+ * The tallest the element has been at its current width, so a state's note coming and going doesn't move the page.
+ * A new width forgets it, since the content wraps differently.
+ */
+function useHeldHeight() {
+  const [element, setElement] = useState<HTMLElement | null>();
+  const [held, setHeld] = useState<{ width: number; height: number }>();
+  useLayoutEffect(() => {
+    if (element === undefined || element === null) return;
+    const observer = new ResizeObserver(() => {
+      const width = element.offsetWidth;
+      const height = element.offsetHeight;
+      setHeld((current) => {
+        if (current === undefined) return { width, height };
+        if (current.width !== width) return undefined;
+        return height > current.height ? { width, height } : current;
+      });
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element]);
+  return [setElement, held?.height] as const;
+}
+
 function hasLaterSibling(states: FlowState[], index: number): boolean {
   const parent = states[index]!.parent;
   return states.some(
@@ -718,6 +754,8 @@ const styles = {
     display: "flex",
     flexWrap: "wrap",
     alignItems: "center",
+    alignContent: "center",
+    boxSizing: "border-box",
     columnGap: spacing.value(4),
     rowGap: spacing.value(3),
     borderTop: `1px solid ${colors.gray[4]}`,

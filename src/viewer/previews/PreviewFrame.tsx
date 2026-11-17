@@ -35,6 +35,8 @@ type FrameProps = {
   /** A fixed height to render at instead of the story's own height. */
   renderHeight?: number;
   maxHeight?: number;
+  /** Keep the tallest height the app has reported at its current width, so stepping between states doesn't move the page. */
+  holdHeight?: boolean;
   /** Load only once the frame nears the viewport, so a long flow does not start every copy of the app at once. */
   lazy?: boolean;
   label: string;
@@ -65,7 +67,7 @@ function ConnectedFrame(props: FrameProps & { onRetry: () => void }) {
   const [status, setStatus] = useState<"loading" | "ready" | "unreachable">(
     "loading",
   );
-  const [contentHeight, setContentHeight] = useState<number | undefined>();
+  const [content, setContent] = useState<{ width: number; height: number }>();
   const [error, setError] = useState<string | undefined>();
   const [boxWidth, setBoxWidth] = useState<number | undefined>();
   const [src] = useState(() => frameSrc(props.page, props.initialPath));
@@ -141,7 +143,15 @@ function ConnectedFrame(props: FrameProps & { onRetry: () => void }) {
           flush();
           return;
         case "preview-size":
-          setContentHeight(message.height);
+          setContent((current) =>
+            callbacks.current.holdHeight === true &&
+            current?.width === message.width
+              ? {
+                  width: message.width,
+                  height: Math.max(current.height, message.height),
+                }
+              : { width: message.width, height: message.height },
+          );
           return;
         case "preview-state":
           settled.current = true;
@@ -198,7 +208,7 @@ function ConnectedFrame(props: FrameProps & { onRetry: () => void }) {
     props.renderWidth === undefined || boxWidth === undefined
       ? 1
       : Math.min(1, boxWidth / props.renderWidth);
-  const height = props.renderHeight ?? contentHeight ?? 160;
+  const height = props.renderHeight ?? content?.height ?? 160;
   const shownHeight = Math.min(height * scale, props.maxHeight ?? Infinity);
 
   const boxClass = useStyles(styles.box);
