@@ -1,100 +1,43 @@
-# Productdoc: share a document from its header
+# Productdoc: share a document
 
-An agent writes a productdoc, and the person reading it locally wants to show it to someone else. This document plans a **Share** button in the header of the local viewer. It opens a share dialog modeled on [Halo's](https://github.com/cashew-labs/halo/blob/main/packages/web/src/panes/ShareAppForm.tsx): choose **Public** or **Restricted** to people you add by email, copy the link, and share. The document uploads to productdoc.dev, so the link keeps working after the machine that served it shuts down, and it looks and works like `product-doc serve`.
+Share a productdoc at a link on productdoc.dev that, like a Notion page, always shows the latest edits. Agents share with `npx product-doc share`; people share from a **Share** button in the local viewer, with a dialog modeled on [Halo's](https://github.com/cashew-labs/halo/blob/main/packages/web/src/panes/ShareAppForm.tsx).
 
-This is a productdoc feature only. diffmap.dev, its gist and pull request readers, and the published `@tanishqkancharla/diffmap` package stay as they are.
+diffmap, diffmap.dev, and the `@tanishqkancharla/diffmap` package don't change.
 
-## The share dialog
+## The design
 
-The person clicks **Share** in the viewer's header, beside the Diff button. The dialog shows:
+- **Files stay the source of truth.** Agents keep editing Markdown in the repo. productdoc.dev works like a git remote: `publish` pushes edits, `pull` brings in someone else's.
+- **The document folder remembers its link.** Sharing writes `.productdoc.json` into the folder, and it's committed with the document. Any agent on any machine sees it, so no agent has to remember anything.
+- **The CLI tells agents when to publish.** On a shared document, `validate` and `serve` say when the link is behind. The guide says to finish edits with `product-doc publish`.
+- **No toggle.** A shared link always follows the document. The header shows **Shared**, or **Shared · 2 to publish** when it's behind.
+- **The link works with the machine turned off.** Sharing uploads pages, media, diffs, source files, and built previews.
+- **Access:** Public, or Restricted to people added by email, who get an invitation.
 
-- **Access**: **Restricted**, "Only people you've added get access", or **Public**, "Anyone with the link has access".
-- For Public, a small browser frame with the document's cover at its link, such as `productdoc.dev/d/8f3k2x…`, so it is clear the document gets its own address.
-- For Restricted, **Add people by email**, and the list of people with access, each with a remove button.
-- **Update the link as you edit**: while this viewer is open, readers see each edit you save. When it closes, the link keeps the last version.
-- **Copy link**, and one main button that applies the changes: **Share**, **Share with 2 people**, **Update access**, or **Done**. While uploading it reads **Sharing…**, and on failure **Retry**, with the reason.
-- **Share with team**, greyed out, marked "Coming soon".
-
-Once shared, the header button reads **Shared**, or **Shared · Live** while edits reach the link. The first time, sharing asks the person to sign in to productdoc.dev with Google or GitHub, in a popup. People added by email get an invitation; those without an account sign in with that address to open the document. Agents share the same way with `npx product-doc share`.
-
-The phases build this up from the smallest useful version: publishing from the CLI first, then the dialog, then each option it offers. [Phase 2](03-share-from-the-viewer.md) runs the proposed dialog live, from its stories.
-
-## Problem
-
-**Sharing today.** The local viewer has no Share button. `product-doc share` ([[src/share.ts#shareMarkdownFile]]) turns a document into a gist through the GitHub CLI and prints a diffmap.dev link. It needs `gh` signed in, refuses any document with a local screenshot or recording, makes a new link every time, and cannot limit who reads it. The other way to show a document, its pull request link on diffmap.dev, only works for public repos, since the reader loads it from GitHub.
-
-**Reading a shared gist.** The gist viewer ([[src/gist/GistApp.tsx#GistApp]]) reads the gist from GitHub's API in the reader's browser, without a token. Compared with the local viewer, it is missing:
-
-| What the reader loses on a shared gist                 | Why                                                                                                                    | Fixed in                                |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Screenshots and recordings                             | A gist holds only text, so `share` refuses local media                                                                 | [Phase 1](02-publish-from-the-cli.md)   |
-| Loading past 60 loads an hour per network              | The browser calls GitHub's API without a token                                                                         | [Phase 1](02-publish-from-the-cli.md)   |
-| Large documents                                        | The diffs are one JSON file, and GitHub serves a gist file over 10 MB only by cloning the gist                         | [Phase 1](02-publish-from-the-cli.md)   |
-| Limiting who can read it                               | A gist is readable by anyone with its link                                                                             | [Phase 5](06-restricted-and-invites.md) |
-| One link that follows the document as it changes       | Each share is a new gist                                                                                               | [Phase 3](04-one-link-per-document.md)  |
-| Live UI from preview and flow blocks                   | They load the app's preview page from a dev server on the sharing machine, or from a pull request's preview deployment | [Phase 6](07-previews-and-html.md)      |
-| HTML the document includes                             | Hosted viewers show a placeholder, so a stranger's script never runs on the reader's site                              | [Phase 6](07-previews-and-html.md)      |
-| Cmd-click to a definition, and choosing a commit range | Both ask the local server, which runs TypeScript and git                                                               | [Phase 7](08-definitions-and-ranges.md) |
-
-## Solution
-
-Sharing uploads a snapshot of everything the document shows, so nothing on productdoc.dev depends on the sharing machine or on GitHub. While the local viewer keeps running, it uploads each edit as a new version, and when it stops, the link keeps showing the last one.
-
-```mermaid [Sharing uploads a snapshot; the sharing machine can go away]
+```mermaid [Sharing and publishing]
 flowchart LR
-    L[Local viewer: Share button] --> S[product-doc serve on the sharing machine]
-    C[product-doc share in the CLI] --> W
-    S -->|pages, media, diffs, built previews| W[productdoc.dev Worker]
-    W --> R[(R2: files)]
-    W --> D[(D1: accounts, documents, access)]
-    W -->|invitations| E[Email]
-    V[Reader at productdoc.dev/d/id] --> W
-    V -->|previews and HTML in frames| U[productdocusercontent.com]
-    %% ref node:S [[src/serve.ts#startServer]]
-    %% ref node:C [[src/share.ts#shareMarkdownFile]]
+    A[Agent edits files] --> P[product-doc publish]
+    S[Share button in the local viewer] --> P
+    P -->|changed files| W[productdoc.dev Worker]
+    W --> R[(R2 files, D1 records)]
+    W -->|new version| V[Readers at productdoc.dev/d/id]
+    W -.->|pull| A
 ```
 
-productdoc.dev moves to Cloudflare: one Worker serves the website, the viewer, the API, sign-in, and shared documents, with R2 for files, D1 for records, Durable Objects for live updates, and Cloudflare Email Sending for invitations. diffmap.dev stays on Vercel, unchanged. Sign-in uses [Better Auth](https://www.better-auth.com) with Google and GitHub, linking both to one account. [Where it runs](01-where-it-runs.md) says why, and covers storage, limits, cost, and security.
+## Phases
 
-Phases:
+1. [Publish from the CLI](02-publish-from-the-cli.md): `product-doc share` makes a public link. **The first version.**
+2. [Share from the viewer](03-share-from-the-viewer.md): the Share button and dialog, Public only.
+3. [Keep the link current](04-keep-the-link-current.md): `publish`, `pull`, and readers seeing edits live.
+4. [Restricted access and invitations](05-restricted-and-invites.md)
+5. [Previews and HTML](06-previews-and-html.md)
+6. [Definitions and commit ranges](07-definitions-and-ranges.md)
+7. [Later: teams and CI](08-later.md)
 
-1. [Publish from the CLI](02-publish-from-the-cli.md), the first version: the Worker, storage, sign-in, and `product-doc share` uploading a public snapshot.
-2. [Share from the viewer](03-share-from-the-viewer.md): the header button and the share dialog, Public only.
-3. [One link per document](04-one-link-per-document.md): sharing again updates the link, with versions and Stop sharing.
-4. [Live links](05-live-link.md): the link follows each edit while the viewer is open.
-5. [Restricted access and invitations](06-restricted-and-invites.md): sharing with people by email.
-6. [Previews and HTML](07-previews-and-html.md): live UI and HTML blocks, built and uploaded when sharing.
-7. [Definitions and commit ranges](08-definitions-and-ranges.md): worked out when sharing.
-8. [Later: pull requests and teams](09-later.md).
-
-Each phase ships on its own and ends with its todos.
-
-## Goals
-
-- Sharing is one dialog in the viewer, or one command for agents, after a one-time sign-in.
-- A shared document shows everything `product-doc serve` shows, apart from what [Phase 7](08-definitions-and-ranges.md) lists, with the sharing machine turned off.
-- The owner decides who reads it: anyone with the link, or the people they add.
-- Nothing blocks teams, or replacing pull request links with uploads, later.
-
-## Non-goals
-
-- Changing diffmap. Its CLI, its `share`, diffmap.dev, and links already shared there keep working as they do.
-- Teams. The dialog shows "Share with team" as coming soon.
-- Comments shared between readers.
+[Where it runs](01-where-it-runs.md) covers the platform: Cloudflare, Better Auth, storage, limits, and security.
 
 ## Decided
 
-- Share from the viewer's header and from the CLI.
-- Public, or Restricted to people added by email, who get an invitation.
-- Previews are built and uploaded when sharing, with screenshots when the repo has no preview build.
-- The link follows the document while the local viewer runs.
-- Better Auth, with Google and GitHub sign-in and account linking.
-- productdoc.dev runs on Cloudflare, on its own.
-- Teams wait.
-
-## References
-
-- [Halo's share dialog](https://github.com/cashew-labs/halo/blob/main/packages/web/src/panes/ShareAppForm.tsx) and its access model, `AppAccess` in [`extensionSharing.ts`](https://github.com/cashew-labs/halo/blob/main/packages/shared/src/extensionSharing.ts)
-- [The productdoc rename](../product-doc-skill/README.md)
-- [Better Auth device authorization](https://www.better-auth.com/docs/plugins/device-authorization) and [account linking](https://www.better-auth.com/docs/concepts/users-accounts#account-linking)
-- [Cloudflare R2 pricing](https://developers.cloudflare.com/r2/pricing/), [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/), and [Email Service](https://developers.cloudflare.com/email-service/)
+- Cloudflare for productdoc.dev. diffmap.dev stays on Vercel.
+- Better Auth with Google and GitHub, with account linking.
+- No GitHub app, and no cloud editing tools.
+- Teams later.

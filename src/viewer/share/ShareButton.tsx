@@ -2,25 +2,27 @@ import { Button, colors, radius } from "maui";
 import { Users } from "maui/icons";
 import { style, useStyles } from "purse-styles";
 
-export type ShareState = "not-shared" | "shared" | "live";
-
-const labels: Record<ShareState, string> = {
-  "not-shared": "Share",
-  shared: "Shared",
-  live: "Shared · Live",
-};
-
-/** Proposed in .diffmap/specs/productdoc-sharing: the header's Share button, whose label says whether the document is shared and live. */
-export function ShareButton(props: { state: ShareState; onPress(): void }) {
+/** Proposed in .diffmap/specs/productdoc-sharing: the header's Share button, whose label says whether the link shows the latest edits. */
+export function ShareButton(props: {
+  shared: boolean;
+  /** Pages changed locally since the version at the link. */
+  unpublished: number;
+  onPress(): void;
+}) {
   const dot = useStyles(styles.dot);
+  const behind = props.shared && props.unpublished > 0;
   return (
     <Button variant="quiet" onPress={props.onPress}>
-      {props.state === "live" ? (
+      {behind ? (
         <span className={dot} aria-hidden="true" />
       ) : (
         <Users size="sm" />
       )}
-      {labels[props.state]}
+      {!props.shared
+        ? "Share"
+        : behind
+          ? `Shared · ${String(props.unpublished)} to publish`
+          : "Shared"}
     </Button>
   );
 }
@@ -29,6 +31,6 @@ const styles = {
   dot: style(radius.circle, {
     width: 8,
     height: 8,
-    backgroundColor: colors.green[9],
+    backgroundColor: colors.orange[9],
   }),
 };
