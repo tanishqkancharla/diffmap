@@ -1,14 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Button, Flex } from "maui";
+import { DemoViewer } from "./demoDocument.tsx";
 import { ShareButton } from "./ShareButton.tsx";
 
-/** The right end of the local viewer's header: the Diff button, then Share. */
+/** The local viewer, with Share in its header after the Diff button. */
 function Header(props: { shared: boolean; unpublished: number }) {
   return (
-    <Flex row alignItems="center" gap={4}>
-      <Button variant="quiet">Diff</Button>
-      <ShareButton {...props} onPress={() => {}} />
-    </Flex>
+    <DemoViewer headerActions={<ShareButton {...props} onPress={() => {}} />} />
   );
 }
 

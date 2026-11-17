@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Flex, Text } from "maui";
 import { within } from "storybook/test";
+import { DemoViewer } from "./demoDocument.tsx";
 import type { Account } from "./ShareForm.tsx";
 import { SharedPage, type SharedPageApi } from "./SharedPage.tsx";
 
@@ -13,20 +13,6 @@ const api: SharedPageApi = {
   signIn: async () => next,
 };
 
-function Document() {
-  return (
-    <Flex column px={4} gap={3}>
-      <Text size="lg" fontWeight={600}>
-        Session store
-      </Text>
-      <Text size="sm" color="lowContrast" style={{ whiteSpace: "normal" }}>
-        Sessions move from memory into Postgres, so a deploy no longer signs
-        everyone out.
-      </Text>
-    </Flex>
-  );
-}
-
 const versions = [
   { n: 7, published: "5 minutes ago" },
   { n: 6, published: "2 hours ago" },
@@ -37,7 +23,6 @@ const meta = {
   title: "Share/Shared page",
   component: SharedPage,
   args: {
-    title: "Session store",
     owner: "Tanishq",
     status: "shared",
     access: "public",
@@ -45,7 +30,7 @@ const meta = {
     people: ["ada@acme.com", "grace@acme.com"],
     versions: undefined,
     api,
-    children: <Document />,
+    viewer: (headerActions) => <DemoViewer headerActions={headerActions} />,
   },
 } satisfies Meta<typeof SharedPage>;
 export default meta;
@@ -55,7 +40,7 @@ const note = (story: string) => ({ docs: { description: { story } } });
 
 export const Public: Story = {
   parameters: note(
-    "Proposed. A reader opens a public link without signing in. The hosted viewer shows the document under a header with its title.",
+    "Proposed. A reader opens a public link without signing in. A bar says who shared it publicly and links to productdoc.dev. Under it, the hosted viewer shows the document as the owner sees it locally.",
   ),
 };
 
@@ -113,7 +98,9 @@ export const InvitedSignedIn: Story = {
     await userEvent.click(
       canvas.getByRole("button", { name: "Continue with Google" }),
     );
-    await canvas.findByText("Session store", { selector: "span" });
+    await canvas.findByRole("heading", {
+      name: "Store login sessions in Postgres",
+    });
   },
 };
 

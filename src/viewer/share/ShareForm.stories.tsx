@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Flex, Text } from "maui";
 import { within } from "storybook/test";
+import { DemoThumbnail, DialogStage } from "./demoDocument.tsx";
+import { ShareButton } from "./ShareButton.tsx";
 import { ShareForm, type Account, type ShareApi } from "./ShareForm.tsx";
 
 const owner: Account = {
@@ -40,40 +41,46 @@ const server = (() => {
   };
 })();
 
-function Cover() {
-  return (
-    <Flex column px={8} py={6} gap={3}>
-      <Text size="lg" fontWeight={600}>
-        Session store
-      </Text>
-      <Text size="sm" color="lowContrast" style={{ whiteSpace: "normal" }}>
-        Sessions move from memory into Postgres, so a deploy no longer signs
-        everyone out.
-      </Text>
-    </Flex>
-  );
-}
-
 const meta = {
   title: "Share/Dialog",
   component: ShareForm,
   args: {
-    title: "Session store",
+    title: "Store login sessions in Postgres",
     account: undefined,
     owner,
     shared: undefined,
     contents: "7 pages, 4 screenshots, 1 recording (6.2 MB)",
     sourceFiles: ["src/store.ts", "src/session.ts", "src/store.test.ts"],
-    cover: <Cover />,
+    cover: <DemoThumbnail />,
     features: { restricted: true },
     api: server.api,
     onClose: () => {},
   },
+  decorators: [
+    (Story, { args }) => (
+      <DialogStage
+        headerActions={
+          <ShareButton
+            shared={args.shared !== undefined}
+            unpublished={args.shared?.unpublished ?? 0}
+            onPress={() => {}}
+          />
+        }
+      >
+        <Story />
+      </DialogStage>
+    ),
+  ],
 } satisfies Meta<typeof ShareForm>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 const note = (story: string) => ({ docs: { description: { story } } });
+/** Queries inside the dialog, not the viewer behind it, which has its own Share button. */
+const dialog = (canvasElement: HTMLElement) =>
+  within(
+    canvasElement.querySelector<HTMLElement>('section[aria-label^="Share "]')!,
+  );
 const firstPhase = { restricted: false };
 
 // A flow starts at PublicFirstShare or FirstShare. Each later story is one step from the story it follows,
@@ -98,7 +105,8 @@ export const InvalidEmail: Story = {
   parameters: note(
     "Proposed. Adding checks the entry is a full address before it joins the list.",
   ),
-  play: async ({ canvas, userEvent }) => {
+  play: async ({ canvasElement, userEvent }) => {
+    const canvas = dialog(canvasElement);
     await userEvent.type(
       canvas.getByLabelText("Add people by email"),
       "ada@acme",
@@ -112,7 +120,8 @@ export const PeopleAdded: Story = {
   parameters: note(
     "Proposed. Two people are on the list but not invited yet: invitations send when the person shares. The main button names the change.",
   ),
-  play: async ({ canvas, userEvent }) => {
+  play: async ({ canvasElement, userEvent }) => {
+    const canvas = dialog(canvasElement);
     const field = canvas.getByLabelText("Add people by email");
     await userEvent.type(field, "ada@acme.com");
     await userEvent.click(canvas.getByRole("button", { name: "Add" }));
@@ -126,7 +135,8 @@ export const ChoosePublic: Story = {
   parameters: note(
     "Proposed. Choosing Public shows the browser frame, and the note under the options says anyone with the link can read the uploaded source files.",
   ),
-  play: async ({ canvas, userEvent }) => {
+  play: async ({ canvasElement, userEvent }) => {
+    const canvas = dialog(canvasElement);
     await userEvent.click(
       canvas.getByRole("button", { name: "Access: Restricted" }),
     );
@@ -140,7 +150,8 @@ export const SigningIn: Story = {
   parameters: note(
     "Proposed. Sharing starts device sign-in on the local server and opens productdoc.dev in a popup with the code filled in. The dialog shows the same code so the person can check they match. Nothing is uploaded yet.",
   ),
-  play: async ({ canvas, userEvent }) => {
+  play: async ({ canvasElement, userEvent }) => {
+    const canvas = dialog(canvasElement);
     await userEvent.click(
       canvas.getByRole("button", { name: /^Share( with \d+ people)?$/ }),
     );
@@ -153,7 +164,8 @@ export const Sharing: Story = {
     "Proposed. The person approved the code in the popup, so the local server holds a session token and uploads the document. The token never reaches this page.",
   ),
   loaders: [() => server.approve()],
-  play: async ({ canvas }) => {
+  play: async ({ canvasElement }) => {
+    const canvas = dialog(canvasElement);
     await canvas.findByText(/^Uploading/);
   },
 };
@@ -163,7 +175,8 @@ export const Shared: Story = {
     "Proposed. The upload finished. The browser frame shows the real link, Copy link works, and the main button closes the dialog. With Restricted, the people added get invitations now.",
   ),
   loaders: [() => server.finishUpload({ link })],
-  play: async ({ canvas }) => {
+  play: async ({ canvasElement }) => {
+    const canvas = dialog(canvasElement);
     await canvas.findByText(/^Shared · /);
   },
 };
@@ -180,7 +193,8 @@ export const UploadFailed: Story = {
           "Make recording.mp4 in session-store smaller than 25 MB, then share it again.",
       }),
   ],
-  play: async ({ canvas }) => {
+  play: async ({ canvasElement }) => {
+    const canvas = dialog(canvasElement);
     await canvas.findByRole("button", { name: "Retry" });
   },
 };
@@ -222,7 +236,8 @@ export const UnpublishedEdits: Story = {
 
 export const Publishing: Story = {
   parameters: note("Proposed. Publishing uploads only the changed pages."),
-  play: async ({ canvas, userEvent }) => {
+  play: async ({ canvasElement, userEvent }) => {
+    const canvas = dialog(canvasElement);
     await userEvent.click(
       canvas.getByRole("button", { name: "Publish 2 edits" }),
     );
@@ -235,7 +250,8 @@ export const Published: Story = {
     "Proposed. The link shows the latest edits, and open copies of it reload the changed pages.",
   ),
   loaders: [() => server.finishUpload({ link })],
-  play: async ({ canvas }) => {
+  play: async ({ canvasElement }) => {
+    const canvas = dialog(canvasElement);
     await canvas.findByText(/^Shared · up to date/);
   },
 };

@@ -44,7 +44,7 @@ export const Approved: Story = {
   ),
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole("button", { name: "Allow" }));
-    await canvas.findByText("You're signed in");
+    await canvas.findByText("You’re signed in");
   },
 };
 

@@ -45,6 +45,8 @@ export function StatusPage(props: {
   actions?: ReactNode;
   /** Shown under the actions, such as the pages a reader can open instead. */
   footer?: ReactNode;
+  /** Defaults to diffmap's. */
+  wordmark?: ReactNode;
 }) {
   const shell = useStyles(styles.shell);
   const header = useStyles(styles.header);
@@ -58,7 +60,7 @@ export function StatusPage(props: {
   return (
     <div className={shell}>
       <header className={header}>
-        <div className={wordmark}>diffmap</div>
+        <div className={wordmark}>{props.wordmark ?? "diffmap"}</div>
       </header>
       <main className={body}>
         <div className={column}>
@@ -184,7 +186,10 @@ const styles = {
     border(["bottom"], "border"),
     { minWidth: 0, minHeight: "37px" },
   ),
-  wordmark: style(text({ size: "md", fontWeight: 600, color: "highContrast" })),
+  wordmark: style(
+    flex({ direction: "row", alignItems: "center", gap: 2 }),
+    text({ size: "md", fontWeight: 600, color: "highContrast" }),
+  ),
   body: style(spacing.padding({ x: 8 }), {
     flex: "1 1 auto",
     minWidth: 0,
