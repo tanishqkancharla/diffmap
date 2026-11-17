@@ -131,6 +131,12 @@ function ServicePlayer(props: { diagram: ServiceDiagram } & SourceNavigation) {
     trackViewerEvent({ event: "diagram_used", action: "play" });
   };
   const onKeyDown = (event: KeyboardEvent) => {
+    // A focused overflow region uses arrows to scroll, not advance playback.
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.hasAttribute("data-diagram-scroll")
+    )
+      return;
     if (event.key === "ArrowLeft") {
       event.preventDefault();
       prev();
