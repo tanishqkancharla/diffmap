@@ -143,9 +143,17 @@ const touch = window.matchMedia("(pointer: coarse)").matches;
  * the spec's own scroll while the window is pinned; once the spec ends, the
  * page moves on. On touch screens the window is as tall as the spec.
  */
-export function ScrollDemo(props: { document: ViewerDocument | undefined }) {
+export function ScrollDemo(props: {
+  document: ViewerDocument | undefined;
+  showDiffButton?: boolean;
+}) {
   if (props.document === undefined) return <EmptyFrame />;
-  return <LoadedDemo document={props.document} />;
+  return (
+    <LoadedDemo
+      document={props.document}
+      showDiffButton={props.showDiffButton}
+    />
+  );
 }
 
 function EmptyFrame() {
@@ -164,7 +172,10 @@ function EmptyFrame() {
 
 const DEMO_URL = "diffmap.dev/acme/api/pull/42/specs/sessions-in-postgres.md";
 
-function LoadedDemo(props: { document: ViewerDocument }) {
+function LoadedDemo(props: {
+  document: ViewerDocument;
+  showDiffButton?: boolean;
+}) {
   const [pageTitle] = useState(() => document.title);
   const track = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -178,8 +189,14 @@ function LoadedDemo(props: { document: ViewerDocument }) {
 
   // Built once, so callout updates on every scroll do not re-render the viewer.
   const viewer = useMemo(
-    () => <ViewerApp document={props.document} mode="host" />,
-    [props.document],
+    () => (
+      <ViewerApp
+        document={props.document}
+        mode="host"
+        showDiffButton={props.showDiffButton}
+      />
+    ),
+    [props.document, props.showDiffButton],
   );
 
   // The viewer names the tab after its spec; this page keeps its own. Runs after the viewer's own effect.
