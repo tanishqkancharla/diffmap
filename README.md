@@ -24,7 +24,7 @@ For a non-interactive Amp installation, add `--agent amp --yes`. Then ask your a
 
 Installing the skill and acquiring the CLI are separate steps. The skill is a short pointer: your agent loads the full instructions from `npx product-doc guide`, which acquires the CLI from npm and keeps its instructions version-matched to the viewer. Running that command alone does not install the skill. When the stub itself changes, update it with `npx skills update generate-product-doc`.
 
-The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source and MIT licensed. Documents are served locally by default; [sharing](#share-a-spec-with-a-link-experimental) uploads a document to a public productdoc.dev link.
+The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source and MIT licensed. Documents are served locally by default; [sharing as an unlisted gist](#share-a-spec-with-a-link-experimental) still uses diffmap.dev until productdoc.dev supports those links.
 
 ### Migrating from Diffmap
 
@@ -154,17 +154,13 @@ Run `npx product-doc fixtures/sessions-in-postgres` for an example.
 
 ## Share a spec with a link (experimental)
 
-Upload a spec to productdoc.dev and print its public link. The first run prints a sign-in link for Google or GitHub. Does not start a local server:
+Share an unlisted gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
 
 ```sh
-npx product-doc share .diffmap/specs/<name>/          # https://productdoc.dev/d/<id>
-npx product-doc share .diffmap/specs/<name>/ --stop   # delete the link
-npx product-doc logout
+npx product-doc share .diffmap/specs/<name>/
 ```
 
-The upload holds the pages, local media, a diff snapshot of each commit they reference, and the files excerpts read; `share` lists the source files it makes public. It refuses gitignored files, files that look like they hold a key, and files over 25 MB, naming the file; `--allow <file>` shares one after you check it. The link goes into the spec's `.productdoc.json`. Sharing again makes a new link, and the old one keeps the old version. Agents can read a link as Markdown with `Accept: text/markdown` or by adding `.md`. Set `PRODUCTDOC_TOKEN` where nobody can approve a sign-in, such as a cloud agent.
-
-`share --gist` publishes an unlisted gist instead (requires [`gh`](https://cli.github.com/) logged in). A spec's pages share one gist. Hosted viewer: `https://diffmap.dev/g/<gistId>` for the cover, and `/<slug>` after it for a page (`#heading` is the table of contents). Gists shared before specs were directories still open, one file at a time. The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
+A spec's pages share one gist. Hosted viewer: `https://diffmap.dev/g/<gistId>` for the cover, and `/<slug>` after it for a page (`#heading` is the table of contents). Gists shared before specs were directories still open, one file at a time. The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
 
 A spec committed to a GitHub pull request also opens at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>`, which pins to the pull request's head commit and opens the spec's cover. Its pages keep their file names in the URL, as in `…/commit/<sha>/.diffmap/specs/<name>/02-write-through.md`, since a pinned commit never renames them.
 
@@ -310,8 +306,8 @@ videos, and `::gallery{layout="grid"}` works too. The syntax matches galleries
 in Amp threads.
 
 `serve` loads media from beside the spec, and a spec on a GitHub pull request
-loads it from the same commit. `share` uploads local media with the spec;
-`share --gist` fails on it, because a gist holds only text files.
+loads it from the same commit. `share` fails when a spec uses local media,
+because a gist holds only text files; link media by https URL to share it.
 
 Run `npx product-doc fixtures/media` for an example.
 
@@ -386,17 +382,16 @@ On a GitHub-hosted spec, commit diffs come from the GitHub API. It returns patch
 hunks only, so only lines near changes are reachable, and the Diff button opens
 the pull request's full diff.
 
-A shared link or gist is a snapshot taken when you run `product-doc share`. A
-gist saves every
+A shared gist is a snapshot taken when you run `product-doc share`. It saves every
 referenced commit and every `changes` card, including uncommitted ones, to
 `diffmap-changes.json`, with unchanged supporting files saved at each referenced
 revision separately from the changed-file list. It saves the current contents
 of every file that a file excerpt or a reference without a commit reads to
 `diffmap-files.json`. In the gist, references without a commit open that saved
 file; symbols resolve to their first matching line, and Cmd-click definitions
-only work in a local viewer. A productdoc.dev link stores the same snapshots.
-Commit your work and point references at the commit before sharing, so the link
-shows the diff instead of a bare file.
+only work in a local viewer. Commit
+your work and point references at the commit before sharing, so the gist shows
+the diff instead of a bare file.
 
 Cmd-click (or Ctrl-click) a TypeScript or JavaScript symbol in the source panel
 to open its definition. Use Back to retrace navigation and return to the reference.

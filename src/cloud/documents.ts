@@ -135,17 +135,24 @@ async function putBlob(context: Context, id: string, hash: string) {
       413,
       `Files can be at most ${formatBytes(LIMITS.fileBytes)}.`,
     );
-  const bytes = await context.request.arrayBuffer();
-  const digest = await sha256(bytes);
-  if (digest !== hash)
-    return problem(400, "The file's contents don't match its hash.");
-  await context.env.BLOBS.put(blobKey(id, hash), bytes, {
-    httpMetadata: {
-      contentType:
-        context.request.headers.get("Content-Type") ??
-        "application/octet-stream",
+  if (context.request.body === null)
+    return problem(400, "Send the file in the request body.");
+  // R2 checks the hash as it stores the stream, which keeps a large file
+  // within the Worker's CPU limit.
+  const stored = await context.env.BLOBS.put(
+    blobKey(id, hash),
+    context.request.body,
+    {
+      sha256: hash,
+      httpMetadata: {
+        contentType:
+          context.request.headers.get("Content-Type") ??
+          "application/octet-stream",
+      },
     },
-  });
+  ).catch(() => undefined);
+  if (stored === undefined)
+    return problem(400, "The file's contents don't match its hash.");
   return json(201, { hash });
 }
 
@@ -292,7 +299,22 @@ async function requireUser(context: Context) {
   });
   if (session === null)
     return problem(401, "Sign in first: run product-doc login.");
+  if (!canPublish(context.env, session.user))
+    return problem(
+      403,
+      "Sharing to productdoc.dev isn't open to this account.",
+    );
   return session.user;
+}
+
+/** Without PUBLISHERS, as in local development, every account can publish. */
+function canPublish(env: Env, user: { email: string; emailVerified: boolean }) {
+  if (env.PUBLISHERS === undefined) return true;
+  const publishers = env.PUBLISHERS.split(",").map((email) =>
+    email.trim().toLowerCase(),
+  );
+  const verified = user.emailVerified || env.DEV_SIGN_IN === "1";
+  return verified && publishers.includes(user.email.toLowerCase());
 }
 
 function blobKey(id: string, hash: string) {

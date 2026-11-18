@@ -239,8 +239,6 @@ test("product-doc excludes generated skills and MCP but keeps completions", asyn
   for (const command of [
     "guide",
     "list",
-    "login",
-    "logout",
     "serve",
     "share",
     "update",
@@ -304,16 +302,7 @@ test("product-doc excludes generated skills and MCP but keeps completions", asyn
       JSON.parse(manifest.stdout).commands.map(
         (entry: { name: string }) => entry.name,
       ),
-      [
-        "guide",
-        "list",
-        "login",
-        "logout",
-        "serve",
-        "share",
-        "update",
-        "validate",
-      ],
+      ["guide", "list", "serve", "share", "update", "validate"],
     );
   }
   const schema = await runCli(["validate", "--schema", "--json"]);
