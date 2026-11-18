@@ -133,10 +133,11 @@ share-device-sign-in--expired
 
 ## Todos
 
-The code runs end to end against `npm run cloud:dev` ([[ef38f7f:cloud/README.md]]). Going live needs the Cloudflare account, DNS, and the Google and GitHub apps.
+The code runs end to end against `npm run cloud:dev` ([[fdbadfd:cloud/README.md]]), and it's deployed to workers.dev. Sharing is internal for now: the CLI offers it only when `PRODUCTDOC_ORIGIN` is set, and the Worker lets only the accounts in `PRODUCTDOC_PUBLISHERS` publish [[fdbadfd:src/cloud/documents.ts]]. Going live needs DNS and the Google and GitHub apps.
 
 - [x] Provision D1, R2, the Worker, and its domain with Alchemy
-- [ ] Deploy to productdoc.dev: Cloudflare account, DNS, OAuth apps
+- [x] Deploy to workers.dev, publishing open only to allowlisted accounts
+- [ ] Move productdoc.dev's DNS to Cloudflare and add the OAuth apps
 - [x] A Cloudflare Worker serving the website
 - [x] R2 bucket, and D1 `document` and `document_version` tables
 - [x] Better Auth: Google, GitHub, account linking, device authorization, bearer tokens
@@ -146,10 +147,10 @@ The code runs end to end against `npm run cloud:dev` ([[ef38f7f:cloud/README.md]
 - [x] `/d/<id>` in the hosted viewer, with Markdown for agents and the public bar
 - [x] `share --stop`, an admin takedown command, and abuse@productdoc.dev
 - [x] An agent prompt on each error screen a person can fix
-- [x] Update the guide's sharing section
+- [ ] Document sharing in the README and guide once it's open to everyone
 
 ```changes
-1029efd..ef38f7f
+1029efd..fdbadfd
 src/cli.ts
 src/publish/share.ts
 src/publish/auth.ts
