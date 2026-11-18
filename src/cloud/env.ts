@@ -1,10 +1,14 @@
 /**
- * The bindings `cloud/wrangler.jsonc` gives the productdoc.dev Worker. These are
+ * The bindings `alchemy.run.ts` gives the productdoc.dev Worker. These are
  * the parts of the Workers types it uses, declared here so the Worker shares the
  * repository's DOM-based tsconfig.
  */
 
-export type D1Result<T> = { results: T[]; success: boolean; meta: unknown };
+export type D1Result<T> = {
+  results: T[];
+  success: boolean;
+  meta: { changes: number };
+};
 
 export interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement;
@@ -57,6 +61,8 @@ export type Env = {
   ASSETS: Fetcher;
   BETTER_AUTH_URL: string;
   BETTER_AUTH_SECRET: string;
+  /** Authorizes `npm run cloud:takedown`. */
+  ADMIN_TOKEN: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GITHUB_CLIENT_ID?: string;
