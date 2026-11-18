@@ -72,14 +72,6 @@ export default Alchemy.Stack(
     const signIn: Record<string, string | Redacted.Redacted<string>> = dev
       ? { DEV_SIGN_IN: "1" }
       : { ...(yield* oauthApp("GOOGLE")), ...(yield* oauthApp("GITHUB")) };
-    // Sharing is open only to these accounts while productdoc.dev is internal.
-    const publishersConfig = Config.String("PRODUCTDOC_PUBLISHERS");
-    const publishers = dev
-      ? yield* Config.option(publishersConfig)
-      : Option.some(yield* publishersConfig);
-    const publishersEnv: Record<string, string> = Option.isSome(publishers)
-      ? { PUBLISHERS: publishers.value }
-      : {};
     const adminToken = dev
       ? Redacted.make("dev-admin-token")
       : yield* Config.Redacted("PRODUCTDOC_ADMIN_TOKEN");
@@ -104,7 +96,6 @@ export default Alchemy.Stack(
         BETTER_AUTH_SECRET: authSecret,
         ADMIN_TOKEN: adminToken,
         ...signIn,
-        ...publishersEnv,
       },
     });
     return {

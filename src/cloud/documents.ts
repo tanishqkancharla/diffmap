@@ -299,7 +299,7 @@ async function requireUser(context: Context) {
   });
   if (session === null)
     return problem(401, "Sign in first: run product-doc login.");
-  if (!canPublish(context.env, session.user))
+  if (!(await canPublish(context.env, session.user)))
     return problem(
       403,
       "Sharing to productdoc.dev isn't open to this account.",
@@ -307,14 +307,17 @@ async function requireUser(context: Context) {
   return session.user;
 }
 
-/** Without PUBLISHERS, as in local development, every account can publish. */
-function canPublish(env: Env, user: { email: string; emailVerified: boolean }) {
-  if (env.PUBLISHERS === undefined) return true;
-  const publishers = env.PUBLISHERS.split(",").map((email) =>
-    email.trim().toLowerCase(),
-  );
-  const verified = user.emailVerified || env.DEV_SIGN_IN === "1";
-  return verified && publishers.includes(user.email.toLowerCase());
+async function canPublish(
+  env: Env,
+  user: { email: string; emailVerified: boolean },
+) {
+  if (!user.emailVerified && env.DEV_SIGN_IN !== "1") return false;
+  const row = await env.DB.prepare(
+    `select 1 from "publisher" where "email" = ?`,
+  )
+    .bind(user.email.toLowerCase())
+    .first();
+  return row !== null;
 }
 
 function blobKey(id: string, hash: string) {

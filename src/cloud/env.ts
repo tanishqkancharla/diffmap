@@ -61,10 +61,8 @@ export type Env = {
   ASSETS: Fetcher;
   BETTER_AUTH_URL: string;
   BETTER_AUTH_SECRET: string;
-  /** Authorizes `npm run cloud:takedown`. */
+  /** Authorizes `npm run cloud:takedown` and `cloud:publishers`. */
   ADMIN_TOKEN: string;
-  /** Comma-separated emails of the accounts that may share. */
-  PUBLISHERS?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GITHUB_CLIENT_ID?: string;
