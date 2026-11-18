@@ -13,6 +13,11 @@ import {
   runUpdate,
 } from "./update.js";
 
+/** Progress for a person or agent watching, kept out of the command's output. */
+function progress(line: string) {
+  process.stderr.write(`${line}\n`);
+}
+
 const guideTopics = ["ui", "previews"] as const;
 
 const serveArgs = z.object({
@@ -124,7 +129,7 @@ const cli = Cli.create("product-doc", {
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
-  hint: "`guide` prints how to write a spec. A spec is a directory of Markdown pages, such as `.diffmap/specs/<name>/`. `validate <spec>` checks it without starting a server. `serve <spec>` runs the local viewer. `share <spec>` publishes an unlisted gist. `update` (or `--update`) installs the latest product-doc.",
+  hint: "`guide` prints how to write a spec. A spec is a directory of Markdown pages, such as `.diffmap/specs/<name>/`. `validate <spec>` checks it without starting a server. `serve <spec>` runs the local viewer. `share <spec>` uploads it to productdoc.dev and prints a public link; `share --stop` deletes the link. `update` (or `--update`) installs the latest product-doc.",
   examples: [
     {
       args: { file: ".diffmap/specs/sessions/" },
@@ -172,37 +177,119 @@ const cli = Cli.create("product-doc", {
   })
   .command("share", {
     description:
-      "Publish an unlisted gist and print https://diffmap.dev/g/<id>",
+      "Upload a document to productdoc.dev and print its public link. Signs in the first time",
     args: serveArgs,
     options: z.object({
-      public: z.boolean().optional().describe("Create a public gist"),
+      allow: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Share a file the privacy check stopped, after checking it holds nothing private. Repeat for more files",
+        ),
+      stop: z
+        .boolean()
+        .optional()
+        .describe(
+          "Stop sharing: delete the link in the document's .productdoc.json",
+        ),
+      gist: z
+        .boolean()
+        .optional()
+        .describe(
+          "Publish a GitHub gist through gh instead, viewed at diffmap.dev/g/<id>",
+        ),
+      public: z
+        .boolean()
+        .optional()
+        .describe("With --gist: create a public gist"),
     }),
-    output: z.object({
-      gistId: z.string(),
-      gistUrl: z.string(),
-      viewerUrl: z.string(),
-    }),
+    output: z.union([
+      z.object({
+        id: z.string(),
+        link: z.string(),
+        publicSourceFiles: z.array(z.string()),
+        pages: z.number(),
+        media: z.number(),
+        bytes: z.number(),
+      }),
+      z.object({ link: z.string(), stopped: z.literal(true) }),
+      z.object({
+        gistId: z.string(),
+        gistUrl: z.string(),
+        viewerUrl: z.string(),
+      }),
+    ]),
     examples: [
       {
         args: { file: ".diffmap/specs/sessions/" },
-        description: "Unlisted gist → https://diffmap.dev/g/<id>",
+        description: "Public link → https://productdoc.dev/d/<id>",
+      },
+      {
+        args: { file: ".diffmap/specs/sessions/" },
+        options: { stop: true },
+        description: "Delete the link",
       },
     ],
     async run(c) {
       trackCommand("share");
-      const { shareMarkdownFile } = await import("./share.js");
-      const shared = await shareMarkdownFile({
-        filePath: resolveFromInvokeCwd(c.args.file),
-        workspaceRoot: resolveFromInvokeCwd("."),
-        isPublic: c.options.public === true,
-      });
-      if (shared instanceof Error) {
-        return c.error({
-          code: "DIFFMAP",
-          message: shared.message,
+      const dir = resolveFromInvokeCwd(c.args.file);
+      if (c.options.gist === true) {
+        const { shareMarkdownFile } = await import("./share.js");
+        const shared = await shareMarkdownFile({
+          filePath: dir,
+          workspaceRoot: resolveFromInvokeCwd("."),
+          isPublic: c.options.public === true,
         });
+        if (shared instanceof Error)
+          return c.error({ code: "DIFFMAP", message: shared.message });
+        return c.ok(shared);
       }
-      return c.ok(shared);
+      const { productdocOrigin } = await import("./publish/auth.js");
+      const { shareDocument, stopSharing } = await import("./publish/share.js");
+      const result =
+        c.options.stop === true
+          ? await stopSharing({
+              dir,
+              origin: productdocOrigin(),
+              log: progress,
+            })
+          : await shareDocument({
+              dir,
+              workspaceRoot: resolveFromInvokeCwd("."),
+              origin: productdocOrigin(),
+              allow: (c.options.allow ?? []).map((file) =>
+                resolveFromInvokeCwd(file),
+              ),
+              log: progress,
+            });
+      if (result instanceof Error)
+        return c.error({ code: "DIFFMAP", message: result.message });
+      return c.ok(result);
+    },
+  })
+  .command("login", {
+    description:
+      "Sign in to productdoc.dev with Google or GitHub, so share can upload",
+    output: z.object({ email: z.string() }),
+    async run(c) {
+      trackCommand("login");
+      const { login, productdocOrigin } = await import("./publish/auth.js");
+      const result = await login({
+        origin: productdocOrigin(),
+        log: progress,
+      });
+      if (result instanceof Error)
+        return c.error({ code: "DIFFMAP", message: result.message });
+      return c.ok(result);
+    },
+  })
+  .command("logout", {
+    description: "Sign out of productdoc.dev on this machine",
+    output: z.object({ signedOut: z.boolean(), email: z.string().optional() }),
+    async run(c) {
+      trackCommand("logout");
+      const { logout, productdocOrigin } = await import("./publish/auth.js");
+      return c.ok(await logout(productdocOrigin()));
     },
   })
   .command("guide", {

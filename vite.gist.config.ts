@@ -70,6 +70,8 @@ export function gistAppConfig(): UserConfig {
         input: {
           viewer: path.join(gistRoot, "index.html"),
           website: path.join(gistRoot, "website.html"),
+          shared: path.join(gistRoot, "shared.html"),
+          device: path.join(gistRoot, "device.html"),
         },
       },
       outDir: path.join(packageRoot, "dist"),
