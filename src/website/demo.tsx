@@ -20,7 +20,7 @@ import {
 import { CommentsContext, useCommentStore } from "../viewer/comments.ts";
 import { ViewerModeContext } from "../viewer/viewerMode.ts";
 import { CodeBlock } from "../viewer/CodeBlock.tsx";
-import { examplePrompt } from "./content.ts";
+import { examplePrompt, skill } from "./content.ts";
 import "../viewer/styles.css";
 
 const loadChanges: ChangesLoader = (rev) =>
@@ -58,7 +58,7 @@ function Demo({ onReady }: { onReady: () => void }) {
     return (
       <P>
         The interactive demo could not load.{" "}
-        <a href="/examples/explain">Read the example instead.</a>
+        <a href={skill}>Read the skill on GitHub.</a>
       </P>
     );
   return (

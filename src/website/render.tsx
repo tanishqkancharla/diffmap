@@ -3,13 +3,13 @@ import { renderToHtml } from "md4x/napi";
 import { renderMermaidSVG } from "beautiful-mermaid";
 import { Logo } from "../landing/Logo.tsx";
 import { Mesh, headerBlobs, footerBlobs } from "../landing/Mesh.tsx";
-import { examples, examplePages } from "./examples.ts";
 import {
   examplePrompt,
   markdownPath,
   origin,
   pages,
   repository,
+  skill,
   type Page,
 } from "./content.ts";
 
@@ -91,7 +91,7 @@ function Home({ page }: { page: Page }) {
           </div>
         </div>
       </header>
-      <div className="demo-stage" id="examples">
+      <div className="demo-stage">
         <div className="demo-glow" aria-hidden>
           {/* Sticks when the reader does and ends at the screen's bottom edge,
               so the glow stays put while the document scrolls, then leaves with it. */}
@@ -112,8 +112,6 @@ function Home({ page }: { page: Page }) {
         </div>
         <p className="demo-caption">
           <em>Preview an example document</em>
-          {" · "}
-          <a href="/examples">Explore Explain, Plan, and Review →</a>
         </p>
         <div id="reader-demo">
           <div className="demo-placeholder">
@@ -123,7 +121,7 @@ function Home({ page }: { page: Page }) {
             <div className="demo-fallback">
               <h2>Reasoning first. Code in context.</h2>
               <p>A document you can read, explore, and comment on.</p>
-              <a href="/examples/explain">Read an example →</a>
+              <a href={skill}>Read the skill on GitHub →</a>
             </div>
           </div>
         </div>
@@ -132,73 +130,8 @@ function Home({ page }: { page: Page }) {
   );
 }
 
-function ExamplesWorkspace({ page }: { page: Page }) {
-  const selected =
-    page.path === "/examples"
-      ? examplePages.find((item) => item.path === examples[0].path)!
-      : page;
-  const example = examples.find((item) => selected.path.startsWith(item.path))!;
-  return (
-    <>
-      <aside className="examples-sidebar" aria-label="Example documents">
-        <header>
-          <h1>Examples</h1>
-          <p>
-            Explore a finished document.
-            <br />
-            See the reasoning, then the code.
-          </p>
-        </header>
-        <nav aria-label="Choose an example">
-          {examplePages
-            .filter((item) => item.path !== "/examples")
-            .map((item) => (
-              <a
-                className="example-item"
-                key={item.path}
-                href={item.path}
-                aria-current={selected.path === item.path ? "page" : undefined}
-              >
-                <span className="eyebrow">{item.label.split(" · ")[0]}</span>
-                <span className="example-title">{item.title}</span>
-                <span className="example-description">{item.description}</span>
-              </a>
-            ))}
-        </nav>
-        <div className="examples-sidebar-footer">
-          <p>A fictional app, rendered with the real Productdoc reader.</p>
-          <a href="/docs/quickstart">Try it with your agent →</a>
-        </div>
-      </aside>
-      <div className="example-main">
-        <div className="example-toolbar">
-          <span>{selected.label}</span>
-          <a href={markdownPath(selected.path)}>Markdown ↗</a>
-          <details className="example-prompt">
-            <summary>Example prompt</summary>
-            <div>
-              <p>{example.prompt}</p>
-              <a href="/docs/quickstart">Set up the skill →</a>
-            </div>
-          </details>
-        </div>
-        <section
-          className="example-reader"
-          data-example={selected.path}
-          aria-label={`${example.kind} example document`}
-        >
-          <article className="prose example-fallback">
-            <Markdown source={selected.body} />
-          </article>
-        </section>
-      </div>
-    </>
-  );
-}
-
 function Site({ page }: { page: Page }) {
   const home = page.path === "/";
-  const examplesPage = page.path.startsWith("/examples");
   return (
     <>
       <a className="skip" href="#main">
@@ -210,34 +143,15 @@ function Site({ page }: { page: Page }) {
           productdoc
         </a>
         <div className="nav-links">
-          <a
-            href="/examples"
-            aria-current={
-              page.path.startsWith("/examples") ? "page" : undefined
-            }
-          >
-            Examples
-          </a>
-          <a href="/docs/quickstart">Docs</a>
+          <a href={skill}>Docs</a>
           <a href={repository}>
             GitHub <span aria-hidden>↗</span>
           </a>
         </div>
       </nav>
-      <main
-        id="main"
-        className={
-          home
-            ? "home"
-            : examplesPage
-              ? "examples-workspace"
-              : "document-layout"
-        }
-      >
+      <main id="main" className={home ? "home" : "document-layout"}>
         {home ? (
           <Home page={page} />
-        ) : examplesPage ? (
-          <ExamplesWorkspace page={page} />
         ) : (
           <>
             <aside className="sidebar" aria-label="Documentation">
@@ -250,14 +164,7 @@ function Site({ page }: { page: Page }) {
                     href={p.path}
                     aria-current={p.path === page.path ? "page" : undefined}
                   >
-                    {p.path.startsWith("/examples/plan/") ? "↳ " : ""}
-                    {p.label.startsWith("Explain")
-                      ? "Explain"
-                      : p.path === "/examples/plan"
-                        ? "Plan"
-                        : p.label.startsWith("Review")
-                          ? "Review"
-                          : p.title}
+                    {p.title}
                   </a>
                 ))}
             </aside>
@@ -286,31 +193,29 @@ function Site({ page }: { page: Page }) {
           </>
         )}
       </main>
-      {!examplesPage && (
-        <footer className="footer">
-          <div id="footer-mesh" aria-hidden>
-            <Mesh
-              blobs={footerBlobs}
-              edge="bottom"
-              mask="linear-gradient(to top, black, black 12%, transparent 90%)"
-              lamp
-            />
-          </div>
-          <a className="brand" href="/">
-            <Logo size={28} />
-            productdoc
-          </a>
-          <p>Build software at the product level.</p>
-          <div>
-            <a href="/privacy">Privacy</a>
-            <a href="/docs/migration">From Diffmap</a>
-            <a href={`${repository}/issues`}>Support</a>
-            <a href="/llms.txt">For agents</a>
-            <a href={markdownPath(page.path)}>Markdown</a>
-          </div>
-          <small>Open source · MIT</small>
-        </footer>
-      )}
+      <footer className="footer">
+        <div id="footer-mesh" aria-hidden>
+          <Mesh
+            blobs={footerBlobs}
+            edge="bottom"
+            mask="linear-gradient(to top, black, black 12%, transparent 90%)"
+            lamp
+          />
+        </div>
+        <a className="brand" href="/">
+          <Logo size={28} />
+          productdoc
+        </a>
+        <p>Build software at the product level.</p>
+        <div>
+          <a href="/privacy">Privacy</a>
+          <a href="/docs/migration">From Diffmap</a>
+          <a href={`${repository}/issues`}>Support</a>
+          <a href="/llms.txt">For agents</a>
+          <a href={markdownPath(page.path)}>Markdown</a>
+        </div>
+        <small>Open source · MIT</small>
+      </footer>
     </>
   );
 }

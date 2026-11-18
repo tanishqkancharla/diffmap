@@ -10,25 +10,6 @@ if (demo) {
   void import("./demo.tsx").then(({ mountDemo }) => mountDemo(demo));
 }
 
-const example = document.querySelector<HTMLElement>("[data-example]");
-if (example) {
-  // Keep a deep-linked selection visible in the narrow, horizontally scrolling list.
-  document.querySelector(".example-item[aria-current]")?.scrollIntoView({
-    block: "nearest",
-    inline: "nearest",
-  });
-  void import("./exampleReader.tsx")
-    .then(({ mountExample }) => mountExample(example))
-    .catch(() => {
-      const notice = document.createElement("p");
-      notice.className = "example-load-notice";
-      notice.setAttribute("role", "status");
-      notice.textContent =
-        "The interactive reader could not load. You can still read the document below or open its Markdown.";
-      example.prepend(notice);
-    });
-}
-
 // The preview build drops the whole integration, not just its network calls.
 if (websiteAnalyticsEnabled) {
   const telemetry = createWebsiteTelemetry({ enabled: true, browser: window });

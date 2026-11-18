@@ -1,7 +1,6 @@
-import { examplePages } from "./examples.ts";
-
 export const origin = "https://productdoc.dev";
 export const repository = "https://github.com/tanishqkancharla/diffmap";
+export const skill = `${repository}/blob/main/skills/generate-product-doc/SKILL.md`;
 
 export const examplePrompt =
   "Install the generate-product-doc skill from tanishqkancharla/diffmap, then use it to explain how this project works.";
@@ -30,7 +29,6 @@ export const pages: Page[] = [
 Productdoc helps you plan and build software by creating interactive, visual documents.
 `,
   },
-  ...examplePages,
   {
     path: "/docs/quickstart",
     title: "Your first Productdoc document",
@@ -87,7 +85,7 @@ npm run cli -- serve .diffmap/specs/my-document/
 
 These are checkout commands, not public installation instructions. Use the guide emitted by your runtime; the older published Diffmap guide is not a substitute for the successor guide.
 
-[See the examples](/examples/plan) · [Troubleshooting](/docs/troubleshooting)
+[Troubleshooting](/docs/troubleshooting)
 `,
   },
   {
