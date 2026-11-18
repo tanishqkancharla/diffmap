@@ -137,7 +137,9 @@ The code runs end to end against `npm run cloud:dev` ([[776d620:cloud/README.md]
 
 - [x] Provision D1, R2, the Worker, and its domain with Alchemy
 - [x] Deploy to workers.dev, publishing open only to allowlisted accounts
-- [ ] Move productdoc.dev's DNS to Cloudflare and add the OAuth apps
+- [x] Move productdoc.dev's DNS to Cloudflare, still pointing at Vercel
+- [ ] Add the Google and GitHub sign-in apps
+- [ ] Serve productdoc.dev from the Worker, deployed from `main`
 - [x] A Cloudflare Worker serving the website
 - [x] R2 bucket, and D1 `document` and `document_version` tables
 - [x] Better Auth: Google, GitHub, account linking, device authorization, bearer tokens
