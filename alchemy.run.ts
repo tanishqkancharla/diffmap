@@ -12,6 +12,7 @@ import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
 const DOMAIN = "productdoc.dev";
+const ABUSE_INBOX = "tanishqkancharla3@gmail.com";
 
 const Database = Cloudflare.D1.Database("Database", {
   migrations: "./cloud/migrations",
@@ -71,9 +72,8 @@ export default Alchemy.Stack(
     }
 
     if (live && zone !== undefined) {
-      const abuseInbox = yield* Config.String("PRODUCTDOC_ABUSE_FORWARD_TO");
       const destination = yield* Cloudflare.Email.Address("AbuseInbox", {
-        email: abuseInbox,
+        email: ABUSE_INBOX,
       });
       yield* Cloudflare.Email.Routing("EmailRouting", { zone });
       yield* Cloudflare.Email.Rule("Abuse", {

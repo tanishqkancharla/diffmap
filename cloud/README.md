@@ -48,7 +48,7 @@ productdoc.dev was bought through Vercel and its DNS is on Vercel, with only Ver
 
 1. In Vercel, under Domains → productdoc.dev → Nameservers, replace Vercel's with the two from step 1. Until Cloudflare sees the change, productdoc.dev keeps serving from Vercel. diffmap.dev stays on Vercel.
 2. Create a Google OAuth client and a GitHub OAuth app. Their callbacks are `https://productdoc.dev/api/auth/callback/google` and `https://productdoc.dev/api/auth/callback/github`. Set their `GOOGLE_*` and `GITHUB_*` values.
-3. Once Cloudflare shows the zone as active, set `PRODUCTDOC_LIVE=1` and `PRODUCTDOC_ABUSE_FORWARD_TO` to the inbox that reads abuse@productdoc.dev, and deploy again. That attaches productdoc.dev to the Worker and forwards abuse@ there. Cloudflare emails that inbox a link to confirm it.
+3. Once Cloudflare shows the zone as active, set `PRODUCTDOC_LIVE=1` and deploy again. That attaches productdoc.dev to the Worker and forwards abuse@productdoc.dev to the inbox in `alchemy.run.ts`. Cloudflare emails that inbox a link to confirm it.
 
 ## Take a document down
 
