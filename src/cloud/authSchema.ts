@@ -22,8 +22,17 @@ function memoryD1(): D1Database {
       // oxlint-disable-next-line unicorn/no-null -- D1 answers null for no row.
       first: <T>() => Promise.resolve((run()[0] ?? null) as T | null),
       all: <T>() =>
-        Promise.resolve({ results: run() as T[], success: true, meta: {} }),
-      run: () => Promise.resolve({ results: run(), success: true, meta: {} }),
+        Promise.resolve({
+          results: run() as T[],
+          success: true,
+          meta: { changes: 0 },
+        }),
+      run: () =>
+        Promise.resolve({
+          results: run(),
+          success: true,
+          meta: { changes: 0 },
+        }),
       raw: <T>() => Promise.resolve(run().map(Object.values) as T[]),
     };
   };

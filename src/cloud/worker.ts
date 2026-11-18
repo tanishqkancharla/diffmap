@@ -1,6 +1,7 @@
 import { createAuth, type Auth } from "./auth.ts";
 import { handleDocuments, json, problem } from "./documents.ts";
 import type { Env } from "./env.ts";
+import { isDocumentId } from "./protocol.ts";
 import { respondReader } from "./reader.ts";
 import { asset, respondSite } from "./site.ts";
 
@@ -40,6 +41,12 @@ async function route(
       devSignIn: env.DEV_SIGN_IN === "1",
     });
   }
+  if (pathname.startsWith("/api/admin/takedown/") && request.method === "POST")
+    return takedown(
+      request,
+      env,
+      pathname.slice("/api/admin/takedown/".length),
+    );
   if (pathname === "/api/dev/sign-in" && request.method === "POST")
     return devSignIn(request, env, auth);
   if (pathname === "/api/documents" || pathname.startsWith("/api/documents/")) {
@@ -59,6 +66,41 @@ async function route(
   if (pathname.startsWith("/d/"))
     return respondReader(env, request, url, origin);
   return respondSite(env, request, url);
+}
+
+/** Takes a reported document down; its files stay in R2 for the report's follow-up. */
+async function takedown(request: Request, env: Env, id: string) {
+  const token = request.headers.get("Authorization")?.replace(/^Bearer /, "");
+  if (token === undefined || !(await sameSecret(token, env.ADMIN_TOKEN)))
+    return problem(401, "Not allowed.");
+  if (!isDocumentId(id)) return problem(404, "Not found.");
+  const body = (await request.json().catch(() => ({}))) as {
+    reason?: unknown;
+  };
+  const reason =
+    typeof body.reason === "string" && body.reason.trim() !== ""
+      ? body.reason.trim()
+      : "Reported to abuse@productdoc.dev";
+  const result = await env.DB.prepare(
+    `update "document" set "removed_at" = ?, "removed_reason" = ? where "id" = ?`,
+  )
+    .bind(Date.now(), reason, id)
+    .run();
+  if (result.meta.changes === 0) return problem(404, "Not found.");
+  return json(200, { id, removed: true });
+}
+
+async function sameSecret(a: string, b: string) {
+  const [left, right] = await Promise.all([digest(a), digest(b)]);
+  const x = new Uint8Array(left);
+  const y = new Uint8Array(right);
+  let difference = 0;
+  for (let i = 0; i < x.length; i++) difference |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return difference === 0;
+}
+
+function digest(text: string) {
+  return crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
 }
 
 /** Local development: sign in as any email, creating the account the first time. */

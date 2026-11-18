@@ -22,7 +22,8 @@
     "vite.config.ts",
     "vite.gist.config.ts",
     "vite.viewer.config.ts",
-    "vite.previews.config.ts"
+    "vite.previews.config.ts",
+    "alchemy.run.ts"
   ],
   "exclude": ["node_modules"]
 }
