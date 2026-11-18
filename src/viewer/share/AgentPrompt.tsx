@@ -1,6 +1,5 @@
 import { flex } from "maui";
 import { style, useStyles } from "purse-styles";
-import { promptCode } from "../../landing/Mesh.tsx";
 import { styles as landing } from "../../landing/shared.tsx";
 import { CodeBlock } from "../CodeBlock.tsx";
 
@@ -23,9 +22,8 @@ export function AgentPrompt(props: { prompt: string }) {
 }
 
 const styles = {
-  box: style(
-    promptCode,
-    flex({ direction: "column", alignItems: "start", gap: 2 }),
-    { width: "100%" },
-  ),
+  box: style(flex({ direction: "column", alignItems: "stretch", gap: 2 }), {
+    width: "100%",
+    "& > figure": { textAlign: "left" },
+  }),
 };
