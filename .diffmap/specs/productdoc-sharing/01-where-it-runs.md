@@ -14,6 +14,7 @@ The platform under every phase.
 | Code from documents, on its own domain | `<id>.productdocusercontent.com` |
 
 - productdoc.dev's DNS moves to Cloudflare. The Worker serves the website pages the build already writes ([[src/website/README.md]]).
+- [Alchemy](https://alchemy.run/) provisions it all from one TypeScript file, `alchemy.run.ts`, and runs the same stack locally without a Cloudflare account.
 - diffmap.dev stays on Vercel, unchanged.
 - About $5 a month at a few thousand documents.
 

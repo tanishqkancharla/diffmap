@@ -24,14 +24,14 @@ https://productdoc.dev/d/k3v9q2xa7m
 - **Errors you can fix offer an agent prompt.** A screen that stops you, such as an expired sign-in, shows a prompt to copy to your agent, like "Sign me in to productdoc again and finish sharing."
 
 ```callstack [Sharing]
-link = shareDocument(dir) [[34c6606:src/publish/share.ts#L28-L90]]
+link = shareDocument(dir) [[ef38f7f:src/publish/share.ts#L28-L90]]
 ├── bundle = pages + media + diff snapshots + source files
-├── check limits, gitignored files, and keys [[34c6606:src/publish/secrets.ts#L37-L45]]
-├── sign in by device code if there's no token [[34c6606:src/publish/auth.ts#L70-L126]]
-├── id = POST /api/documents [[34c6606:src/cloud/documents.ts#L58-L72]]
+├── check limits, gitignored files, and keys [[ef38f7f:src/publish/secrets.ts#L37-L45]]
+├── sign in by device code if there's no token [[ef38f7f:src/publish/auth.ts#L70-L126]]
+├── id = POST /api/documents [[ef38f7f:src/cloud/documents.ts#L58-L72]]
 ├── missing = POST /api/documents/{id}/missing {hashes}
-├── PUT /api/documents/{id}/blobs/{sha256} for each missing blob [[34c6606:src/cloud/documents.ts#L127-L150]]
-├── POST /api/documents/{id}/versions {manifest} [[34c6606:src/cloud/documents.ts#L175-L241]]
+├── PUT /api/documents/{id}/blobs/{sha256} for each missing blob [[ef38f7f:src/cloud/documents.ts#L127-L150]]
+├── POST /api/documents/{id}/versions {manifest} [[ef38f7f:src/cloud/documents.ts#L175-L241]]
 └── write dir/.productdoc.json {id, link}
 ```
 
@@ -133,9 +133,10 @@ share-device-sign-in--expired
 
 ## Todos
 
-The code runs end to end against `npm run cloud:dev` ([[34c6606:cloud/README.md]]). Going live needs the Cloudflare account, DNS, and the Google and GitHub apps.
+The code runs end to end against `npm run cloud:dev` ([[ef38f7f:cloud/README.md]]). Going live needs the Cloudflare account, DNS, and the Google and GitHub apps.
 
-- [ ] Deploy the Worker to productdoc.dev: D1, R2, secrets, OAuth apps, DNS
+- [x] Provision D1, R2, the Worker, and its domain with Alchemy
+- [ ] Deploy to productdoc.dev: Cloudflare account, DNS, OAuth apps
 - [x] A Cloudflare Worker serving the website
 - [x] R2 bucket, and D1 `document` and `document_version` tables
 - [x] Better Auth: Google, GitHub, account linking, device authorization, bearer tokens
@@ -148,7 +149,7 @@ The code runs end to end against `npm run cloud:dev` ([[34c6606:cloud/README.md]
 - [x] Update the guide's sharing section
 
 ```changes
-34c6606
+1029efd..ef38f7f
 src/cli.ts
 src/publish/share.ts
 src/publish/auth.ts
@@ -163,7 +164,7 @@ src/cloud/client/SharedApp.tsx
 src/cloud/client/DeviceApp.tsx
 src/viewer/share/DevicePage.tsx
 cloud/migrations/0002_documents.sql
-cloud/wrangler.jsonc
+alchemy.run.ts
 cloud/README.md
 src/publish/share.test.ts
 src/share.ts
@@ -188,4 +189,6 @@ src/errors.ts
 src/website/negotiate.ts
 src/website/respond.ts
 vite.gist.config.ts
+tsconfig.json
+.diffmap/specs/productdoc-sharing/02-publish-from-the-cli.md
 ```
