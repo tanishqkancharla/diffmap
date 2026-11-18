@@ -53,6 +53,23 @@ export default Alchemy.Stack(
       ? undefined
       : yield* Cloudflare.Zone.Zone("Zone", { name: DOMAIN });
 
+    // Until the Worker takes the domain, Cloudflare's DNS keeps sending
+    // productdoc.dev to the Vercel project, as Vercel's DNS did.
+    if (!live && zone !== undefined) {
+      yield* Cloudflare.DNS.Record("VercelApex", {
+        zoneId: zone.zoneId,
+        name: DOMAIN,
+        type: "CNAME",
+        content: "3a2a24b09f57c90b.vercel-dns-017.com",
+      });
+      yield* Cloudflare.DNS.Record("VercelWildcard", {
+        zoneId: zone.zoneId,
+        name: `*.${DOMAIN}`,
+        type: "CNAME",
+        content: "cname.vercel-dns-017.com",
+      });
+    }
+
     if (live && zone !== undefined) {
       const abuseInbox = yield* Config.String("PRODUCTDOC_ABUSE_FORWARD_TO");
       const destination = yield* Cloudflare.Email.Address("AbuseInbox", {
