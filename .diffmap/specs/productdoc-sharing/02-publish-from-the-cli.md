@@ -133,7 +133,7 @@ share-device-sign-in--expired
 
 ## Todos
 
-The code runs end to end against `npm run cloud:dev` ([[fdbadfd:cloud/README.md]]), and it's deployed to workers.dev. Sharing is internal for now: the CLI offers it only when `PRODUCTDOC_ORIGIN` is set, and the Worker lets only the accounts in `PRODUCTDOC_PUBLISHERS` publish [[fdbadfd:src/cloud/documents.ts]]. Going live needs DNS and the Google and GitHub apps.
+The code runs end to end against `npm run cloud:dev` ([[776d620:cloud/README.md]]), and it's deployed to workers.dev. Sharing is internal for now: the CLI offers it only when `PRODUCTDOC_ORIGIN` is set, and the Worker lets only the verified emails in D1's `publisher` table publish [[776d620:cloud/migrations/0003_publishers.sql]]. `npm run cloud:publishers` adds and removes them without a deploy. Going live needs DNS and the Google and GitHub apps.
 
 - [x] Provision D1, R2, the Worker, and its domain with Alchemy
 - [x] Deploy to workers.dev, publishing open only to allowlisted accounts
@@ -150,7 +150,7 @@ The code runs end to end against `npm run cloud:dev` ([[fdbadfd:cloud/README.md]
 - [ ] Document sharing in the README and guide once it's open to everyone
 
 ```changes
-1029efd..fdbadfd
+1029efd..776d620
 src/cli.ts
 src/publish/share.ts
 src/publish/auth.ts
@@ -165,6 +165,7 @@ src/cloud/client/SharedApp.tsx
 src/cloud/client/DeviceApp.tsx
 src/viewer/share/DevicePage.tsx
 cloud/migrations/0002_documents.sql
+cloud/migrations/0003_publishers.sql
 alchemy.run.ts
 cloud/README.md
 src/publish/share.test.ts
@@ -186,6 +187,7 @@ src/cloud/client/deviceMain.tsx
 src/cloud/client/sharedMain.tsx
 src/cloud/env.ts
 src/cloud/takedown.ts
+src/cloud/publishers.ts
 src/errors.ts
 src/website/negotiate.ts
 src/website/respond.ts
