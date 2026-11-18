@@ -2,7 +2,7 @@
 
 One Cloudflare Worker serves the website, sign-in (`/api/auth`, `/device`), the sharing API (`/api/documents`), and shared documents (`/d/<id>`). Code is in `src/cloud/`; the browser pages are `gist/shared.html` and `gist/device.html` in the website build.
 
-[Alchemy](https://alchemy.run/) provisions it from `alchemy.run.ts` at the repository root: the D1 database (with `migrations/` applied), the R2 bucket for document files, the Worker with the website build as its assets, and the productdoc.dev custom domain.
+[Alchemy](https://alchemy.run/) provisions it from `alchemy.run.ts` at the repository root: the productdoc.dev zone, the D1 database (with `migrations/` applied), the R2 bucket for document files, the Worker with the website build as its assets, the custom domain, and abuse@ forwarding.
 
 ## Run it locally
 
@@ -18,24 +18,21 @@ PRODUCTDOC_ORIGIN=http://localhost:8787 npm run cli -- share <spec>
 
 ## Deploy
 
-Once, in the Cloudflare account that will own productdoc.dev:
+`npm run cloud:deploy` builds the website and deploys the `prod` stage. It reads its settings from `.env` at the repository root (gitignored) or from the environment; `cloud/.env.example` lists them. Each deploy creates or updates what's missing and applies new migrations. The first one also sets up Alchemy's state store in the Cloudflare account, so later deploys from any machine see the same resources, and generates Better Auth's secret, which stays in that state.
 
-1. Move productdoc.dev's DNS to Cloudflare. diffmap.dev stays on Vercel.
-2. Run `npx alchemy profile edit` and sign in to that account.
-3. Create a Google OAuth client and a GitHub OAuth app, each with the callback `https://productdoc.dev/api/auth/callback/<google|github>`.
-4. Put their credentials, and a token for takedowns (`openssl rand -hex 32`), in `.env` at the repository root. It is gitignored.
+productdoc.dev was bought through Vercel and its DNS is on Vercel, with only Vercel's own records. Going live takes two deploys, because Cloudflare serves the domain only after its nameservers point there.
 
-   ```sh
-   GOOGLE_CLIENT_ID=…
-   GOOGLE_CLIENT_SECRET=…
-   GITHUB_CLIENT_ID=…
-   GITHUB_CLIENT_SECRET=…
-   PRODUCTDOC_ADMIN_TOKEN=…
-   ```
+**1. Deploy to workers.dev**
 
-5. Route abuse@productdoc.dev to someone who reads it.
+1. Sign in to the Cloudflare account that will own productdoc.dev: `npx alchemy profile edit` on your machine. To deploy from somewhere without a browser, such as a cloud agent, run `npx alchemy provider cloudflare token` and set the `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` it prints there.
+2. Set `PRODUCTDOC_ADMIN_TOKEN` (`openssl rand -hex 32`).
+3. `npm run cloud:deploy`. It prints the Worker's `workers.dev` URL, where the website and shared links already work, and the two `nameServers` Cloudflare assigned to the new productdoc.dev zone.
 
-Then `npm run cloud:deploy` builds the website and deploys the `prod` stage: it creates or updates the database, bucket, Worker, and domain, and applies new migrations. The first deploy also sets up Alchemy's state store in the account, so later deploys from any machine see the same resources. Better Auth's secret is generated on that first deploy and kept in the state.
+**2. Move the domain and go live**
+
+1. In Vercel, under Domains → productdoc.dev → Nameservers, replace Vercel's with the two from step 1. Until Cloudflare sees the change, productdoc.dev keeps serving from Vercel. diffmap.dev stays on Vercel.
+2. Create a Google OAuth client and a GitHub OAuth app. Their callbacks are `https://productdoc.dev/api/auth/callback/google` and `https://productdoc.dev/api/auth/callback/github`. Set their `GOOGLE_*` and `GITHUB_*` values.
+3. Once Cloudflare shows the zone as active, set `PRODUCTDOC_LIVE=1` and `PRODUCTDOC_ABUSE_FORWARD_TO` to the inbox that reads abuse@productdoc.dev, and deploy again. That attaches productdoc.dev to the Worker and forwards abuse@ there. Cloudflare emails that inbox a link to confirm it.
 
 ## Take a document down
 
