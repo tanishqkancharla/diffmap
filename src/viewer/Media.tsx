@@ -433,15 +433,18 @@ const styles = {
     verticalAlign: "middle",
   }),
   frame: style({ width: "100%", margin: 0 }),
-  // The media fills the card below its title row; the card's corners clip it.
+  // The media sits centered below the title row at up to its own size; the card's corners clip it.
   cardMedia: style({
     display: "block",
-    width: "100%",
+    maxWidth: "100%",
     maxHeight: "min(70vh, 640px)",
+    marginInline: "auto",
     objectFit: "contain",
   }),
   grid: style({ display: "grid", gap: spacing.value(6), alignItems: "start" }),
   cardHeader: style(flex({ direction: "row", alignItems: "center", gap: 1 }), {
+    // The media sets the card's width, not a long label.
+    contain: "inline-size",
     // The buttons overhang the text line, so this row matches every other title row.
     "& button": { marginBlock: -3 },
   }),

@@ -66,6 +66,9 @@ export const TOC_SIDE_MARGIN_PX = 48;
  */
 const TOC_DOCKED_MIN_GUTTER_PX = 220;
 
+/** The docked list's widest; wide media stays clear of it. */
+export const TOC_DOCKED_MAX_WIDTH_PX = 240;
+
 export function hasTableOfContents(
   headings: ViewerHeading[],
   spec: SpecNav | undefined,
@@ -539,7 +542,7 @@ const styles = {
   docked: style(spacing.padding({ right: 6 }), {
     boxSizing: "border-box",
     width: "100%",
-    maxWidth: "240px",
+    maxWidth: `${String(TOC_DOCKED_MAX_WIDTH_PX)}px`,
     maxHeight: "calc(100cqh - 24px)",
     overflowX: "hidden",
     overflowY: "auto",

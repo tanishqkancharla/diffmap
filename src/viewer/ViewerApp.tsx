@@ -38,6 +38,7 @@ import { TocButton } from "./TocButton.tsx";
 import {
   hasTableOfContents,
   TableOfContents,
+  TOC_DOCKED_MAX_WIDTH_PX,
   TOC_SIDE_MARGIN_PX,
 } from "./TableOfContents.tsx";
 import { ViewerModeContext, type ViewerMode } from "./viewerMode.ts";
@@ -321,6 +322,9 @@ async function closeViewer() {
   await fetch("/__diffmap/shutdown", { method: "POST" });
 }
 
+/** Up to 1.5x the prose column, centered on it, inside the article (`100cqw`) and clear of the TOC. */
+const wideMediaWidth = "min(150%, 100cqw - 2 * var(--diffmap-wide-inset, 0px))";
+
 const styles = {
   shell: style(flex({ direction: "column" }), {
     width: "100%",
@@ -401,8 +405,14 @@ const styles = {
     width: "100%",
     maxWidth: "none",
     minWidth: 0,
+    // How far wide media stays from each side of the article, clear of the TOC.
+    "--diffmap-wide-inset": "0px",
     "&[data-has-toc='true']": {
       gridTemplateColumns: `var(--diffmap-toc-columns, minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr) minmax(0, ${proseMaxWidth}) minmax(${String(TOC_SIDE_MARGIN_PX)}px, 1fr))`,
+      "--diffmap-wide-inset": `${String(TOC_SIDE_MARGIN_PX)}px`,
+    },
+    "&:has(> [data-diffmap-kind='toc'][data-docked='true'])": {
+      "--diffmap-wide-inset": `${String(TOC_DOCKED_MAX_WIDTH_PX)}px`,
     },
     "@media (max-width: 600px)": {
       "--diffmap-toc-columns": "0 minmax(0, 1fr) 0",
@@ -424,6 +434,17 @@ const styles = {
     "& ul > li[data-task]::before, & ol > li[data-task]::before": {
       content: "none",
     },
+    // Previews, galleries, and HTML fill the wide column; an image or diagram
+    // grows to its own width but no wider.
+    "& > :is([data-diffmap-kind='preview'], [data-diffmap-kind='gallery'], [data-diffmap-kind='html'], :has(> [data-diffmap-kind='flow']))":
+      { width: wideMediaWidth, minWidth: "100%", alignSelf: "center" },
+    "& > :is([data-diffmap-kind='media'], :has(> [data-diffmap-kind='mermaid']))":
+      {
+        width: "max-content",
+        minWidth: "100%",
+        maxWidth: wideMediaWidth,
+        alignSelf: "center",
+      },
   }),
   reconnecting: style(
     flex({ direction: "row", alignItems: "center", gap: 3 }),
