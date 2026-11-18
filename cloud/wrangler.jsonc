@@ -1,0 +1,47 @@
+// productdoc.dev: the website, the sharing API, sign-in, and /d/<id> readers.
+// `npm run cloud:dev` runs it locally with local D1 and R2; see cloud/README.md.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "productdoc",
+  "main": "../src/cloud/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "../dist",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none",
+    "not_found_handling": "none",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "productdoc",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "productdoc-documents" }],
+  "vars": { "BETTER_AUTH_URL": "https://productdoc.dev" },
+  "observability": { "enabled": true },
+  "env": {
+    "dev": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "productdoc",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "r2_buckets": [
+        { "binding": "BLOBS", "bucket_name": "productdoc-documents" },
+      ],
+      "vars": {
+        "BETTER_AUTH_URL": "http://localhost:8787",
+        "BETTER_AUTH_SECRET": "local-development-secret-not-for-production",
+        "DEV_SIGN_IN": "1",
+      },
+    },
+  },
+}

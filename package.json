@@ -47,14 +47,17 @@
     "prepublishOnly": "npm run check",
     "release": "npm stage publish --access public",
     "pretest": "npm run build:viewer && npm run build:lib",
-    "test": "DIFFMAP_TELEMETRY=0 tsx --test src/spec.test.ts src/cli.test.ts src/update.test.ts src/parseViewer.test.ts src/git.test.ts src/serve.test.ts src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/host/githubFailure.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts src/viewer/comments.test.ts src/viewer/serviceLayout.test.ts src/preview/preview.test.tsx src/viewer/previews/previews.test.ts",
+    "test": "DIFFMAP_TELEMETRY=0 tsx --test src/spec.test.ts src/cli.test.ts src/update.test.ts src/parseViewer.test.ts src/git.test.ts src/serve.test.ts src/publish/share.test.ts src/gist/route.test.ts src/github/route.test.ts src/github/patch.test.ts src/host/githubFailure.test.ts src/github/fetchRepo.test.ts src/viewer/sourceHeader.test.ts src/viewer/comments.test.ts src/viewer/serviceLayout.test.ts src/preview/preview.test.tsx src/viewer/previews/previews.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "build:gist": "vite build",
     "build:viewer": "vite build --config vite.viewer.config.ts",
     "build:lib": "node -e \"fs.rmSync('lib', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
     "preview:gist": "vite preview --config vite.gist.config.ts --host 127.0.0.1 --port 4178",
-    "previews": "vite --config vite.previews.config.ts"
+    "previews": "vite --config vite.previews.config.ts",
+    "cloud:dev": "npm run build:gist && wrangler d1 migrations apply productdoc --local --config cloud/wrangler.jsonc --env dev && wrangler dev --config cloud/wrangler.jsonc --env dev",
+    "cloud:deploy": "npm run build:gist && wrangler d1 migrations apply productdoc --remote --config cloud/wrangler.jsonc && wrangler deploy --config cloud/wrangler.jsonc",
+    "cloud:takedown": "node --import tsx src/cloud/takedown.ts"
   },
   "dependencies": {
     "@pierre/diffs": "1.6.1",
@@ -70,6 +73,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "^6.1.1",
+    "better-auth": "1.7",
     "elkjs": "^0.11.1",
     "maui": "npm:@tanishqkancharla/maui@^0.0.72",
     "motion": "^13.4.0",
@@ -82,7 +86,8 @@
     "storybook": "^10.6.7",
     "tsx": "^4.23.13",
     "typescript": "7.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "wrangler": "^4.164.0"
   },
   "peerDependencies": {
     "@storybook/react": ">=8",

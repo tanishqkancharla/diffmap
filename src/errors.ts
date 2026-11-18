@@ -60,6 +60,19 @@ export class DiffmapShareError extends errore.createTaggedError({
   message: "product-doc share failed: $reason",
 }) {}
 
+export class ProductdocAuthError extends errore.createTaggedError({
+  name: "ProductdocAuthError",
+  message: "product-doc sign-in failed: $reason",
+}) {}
+
+export class ProductdocRequestError extends errore.createTaggedError({
+  name: "ProductdocRequestError",
+  message: "$reason",
+}) {
+  /** The HTTP status productdoc.dev answered, or 0 when it couldn't be reached. */
+  status = 0;
+}
+
 export class DiffmapUpdateError extends errore.createTaggedError({
   name: "DiffmapUpdateError",
   message: "product-doc update failed: $reason",

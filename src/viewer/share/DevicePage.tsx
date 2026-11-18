@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Banner,
   Button,
   CheckCircle,
   Close,
@@ -46,16 +47,20 @@ export function DevicePage(props: {
   api: DeviceApi;
 }) {
   const [account, setAccount] = useState(props.account);
+  const [error, setError] = useState<string>();
+  const failed = (cause: unknown) =>
+    setError(cause instanceof Error ? cause.message : "Something went wrong");
   const [phase, setPhase] = useState<Phase>(
     props.account === undefined ? "sign-in" : "confirm",
   );
   const code = useStyles(styles.code);
   const wordmark = <ProductdocWordmark />;
 
-  const signIn = async (provider: Provider) => {
-    setAccount(await props.api.signIn(provider));
-    setPhase("confirm");
-  };
+  const signIn = (provider: Provider) =>
+    props.api.signIn(provider).then((next) => {
+      setAccount(next);
+      setPhase("confirm");
+    }, failed);
 
   if (props.expired) {
     return (
@@ -93,6 +98,7 @@ export function DevicePage(props: {
         }
       >
         <P>A terminal is asking to share documents as you.</P>
+        {error !== undefined && <Banner tone="danger">{error}</Banner>}
       </StatusPage>
     );
   }
@@ -108,14 +114,16 @@ export function DevicePage(props: {
             <Button
               variant="primary"
               onPress={() =>
-                void props.api.approve().then(() => setPhase("approved"))
+                void props.api
+                  .approve()
+                  .then(() => setPhase("approved"), failed)
               }
             >
               Allow
             </Button>
             <Button
               onPress={() =>
-                void props.api.deny().then(() => setPhase("denied"))
+                void props.api.deny().then(() => setPhase("denied"), failed)
               }
             >
               Cancel
@@ -128,6 +136,7 @@ export function DevicePage(props: {
           {account?.email}.
         </P>
         <div className={code}>{props.code}</div>
+        {error !== undefined && <Banner tone="danger">{error}</Banner>}
       </StatusPage>
     );
   }
