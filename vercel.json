@@ -21,6 +21,7 @@
   "rewrites": [
     { "source": "/index.md", "destination": "/api/docs?path=/index.md" },
     { "source": "/docs/:path*", "destination": "/api/docs?path=/docs/:path*" },
+    { "source": "/examples.md", "destination": "/api/docs?path=/examples.md" },
     {
       "source": "/examples/:path*",
       "destination": "/api/docs?path=/examples/:path*"
