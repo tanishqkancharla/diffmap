@@ -1,4 +1,5 @@
-import { P, flex } from "maui";
+import { Badge, P, bannerStyles, colors, flex, focusRing } from "maui";
+import { Link } from "react-aria-components";
 import { style, useStyles } from "purse-styles";
 import { fetchGitHubChanges } from "../github/fetchRepo.ts";
 import { SpecErrorPage } from "../viewer/StatusPage.tsx";
@@ -78,6 +79,14 @@ function LandingPage(props: {
   const lede = useStyles(shared.lede, styles.ledeWidth);
   const cta = useStyles(styles.cta);
   const ctaLabel = useStyles(shared.label);
+  const announcement = useStyles(styles.announcement);
+  const announcementBanner = useStyles(styles.announcementBanner);
+  const announcementBadge = useStyles(styles.announcementBadge);
+  const showAnnouncement =
+    ["/", "/index.html"].includes(window.location.pathname) &&
+    !["productdoc.dev", "www.productdoc.dev"].includes(
+      window.location.hostname,
+    );
 
   return (
     <div className={page} id="top">
@@ -90,6 +99,22 @@ function LandingPage(props: {
           mask="linear-gradient(to bottom, black, black 35%, transparent)"
         />
         <header className={`${container} ${hero}`}>
+          {showAnnouncement && (
+            <aside className={announcement} aria-label="About Productdoc">
+              <Link
+                className={announcementBanner}
+                href="https://productdoc.dev"
+              >
+                <Badge className={announcementBadge}>New</Badge>
+                <span>
+                  Diffmap is growing into{" "}
+                  <strong>
+                    Productdoc <span aria-hidden="true">→</span>
+                  </strong>
+                </span>
+              </Link>
+            </aside>
+          )}
           <DiffHeadline
             before="Review the"
             removed="line diff"
@@ -117,6 +142,37 @@ function LandingPage(props: {
 }
 
 const styles = {
+  announcement: style({ maxWidth: "100%", marginBottom: "4px" }),
+  announcementBanner: style(bannerStyles.root({ tone: "info" }), focusRing(), {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    maxWidth: "100%",
+    padding: "4px 12px 4px 4px",
+    borderRadius: "999px",
+    backgroundColor: colors.blue[3],
+    borderColor: colors.blue[7],
+    color: colors.blue[12],
+    fontSize: "14px",
+    lineHeight: "20px",
+    textDecoration: "none",
+    textWrap: "balance",
+    "& strong": { fontWeight: 600, whiteSpace: "nowrap" },
+    "&[data-hovered] strong": {
+      textDecoration: "underline",
+      textUnderlineOffset: "3px",
+    },
+  }),
+  announcementBadge: style({
+    flexShrink: 0,
+    height: "auto",
+    padding: "1px 8px",
+    backgroundColor: colors.blue[11],
+    color: colors.blue[1],
+    fontWeight: 600,
+    lineHeight: "18px",
+  }),
   // Full width behind the hero, so the mesh runs edge to edge.
   heroBand: style({
     position: "relative",
