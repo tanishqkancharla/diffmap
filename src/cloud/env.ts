@@ -63,6 +63,8 @@ export type Env = {
   BETTER_AUTH_SECRET: string;
   /** Authorizes `npm run cloud:takedown`. */
   ADMIN_TOKEN: string;
+  /** Comma-separated emails of the accounts that may share. */
+  PUBLISHERS?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GITHUB_CLIENT_ID?: string;

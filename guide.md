@@ -32,12 +32,12 @@ Run from the repo root:
 npx product-doc validate .diffmap/specs/<name>/ # check after writing or editing, even if already served
 npx product-doc list                            # reuse the URL if this spec is already served
 npx product-doc serve .diffmap/specs/<name>/
-npx product-doc share .diffmap/specs/<name>/    # only when asked; prints https://productdoc.dev/d/<id>
+npx product-doc share .diffmap/specs/<name>/    # only when asked; prints https://diffmap.dev/g/<id>
 ```
 
 `validate` checks every page's syntax, diagrams, and annotations, and the spec's page names, without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating productdoc itself, restart existing viewers to load its new parser.
 
-Leave the server running and give the user the directory and URL. It reloads a page when you edit it, and the page list when you add, remove, or retitle a page. Inspect the rendered document's diagrams, prose previews, and media before handing it back. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` uploads each referenced commit's diff, but a reference without a commit only opens the file as it was when shared. The link is public: anyone with it can read the document, its media, and every source file it snapshots, which `share` lists. The first `share` prints a sign-in link; give it to the user and wait, since the command finishes once they approve. It stops before uploading when a file is gitignored, looks like it holds a key, or is over 25 MB, and names the file: remove it from the document, or ask the user before passing `--allow <file>`. `share` writes the link into the spec's `.productdoc.json`; commit it with the spec. Sharing again makes a new link. `share --stop` deletes the link, and `product-doc logout` signs out. On a machine nobody can approve a sign-in from, set `PRODUCTDOC_TOKEN`. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>`, pinned to a commit.
+Leave the server running and give the user the directory and URL. It reloads a page when you edit it, and the page list when you add, remove, or retitle a page. Inspect the rendered document's diagrams, prose previews, and media before handing it back. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the gist, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>`, pinned to a commit.
 
 ## Shape
 
