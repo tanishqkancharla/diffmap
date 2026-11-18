@@ -41,12 +41,12 @@ async function route(
       devSignIn: env.DEV_SIGN_IN === "1",
     });
   }
-  if (pathname.startsWith("/api/admin/takedown/") && request.method === "POST")
-    return takedown(
-      request,
-      env,
-      pathname.slice("/api/admin/takedown/".length),
-    );
+  if (pathname.startsWith("/api/admin/")) {
+    const token = request.headers.get("Authorization")?.replace(/^Bearer /, "");
+    if (token === undefined || !(await sameSecret(token, env.ADMIN_TOKEN)))
+      return problem(401, "Not allowed.");
+    return admin(request, env, pathname.slice("/api/admin/".length));
+  }
   if (pathname === "/api/dev/sign-in" && request.method === "POST")
     return devSignIn(request, env, auth);
   if (pathname === "/api/documents" || pathname.startsWith("/api/documents/")) {
@@ -68,11 +68,52 @@ async function route(
   return respondSite(env, request, url);
 }
 
+function admin(request: Request, env: Env, path: string) {
+  const [resource, key] = path.split("/");
+  if (resource === "takedown" && key !== undefined && request.method === "POST")
+    return takedown(request, env, key);
+  if (resource === "publishers") {
+    if (key === undefined && request.method === "GET")
+      return listPublishers(env);
+    const email = decodeURIComponent(key ?? "")
+      .trim()
+      .toLowerCase();
+    if (email.includes("@")) {
+      if (request.method === "PUT") return addPublisher(env, email);
+      if (request.method === "DELETE") return removePublisher(env, email);
+    }
+  }
+  return problem(404, "Not found.");
+}
+
+async function listPublishers(env: Env) {
+  const { results } = await env.DB.prepare(
+    `select "email" from "publisher" order by "email"`,
+  ).all<{ email: string }>();
+  return json(200, { publishers: results.map((row) => row.email) });
+}
+
+async function addPublisher(env: Env, email: string) {
+  await env.DB.prepare(
+    `insert into "publisher" ("email", "added_at") values (?, ?) on conflict do nothing`,
+  )
+    .bind(email, Date.now())
+    .run();
+  return json(200, { email, publisher: true });
+}
+
+async function removePublisher(env: Env, email: string) {
+  const result = await env.DB.prepare(
+    `delete from "publisher" where "email" = ?`,
+  )
+    .bind(email)
+    .run();
+  if (result.meta.changes === 0) return problem(404, "Not a publisher.");
+  return json(200, { email, publisher: false });
+}
+
 /** Takes a reported document down; its files stay in R2 for the report's follow-up. */
 async function takedown(request: Request, env: Env, id: string) {
-  const token = request.headers.get("Authorization")?.replace(/^Bearer /, "");
-  if (token === undefined || !(await sameSecret(token, env.ADMIN_TOKEN)))
-    return problem(401, "Not allowed.");
   if (!isDocumentId(id)) return problem(404, "Not found.");
   const body = (await request.json().catch(() => ({}))) as {
     reason?: unknown;

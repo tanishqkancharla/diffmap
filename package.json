@@ -53,6 +53,7 @@
     "previews": "vite --config vite.previews.config.ts",
     "cloud:dev": "npm run build:gist && alchemy dev",
     "cloud:deploy": "npm run build:gist && alchemy deploy --stage prod",
+    "cloud:publishers": "node --import tsx src/cloud/publishers.ts",
     "cloud:takedown": "node --import tsx src/cloud/takedown.ts"
   },
   "dependencies": {

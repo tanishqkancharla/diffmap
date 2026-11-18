@@ -6,7 +6,15 @@ One Cloudflare Worker serves the website, sign-in (`/api/auth`, `/device`), the 
 
 ## Internal for now
 
-Sharing to productdoc.dev isn't public yet. The CLI's `share` publishes a gist unless `PRODUCTDOC_ORIGIN` is set, which also adds `login` and `logout`; the public docs don't mention it. The server lets only the verified emails in `PRODUCTDOC_PUBLISHERS` create documents, while anyone with a link can read it. To share as an allowed account:
+Sharing to productdoc.dev isn't public yet. The CLI's `share` publishes a gist unless `PRODUCTDOC_ORIGIN` is set, which also adds `login` and `logout`; the public docs don't mention it. The server lets only the verified emails in D1's `publisher` table create documents, while anyone with a link can read it. The first migration adds tanishqkancharla3@gmail.com; manage the rest with:
+
+```sh
+PRODUCTDOC_ADMIN_TOKEN=… npm run cloud:publishers                    # list
+PRODUCTDOC_ADMIN_TOKEN=… npm run cloud:publishers -- add <email>
+PRODUCTDOC_ADMIN_TOKEN=… npm run cloud:publishers -- remove <email>
+```
+
+Changes apply at once, with no deploy. To share as an allowed account:
 
 ```sh
 PRODUCTDOC_ORIGIN=https://productdoc.dev npx product-doc share <spec>
@@ -18,7 +26,7 @@ PRODUCTDOC_ORIGIN=https://productdoc.dev npx product-doc share <spec>
 npm run cloud:dev
 ```
 
-This builds the website and runs the stack with `alchemy dev`: the Worker, D1, and R2 run on this machine at http://localhost:8787, with no Cloudflare account. State stays in `.alchemy/`. Sign-in skips Google and GitHub: the device page asks for any email. Every dev account can share unless `PRODUCTDOC_PUBLISHERS` is set. Share against it with:
+This builds the website and runs the stack with `alchemy dev`: the Worker, D1, and R2 run on this machine at http://localhost:8787, with no Cloudflare account. State stays in `.alchemy/`. Sign-in skips Google and GitHub: the device page asks for any email. Only allowed emails can share here too: sign in as tanishqkancharla3@gmail.com, or add another with `cloud:publishers` (`PRODUCTDOC_ORIGIN=http://localhost:8787`, token `dev-admin-token`). Share against it with:
 
 ```sh
 PRODUCTDOC_ORIGIN=http://localhost:8787 npm run cli -- share <spec>
@@ -33,7 +41,7 @@ productdoc.dev was bought through Vercel and its DNS is on Vercel, with only Ver
 **1. Deploy to workers.dev**
 
 1. Sign in to the Cloudflare account that will own productdoc.dev: `npx alchemy profile edit` on your machine. Choose OAuth, then Custom Scopes: the Developer Platform group, plus `memberships.read`, `user-details.read`, `account-settings.read`, `zone.read`, `zone.write`, `dns.read`, `dns.write`, `zone-settings.read`, `zone-settings.write`, `ssl-and-certificates.write`, `account-ssl-and-certificates.write`, and the four `email-routing-address` and `email-routing-rule` read and write scopes. Basic Scopes can't create the zone, and without `memberships.read` sign-in finds no accounts. To deploy from somewhere without a browser, such as a cloud agent, run `npx alchemy provider cloudflare token` and set the `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` it prints there.
-2. Set `PRODUCTDOC_ADMIN_TOKEN` (`openssl rand -hex 32`) and `PRODUCTDOC_PUBLISHERS`, the comma-separated emails of the accounts that may share.
+2. Set `PRODUCTDOC_ADMIN_TOKEN` (`openssl rand -hex 32`).
 3. `npm run cloud:deploy`. It prints the Worker's `workers.dev` URL, where the website and shared links already work, and the two `nameServers` Cloudflare assigned to the new productdoc.dev zone.
 
 **2. Move the domain and go live**
