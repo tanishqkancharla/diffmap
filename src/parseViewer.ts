@@ -2,8 +2,8 @@ import * as errore from "errore";
 import { parseAST } from "md4x/napi";
 import type { ComarkElement, ComarkNode } from "md4x/napi";
 import {
-  parseReference,
   referenceLabel,
+  sourceReferenceMatches,
   type SourceAnnotation,
   type SourceReference,
 } from "./annotations.js";
@@ -163,6 +163,7 @@ export function parseViewerDocument(source: string, path = "spec") {
       ignore: fence.ignore,
     });
   }
+  const proseAnnotations = collectReferences(nodes);
   const annotations = [
     ...fences.flatMap((fence) => {
       if (fence.kind === "callstack") return fence.lines;
@@ -172,7 +173,7 @@ export function parseViewerDocument(source: string, path = "spec") {
         return serviceAnnotations(fence.parsed.diagram);
       return [];
     }),
-    ...collectReferences(nodes),
+    ...proseAnnotations,
   ];
   const servicesFences = fences.flatMap((fence) =>
     fence.kind === "services" ? [fence] : [],
@@ -231,7 +232,11 @@ export function parseViewerDocument(source: string, path = "spec") {
     }
   }
   for (const line of annotations) {
-    if (line.text.includes("[[")) {
+    // Valid prose labels can themselves contain [[...slug]] route names.
+    if (
+      line.text.includes("[[") &&
+      (line.references.length === 0 || !proseAnnotations.includes(line))
+    ) {
       return new DiffmapAnnotationError({
         reason: `Invalid reference in "${line.text}". Use [[path]], [[path#symbol]], [[path#L12-L30]], or [[<commit>:path#L12-L30]]; source-diff patch references were removed`,
       });
@@ -430,22 +435,19 @@ function fromNode(node: ComarkNode, literal = false): ViewerNode[] {
 function proseText(value: string): ViewerNode[] {
   const nodes: ViewerNode[] = [];
   let last = 0;
-  for (const match of value.matchAll(/\[\[([^[\]\n]+)\]\]/g)) {
-    const reference = parseReference(match[1]!);
-    // The removed `[[id:old|new:N]]` patch syntax must fail, not render as text.
-    const removed =
-      reference === undefined && /^[\w-]+:(old|new):\d/.test(match[1]!);
-    if (reference === undefined && !removed) continue;
+  for (const match of sourceReferenceMatches(value)) {
+    // An undefined reference marks removed patch syntax, which must fail validation.
+    const reference = match.reference;
     if (match.index > last)
       nodes.push({ type: "text", value: value.slice(last, match.index) });
     nodes.push({
       type: "reference",
       annotation:
         reference === undefined
-          ? { text: match[0], references: [] }
+          ? { text: value.slice(match.index, match.end), references: [] }
           : { text: referenceLabel(reference, true), references: [reference] },
     });
-    last = match.index + match[0].length;
+    last = match.end;
   }
   if (last < value.length)
     nodes.push({ type: "text", value: value.slice(last) });

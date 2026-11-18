@@ -182,6 +182,117 @@ test("parseViewerDocument turns prose [[path#symbol]] into a short reference", (
   );
 });
 
+test("bracketed route references work in prose, call stacks, and diagrams", () => {
+  const targets = [
+    "routes/items/[id].tsx",
+    "routes/[...slug]/page.tsx#render",
+    "routes/[[...slug]]/page.tsx#L3-L8",
+    "routes/[id]",
+    "routes/[[...slug]]",
+    "a1b2c3d:routes/[id].tsx#L12-L30",
+  ];
+  const expected = [
+    { kind: "file", path: "routes/items/[id].tsx" },
+    { kind: "file", path: "routes/[...slug]/page.tsx", symbol: "render" },
+    { kind: "file", path: "routes/[[...slug]]/page.tsx", start: 3, end: 8 },
+    { kind: "file", path: "routes/[id]" },
+    { kind: "file", path: "routes/[[...slug]]" },
+    {
+      kind: "file",
+      rev: "a1b2c3d",
+      path: "routes/[id].tsx",
+      start: 12,
+      end: 30,
+    },
+  ];
+  const links = targets.map((target) => `[[${target}]]`).join("");
+  for (const source of [
+    `See ${links}.`,
+    `\`\`\`callstack\n render() ${links}\n\`\`\``,
+    `\`\`\`mermaid\nflowchart LR\n A --> B\n %% ref node:A ${links}\n\`\`\``,
+    `\`\`\`services\nservice API ${links}\n\`\`\``,
+  ]) {
+    const document = parseViewerDocument(source);
+    if (document instanceof Error) throw document;
+    assert.deepEqual(document.references, expected, source);
+  }
+  const literal = parseViewerDocument(
+    "`[[routes/[id].tsx]]` and [link [[routes/[id].tsx]]](https://example.com).",
+  );
+  if (literal instanceof Error) throw literal;
+  assert.deepEqual(literal.references, []);
+});
+
+test("bracketed routes preserve reference validation and prose boundaries", () => {
+  const document = parseViewerDocument(
+    "Before [[routes/[id]]] after [[other.ts]].",
+  );
+  if (document instanceof Error) throw document;
+  const paragraph = document.nodes[0];
+  assert.equal(paragraph?.type, "element");
+  if (paragraph?.type !== "element") return;
+  assert.deepEqual(paragraph.children, [
+    { type: "text", value: "Before " },
+    {
+      type: "reference",
+      annotation: {
+        text: "[id]",
+        references: [{ kind: "file", path: "routes/[id]" }],
+      },
+    },
+    { type: "text", value: " after " },
+    {
+      type: "reference",
+      annotation: {
+        text: "other.ts",
+        references: [{ kind: "file", path: "other.ts" }],
+      },
+    },
+    { type: "text", value: "." },
+  ]);
+  for (const target of [
+    "routes/[id.tsx",
+    "routes/id].tsx",
+    "routes/[id].tsx#L8-L3",
+    "a1b2c3d:routes/[id].tsx#render",
+    "missing:new:1",
+  ]) {
+    assert.ok(
+      parseViewerDocument(
+        `\`\`\`callstack\n render() [[${target}]]\n\`\`\``,
+      ) instanceof Error,
+      target,
+    );
+  }
+});
+
+test("malformed outer references do not hide inner references or validation", () => {
+  for (const [prefix, suffix] of [
+    ["An unfinished [[ marker followed by ", "."],
+    ["[", "."],
+    ["[[bad: ", " ]]"],
+    ["[".repeat(32_000), "."],
+  ]) {
+    for (const file of ["src/a.ts", "routes/[id].tsx"]) {
+      const document = parseViewerDocument(`${prefix}[[${file}]]${suffix}`);
+      if (document instanceof Error) throw document;
+      assert.deepEqual(document.references, [{ kind: "file", path: file }]);
+      const paragraph = document.nodes[0];
+      assert.equal(paragraph?.type, "element");
+      if (paragraph?.type !== "element") return;
+      assert.deepEqual(paragraph.children[0], {
+        type: "text",
+        value: prefix,
+      });
+    }
+    for (const target of ["missing:new:1", "src/a.ts#L8-L3"]) {
+      assert.ok(
+        parseViewerDocument(`${prefix}[[${target}]]${suffix}`) instanceof Error,
+      );
+    }
+  }
+});
+
 test("parseViewerDocument reads commit references and changes fences", () => {
   const document = parseViewerDocument(
     [
