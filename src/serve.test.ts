@@ -718,6 +718,16 @@ test(
         headers: { accept: "text/markdown" },
       });
       assert.equal(await markdown.text(), "# Phase 2: Write\n");
+      // The HTML page tells an agent where that Markdown is.
+      const html = await fetch(`${server.url}/write`);
+      assert.equal(
+        html.headers.get("link"),
+        '</write>; rel="alternate"; type="text/markdown"',
+      );
+      assert.match(
+        await html.text(),
+        /<link rel="alternate" type="text\/markdown" href="\/write" \/>/,
+      );
       const missing = await fetch(`${server.url}/nope`, {
         headers: { accept: "text/markdown" },
       });

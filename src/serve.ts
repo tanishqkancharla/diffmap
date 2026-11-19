@@ -363,7 +363,7 @@ export async function startServer(input: StartServerInput) {
         void fs
           .readFile(path.join(packageRoot, "index.html"), "utf8")
           .then((html) => devServer.transformIndexHtml(url, html))
-          .then((html) => sendIndex(res, html, title, reloadToken));
+          .then((html) => sendIndex(res, html, title, reloadToken, pathname));
       });
       return;
     }
@@ -397,6 +397,7 @@ export async function startServer(input: StartServerInput) {
       await fs.readFile(path.join(viewerDist, "index.html"), "utf8"),
       title,
       reloadToken,
+      pathname,
     );
   }
 
@@ -642,11 +643,15 @@ function sendIndex(
   html: string,
   title: string,
   reloadToken: string,
+  pathname: string,
 ) {
   const nonce = randomBytes(16).toString("base64");
   res.statusCode = 200;
   res.setHeader("content-type", "text/html");
   res.setHeader("cache-control", "no-cache");
+  // Agents fetching the viewer get its Markdown from the same URL with `Accept: text/markdown`; say so, as productdoc.dev does.
+  res.setHeader("vary", "Accept");
+  res.setHeader("link", `<${pathname}>; rel="alternate"; type="text/markdown"`);
   // A spec's HTML is not trusted: only the viewer's own scripts carry the nonce, and 'strict-dynamic' extends it to the code they load, so inline handlers and injected scripts never run.
   res.setHeader(
     "content-security-policy",
@@ -664,7 +669,7 @@ function sendIndex(
       .replace(
         "</head>",
         // Vite's preload helper reads the nonce from this tag for the modules it preloads.
-        `<meta name="diffmap-reload-token" content="${reloadToken}" />\n  <meta property="csp-nonce" nonce="${nonce}" />\n  </head>`,
+        `<link rel="alternate" type="text/markdown" href="${escapeHtml(pathname)}" />\n  <meta name="diffmap-reload-token" content="${reloadToken}" />\n  <meta property="csp-nonce" nonce="${nonce}" />\n  </head>`,
       ),
   );
 }
