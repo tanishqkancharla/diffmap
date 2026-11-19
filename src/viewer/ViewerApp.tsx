@@ -55,8 +55,6 @@ export function ViewerApp(props: {
   mode: ViewerMode;
   title?: string;
   headerActions?: ReactNode;
-  /** The legacy Diffmap demo opts in even when previewed on another host. */
-  showDiffButton?: boolean;
   /** Changes the Diff button opens before any reference is selected, such as a pull request. */
   defaultRev?: Rev;
   /** The spec this page belongs to. Its host remounts the viewer for each page. */
@@ -69,10 +67,6 @@ export function ViewerApp(props: {
   const [selection, setSelection] = useState<SourceSelection>();
   const [showDiffPanel, setShowDiffPanel] = useState(false);
   const local = props.mode === "local";
-  const showDiffButton =
-    props.showDiffButton ??
-    (window.location.hostname === "diffmap.dev" ||
-      window.location.hostname === "www.diffmap.dev");
   const documentRev =
     props.defaultRev ??
     viewerDocument.changeCards[0]?.rev ??
@@ -196,7 +190,7 @@ export function ViewerApp(props: {
                       : `${window.location.origin}${window.location.pathname}`
                   }
                 />
-                {showDiffButton && hasSourceDiffs && (
+                {hasSourceDiffs && (
                   <DiffButton
                     pressed={showDiffPanel}
                     onClick={() => setShowDiffPanel((open) => !open)}

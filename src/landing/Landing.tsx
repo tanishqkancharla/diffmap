@@ -134,7 +134,7 @@ function LandingPage(props: {
         </header>
       </div>
 
-      <ScrollDemo document={props.demo} showDiffButton />
+      <ScrollDemo document={props.demo} />
 
       <MeshFooter blobs={props.mesh?.footer} />
     </div>
