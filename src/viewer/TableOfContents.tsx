@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { flushSync } from "react-dom";
 import { motion, useReducedMotion, type Transition } from "motion/react";
 import {
   background,
@@ -395,7 +396,10 @@ function useDocked(navRef: RefObject<HTMLElement | null>) {
       setDocked(node.clientWidth >= TOC_DOCKED_MIN_GUTTER_PX);
     };
     measure();
-    const observer = new ResizeObserver(measure);
+    // Commit before the browser paints the resized gutter. Otherwise opening
+    // the Diff panel paints one frame of the docked list squeezed into the
+    // rail's narrow gutter.
+    const observer = new ResizeObserver(() => flushSync(measure));
     observer.observe(node);
     return () => observer.disconnect();
   }, [navRef]);
