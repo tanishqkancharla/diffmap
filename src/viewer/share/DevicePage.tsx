@@ -14,11 +14,11 @@ import {
   spacing,
   text,
 } from "maui";
-import { Github, Google } from "maui/icons";
 import { style, useStyles } from "purse-styles";
 import { StatusPage } from "../StatusPage.tsx";
 import { AgentPrompt } from "./AgentPrompt.tsx";
 import { ProductdocWordmark } from "./ProductdocWordmark.tsx";
+import { GitHubLogo, GoogleLogo } from "./ProviderLogos.tsx";
 import type { Account } from "./ShareForm.tsx";
 
 /**
@@ -87,11 +87,11 @@ export function DevicePage(props: {
         actions={
           <>
             <Button onPress={() => void signIn("google")}>
-              <Google size="sm" />
+              <GoogleLogo />
               Continue with Google
             </Button>
             <Button onPress={() => void signIn("github")}>
-              <Github size="sm" />
+              <GitHubLogo />
               Continue with GitHub
             </Button>
           </>
