@@ -225,7 +225,7 @@ if (process.env.PRODUCTDOC_ORIGIN === undefined) {
   cli
     .command("share", {
       description:
-        "Upload a document to productdoc.dev and print its public link. Signs in the first time",
+        "Upload a document to share.productdoc.dev and print its public link. Signs in the first time",
       args: serveArgs,
       options: z.object({
         allow: z
@@ -255,7 +255,7 @@ if (process.env.PRODUCTDOC_ORIGIN === undefined) {
       examples: [
         {
           args: { file: ".diffmap/specs/sessions/" },
-          description: "Public link → https://productdoc.dev/d/<id>",
+          description: "Public link → https://share.productdoc.dev/d/<id>",
         },
         {
           args: { file: ".diffmap/specs/sessions/" },
@@ -292,7 +292,7 @@ if (process.env.PRODUCTDOC_ORIGIN === undefined) {
     })
     .command("login", {
       description:
-        "Sign in to productdoc.dev with Google or GitHub, so share can upload",
+        "Sign in to share.productdoc.dev with Google or GitHub, so share can upload",
       output: z.object({ email: z.string() }),
       async run(c) {
         trackCommand("login");
@@ -307,7 +307,7 @@ if (process.env.PRODUCTDOC_ORIGIN === undefined) {
       },
     })
     .command("logout", {
-      description: "Sign out of productdoc.dev on this machine",
+      description: "Sign out of share.productdoc.dev on this machine",
       output: z.object({
         signedOut: z.boolean(),
         email: z.string().optional(),

@@ -229,7 +229,11 @@ function Missing() {
       tone="neutral"
       icon={FileSearch}
       title="No document is shared here"
-      actions={<StatusLink href="/">Go to productdoc.dev</StatusLink>}
+      actions={
+        <StatusLink href="https://productdoc.dev">
+          Go to productdoc.dev
+        </StatusLink>
+      }
     >
       <P>Check that the whole link was copied.</P>
     </StatusPage>
