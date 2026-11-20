@@ -40,8 +40,6 @@ export async function shareMarkdownFile(input: {
   // A spec's pages share one flat gist, as they share one directory.
   const pages = parseSpec(read);
   if (pages instanceof Error) return pages;
-  const changes = new Map<Rev, Changes>();
-  const files: Record<string, string> = {};
   for (const page of pages) {
     // A gist holds only text files, so the hosted viewer has no local media to load.
     const localMedia = collectMedia(page.document.nodes).filter(isLocalMedia);
@@ -50,30 +48,10 @@ export async function shareMarkdownFile(input: {
         reason: `a shared gist cannot show local images or videos (${localMedia.join(", ")} in ${page.file}). Link them by https URL, or view the spec with serve`,
       });
     }
-    // The hosted viewer has no git, so the gist carries a snapshot of each commit.
-    const pageChanges = await readDocumentChanges(
-      input.workspaceRoot,
-      page.document,
-    );
-    if (pageChanges instanceof Error) return pageChanges;
-    for (const [rev, value] of pageChanges) {
-      const previous = changes.get(rev);
-      if (previous?.sources !== undefined)
-        value.sources = { ...previous.sources, ...value.sources };
-      changes.set(rev, value);
-    }
-    // An uncommitted changes card shows the tree as it is when you share.
-    for (const { rev } of page.document.changeCards) {
-      if (changes.has(rev)) continue;
-      const loaded = await readChanges(input.workspaceRoot, rev);
-      if (loaded instanceof Error) return loaded;
-      changes.set(rev, loaded);
-    }
-    // It has no files either, so excerpts and references without a commit read these.
-    const pageFiles = readDocumentFiles(input.workspaceRoot, page.document);
-    if (pageFiles instanceof Error) return pageFiles;
-    Object.assign(files, pageFiles);
   }
+  const collected = await readSnapshots(input.workspaceRoot, pages);
+  if (collected instanceof Error) return collected;
+  const { changes, files } = collected;
 
   const auth = await runGh(["auth", "status"]);
   if (auth instanceof DiffmapShareError) return auth;
@@ -120,6 +98,40 @@ export async function shareMarkdownFile(input: {
     gistUrl,
     viewerUrl: gistViewerUrl(gistId, undefined, process.env.DIFFMAP_ORIGIN),
   };
+}
+
+/**
+ * What a viewer without git or the repository needs: a snapshot of each commit
+ * and changes card the pages reference, and the current contents of files that
+ * excerpts and references without a commit read.
+ */
+export async function readSnapshots(
+  workspaceRoot: string,
+  pages: { document: ViewerDocument }[],
+) {
+  const changes = new Map<Rev, Changes>();
+  const files: Record<string, string> = {};
+  for (const page of pages) {
+    const pageChanges = await readDocumentChanges(workspaceRoot, page.document);
+    if (pageChanges instanceof Error) return pageChanges;
+    for (const [rev, value] of pageChanges) {
+      const previous = changes.get(rev);
+      if (previous?.sources !== undefined)
+        value.sources = { ...previous.sources, ...value.sources };
+      changes.set(rev, value);
+    }
+    // An uncommitted changes card shows the tree as it is when you share.
+    for (const { rev } of page.document.changeCards) {
+      if (changes.has(rev)) continue;
+      const loaded = await readChanges(workspaceRoot, rev);
+      if (loaded instanceof Error) return loaded;
+      changes.set(rev, loaded);
+    }
+    const pageFiles = readDocumentFiles(workspaceRoot, page.document);
+    if (pageFiles instanceof Error) return pageFiles;
+    Object.assign(files, pageFiles);
+  }
+  return { changes, files };
 }
 
 /** Current contents of every file an excerpt or a reference without a commit reads, by path. */

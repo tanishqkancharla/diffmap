@@ -8,7 +8,7 @@ The first version. An agent runs one command and gets a public link that shows t
 
 ```text
 $ npx product-doc share .diffmap/specs/session-store/
-Sign in at https://productdoc.dev/device?code=4F2A-91BC
+Sign in at https://productdoc.dev/device?user_code=4F2A-91BC
 Uploading 7 pages, 4 screenshots, 1 recording, and 3 commits of diffs (6.2 MB)
 Now public: src/store.ts, src/session.ts, src/store.test.ts
 https://productdoc.dev/d/k3v9q2xa7m
@@ -24,13 +24,15 @@ https://productdoc.dev/d/k3v9q2xa7m
 - **Errors you can fix offer an agent prompt.** A screen that stops you, such as an expired sign-in, shows a prompt to copy to your agent, like "Sign me in to productdoc again and finish sharing."
 
 ```callstack [Sharing]
-link = shareDocument(dir)
+link = shareDocument(dir) [[ef38f7f:src/publish/share.ts#L28-L90]]
 ├── bundle = pages + media + diff snapshots + source files
-├── check limits, gitignored files, and keys
-├── id = POST /api/documents
-├── PUT /api/documents/{id}/blobs/{sha256} for each missing blob
-├── POST /api/documents/{id}/versions {manifest}
-└── write dir/.productdoc.json {link}
+├── check limits, gitignored files, and keys [[ef38f7f:src/publish/secrets.ts#L37-L45]]
+├── sign in by device code if there's no token [[ef38f7f:src/publish/auth.ts#L70-L126]]
+├── id = POST /api/documents [[ef38f7f:src/cloud/documents.ts#L58-L72]]
+├── missing = POST /api/documents/{id}/missing {hashes}
+├── PUT /api/documents/{id}/blobs/{sha256} for each missing blob [[ef38f7f:src/cloud/documents.ts#L127-L150]]
+├── POST /api/documents/{id}/versions {manifest} [[ef38f7f:src/cloud/documents.ts#L175-L241]]
+└── write dir/.productdoc.json {id, link}
 ```
 
 ## Expected flows
@@ -131,17 +133,67 @@ share-device-sign-in--expired
 
 ## Todos
 
-- [ ] Move productdoc.dev to a Cloudflare Worker serving the website
-- [ ] R2 bucket, and D1 `document` and `document_version` tables
-- [ ] Better Auth: Google, GitHub, account linking, device authorization, bearer tokens
-- [ ] `product-doc login` and `logout`
-- [ ] Upload API: create, upload blobs, commit a version
-- [ ] `product-doc share`, with the limit and secret checks, writing `.productdoc.json`
-- [ ] `/d/<id>` in the hosted viewer, with Markdown for agents and the public bar
-- [ ] `share --stop`, an admin takedown command, and abuse@productdoc.dev
-- [ ] An agent prompt on each error screen a person can fix
-- [ ] Update the guide's sharing section
+The code runs end to end against `npm run cloud:dev` ([[776d620:cloud/README.md]]), and it's deployed to workers.dev. Sharing is internal for now: the CLI offers it only when `PRODUCTDOC_ORIGIN` is set, and the Worker lets only the verified emails in D1's `publisher` table publish [[776d620:cloud/migrations/0003_publishers.sql]]. `npm run cloud:publishers` adds and removes them without a deploy. Going live needs DNS and the Google and GitHub apps.
+
+- [x] Provision D1, R2, the Worker, and its domain with Alchemy
+- [x] Deploy to workers.dev, publishing open only to allowlisted accounts
+- [x] Move productdoc.dev's DNS to Cloudflare, still pointing at Vercel
+- [ ] Add the Google and GitHub sign-in apps
+- [ ] Serve productdoc.dev from the Worker, deployed from `main`
+- [x] A Cloudflare Worker serving the website
+- [x] R2 bucket, and D1 `document` and `document_version` tables
+- [x] Better Auth: Google, GitHub, account linking, device authorization, bearer tokens
+- [x] `product-doc login` and `logout`
+- [x] Upload API: create, upload blobs, commit a version
+- [x] `product-doc share`, with the limit and secret checks, writing `.productdoc.json`
+- [x] `/d/<id>` in the hosted viewer, with Markdown for agents and the public bar
+- [x] `share --stop`, an admin takedown command, and abuse@productdoc.dev
+- [x] An agent prompt on each error screen a person can fix
+- [ ] Document sharing in the README and guide once it's open to everyone
 
 ```changes
-
+1029efd..776d620
+src/cli.ts
+src/publish/share.ts
+src/publish/auth.ts
+src/publish/secrets.ts
+src/cloud/protocol.ts
+src/cloud/worker.ts
+src/cloud/auth.ts
+src/cloud/documents.ts
+src/cloud/reader.ts
+src/cloud/site.ts
+src/cloud/client/SharedApp.tsx
+src/cloud/client/DeviceApp.tsx
+src/viewer/share/DevicePage.tsx
+cloud/migrations/0002_documents.sql
+cloud/migrations/0003_publishers.sql
+alchemy.run.ts
+cloud/README.md
+src/publish/share.test.ts
+src/share.ts
+ignore:
+cloud/migrations/0001_auth.sql
+gist/device.html
+gist/shared.html
+.gitignore
+guide.md
+guide/ui.md
+package.json
+package-lock.json
+README.md
+src/cli.test.ts
+src/cloud/authSchema.ts
+src/cloud/client/api.ts
+src/cloud/client/deviceMain.tsx
+src/cloud/client/sharedMain.tsx
+src/cloud/env.ts
+src/cloud/takedown.ts
+src/cloud/publishers.ts
+src/errors.ts
+src/website/negotiate.ts
+src/website/respond.ts
+vite.gist.config.ts
+tsconfig.json
+.diffmap/specs/productdoc-sharing/02-publish-from-the-cli.md
 ```
