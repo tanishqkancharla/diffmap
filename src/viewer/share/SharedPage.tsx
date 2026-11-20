@@ -15,10 +15,11 @@ import {
   spacing,
   text,
 } from "maui";
-import { ChevronDown, Flag, Github, Google } from "maui/icons";
+import { ChevronDown, Flag } from "maui/icons";
 import { style, useStyles } from "purse-styles";
 import { StatusPage } from "../StatusPage.tsx";
 import { ProductdocWordmark } from "./ProductdocWordmark.tsx";
+import { GitHubLogo, GoogleLogo } from "./ProviderLogos.tsx";
 import type { Access, Account } from "./ShareForm.tsx";
 
 /**
@@ -86,11 +87,11 @@ export function SharedPage(props: {
         actions={
           <>
             <Button onPress={signIn}>
-              <Google size="sm" />
+              <GoogleLogo />
               Continue with Google
             </Button>
             <Button onPress={signIn}>
-              <Github size="sm" />
+              <GitHubLogo />
               Continue with GitHub
             </Button>
           </>
