@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Banner,
   Button,
@@ -8,7 +8,6 @@ import {
   MenuItem,
   MenuTrigger,
   P,
-  Text,
   backgroundColor,
   border,
   flex,
@@ -18,6 +17,7 @@ import {
 import { ChevronDown, Flag } from "maui/icons";
 import { style, useStyles } from "purse-styles";
 import { StatusPage } from "../StatusPage.tsx";
+import { Logo } from "../../landing/Logo.tsx";
 import { ProductdocWordmark } from "./ProductdocWordmark.tsx";
 import { GitHubLogo, GoogleLogo } from "./ProviderLogos.tsx";
 import type { Access, Account } from "./ShareForm.tsx";
@@ -50,8 +50,6 @@ export function SharedPage(props: {
   const [reader, setReader] = useState(props.reader);
   const [viewing, setViewing] = useState(props.versions?.[0]);
   const page = useStyles(styles.page);
-  const bar = useStyles(styles.bar);
-  const link = useStyles(styles.link);
   const viewer = useStyles(styles.viewer);
   const wordmark = <ProductdocWordmark />;
 
@@ -161,17 +159,7 @@ export function SharedPage(props: {
 
   return (
     <div className={page}>
-      {props.access === "public" && (
-        <div className={bar}>
-          <ProductdocWordmark />
-          <Text size="sm" color="lowContrast">
-            {props.owner} shared this publicly
-          </Text>
-          <a className={link} href="https://productdoc.dev">
-            Share your own →
-          </a>
-        </div>
-      )}
+      {props.access === "public" && <PublicBar owner={props.owner} />}
       {viewing !== undefined && viewing !== latest && (
         <Banner
           tone="info"
@@ -189,6 +177,70 @@ export function SharedPage(props: {
   );
 }
 
+/**
+ * Says who shared a public document, with a link to productdoc.dev. It slides
+ * away while the reader scrolls down, comes back when they scroll up, and the
+ * reader can close it for good.
+ */
+function PublicBar(props: { owner: string }) {
+  const [closed, setClosed] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const last = useRef(0);
+  const bar = useStyles(styles.bar);
+  const brand = useStyles(styles.brand);
+  const wide = useStyles(styles.wide);
+  const owner = useStyles(styles.owner);
+  const link = useStyles(styles.link);
+  const close = useStyles(styles.close);
+
+  useEffect(() => {
+    // The viewer scrolls inside its own panes, so listen for any scroll on the page.
+    const onScroll = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const top = target.scrollTop;
+      if (Math.abs(top - last.current) < 8) return;
+      setHidden(top > last.current && top > 48);
+      last.current = top;
+    };
+    document.addEventListener("scroll", onScroll, {
+      capture: true,
+      passive: true,
+    });
+    return () =>
+      document.removeEventListener("scroll", onScroll, { capture: true });
+  }, []);
+
+  if (closed) return undefined;
+  return (
+    <div className={bar} data-hidden={hidden}>
+      <a
+        className={brand}
+        href="https://productdoc.dev"
+        aria-label="productdoc"
+      >
+        <Logo size={20} />
+        <span className={wide}>productdoc</span>
+      </a>
+      <span className={owner}>
+        {props.owner} shared this<span className={wide}> publicly</span>
+      </span>
+      <a className={link} href="https://productdoc.dev">
+        Share<span className={wide}> yours</span> →
+      </a>
+      <Button
+        variant="quiet"
+        size="sm"
+        aria-label="Close"
+        className={close}
+        onPress={() => setClosed(true)}
+      >
+        <Close size="xs" />
+      </Button>
+    </div>
+  );
+}
+
 const styles = {
   page: style(flex({ direction: "column" }), {
     height: "100vh",
@@ -196,16 +248,46 @@ const styles = {
     backgroundColor: backgroundColor.app,
   }),
   bar: style(
-    flex({ direction: "row", alignItems: "center", gap: 3 }),
-    spacing.padding({ x: 6, y: 2 }),
+    flex({ direction: "row", alignItems: "center", gap: 2 }),
+    spacing.padding({ left: 4, right: 1, y: 1 }),
     border(["bottom"], "border"),
     text({ size: "sm", fontWeight: 600, color: "highContrast" }),
-    { flexShrink: 0, backgroundColor: backgroundColor.elementHover },
+    {
+      flexShrink: 0,
+      minWidth: 0,
+      maxHeight: "48px",
+      overflow: "hidden",
+      whiteSpace: "nowrap",
+      backgroundColor: backgroundColor.elementHover,
+      transition:
+        "max-height 160ms ease, padding 160ms ease, border-width 160ms ease",
+      "&[data-hidden='true']": {
+        maxHeight: 0,
+        paddingBlock: 0,
+        borderBottomWidth: 0,
+      },
+      "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+    },
   ),
+  // On a phone the logo stands in for the name, so the owner's name fits.
+  wide: style({ "@media (max-width: 480px)": { display: "none" } }),
+  brand: style(flex({ direction: "row", alignItems: "center", gap: 2 }), {
+    flexShrink: 0,
+    color: "inherit",
+    textDecoration: "none",
+  }),
+  // The owner's name gives way first on a narrow screen.
+  owner: style(text({ size: "sm", fontWeight: 400, color: "lowContrast" }), {
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  }),
   link: style(text({ size: "sm", fontWeight: 500 }), {
     marginLeft: "auto",
+    flexShrink: 0,
     color: "inherit",
   }),
+  close: style({ flexShrink: 0 }),
   // The viewer fills the viewport, so it scrolls inside what is left under the bar.
   viewer: style({
     flex: "1 1 auto",
