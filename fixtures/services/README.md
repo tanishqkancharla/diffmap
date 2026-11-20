@@ -11,6 +11,14 @@ service API "HTTP server" [[src/serve.ts]]
   > Accepts HTTP requests and routes them to its services.
   %% State, indented under its service
   state requests = 0
+  %% Text state: Markdown in | lines
+  text plan
+    | - [x] Parse the request
+    | - [ ] Check the session
+  %% Table state: a header line, then one row per record, named by its first cell
+  table routes
+    | path   | handler |
+    | /login | Auth    |
   %% A sub-service, indented further
   service Auth
 
@@ -34,6 +42,14 @@ step "API asks Auth to verify"
   %% Optional: a service name alone, with a note shown beside it during this step
   Auth
     > Holds the request until Auth answers.
+  %% Replace a text, with | lines for more than one line
+  API.plan =
+    | - [x] Parse the request
+    | - [x] Check the session
+  %% Change a table cell, add a row, or remove one by its first cell
+  API.routes[/login].handler = Sessions
+  API.routes += | /logout | Sessions |
+  API.routes -= /login
 ```
 
 ## Logging in
@@ -172,4 +188,59 @@ step "Definitions returns the declaration's lines"
 step "The panel shows the declaration"
   Server -> SourceDiffPanel: { definition }
   SourceDiffPanel.resolution = store.ts L12–30
+```
+
+## Syncing offline changes
+
+A `text` state holds prose or a checklist, and a `table` state holds records. Todo 3 is completed while offline, queued as a mutation, sent when the connection returns, and removed from the queue once Supabase confirms it.
+
+```services
+service React "todo list"
+  table todos
+    > What the list shows.
+    | id | title        | done  |
+    | t3 | Buy milk     | false |
+    | t4 | Call plumber | false |
+service Local "IndexedDB"
+  state online = false
+  table pending
+    > Mutations waiting to reach Supabase, oldest first.
+    | id | mutation        | status |
+  text connection
+    | Offline. Changes **queue** until the network returns.
+service Supabase
+  table todos
+    | id | done  |
+    | t3 | false |
+    | t4 | false |
+
+start "An offline change reaches Supabase"
+  > The list updates at once, the change waits in IndexedDB, and the queue empties once Supabase confirms it.
+
+step "Alice completes todo 3 while offline"
+  React -> Local: complete t3
+  React.todos[t3].done = true
+  Local.pending += | m1 | complete todo 3 | queued |
+    > Saved before anything is sent, so a reload keeps it.
+step "Alice deletes todo 4"
+  React -> Local: delete t4
+  React.todos -= t4
+  Local.pending += | m2 | delete todo 4 | queued |
+step "The network returns and the worker sends both"
+  Local -> Supabase: m1, m2
+  Local.online = true
+  Local.connection =
+    | Online. Sending `2` queued changes:
+    | - [x] m1 complete todo 3
+    | - [x] m2 delete todo 4
+  Local.pending[m1].status = sent
+  Local.pending[m2].status = sent
+step "Supabase applies them and confirms m1 and m2"
+  Supabase -> Local: ack m1, m2
+  Supabase.todos[t3].done = true
+  Supabase.todos -= t4
+  Local.pending -= m1
+    > Confirmed mutations leave the queue.
+  Local.pending -= m2
+  Local.connection = Online. Nothing queued.
 ```

@@ -33,15 +33,43 @@ export type Service = {
   sign: Sign;
 };
 
-export type ServiceState = {
+/** A state entry: a short value, Markdown text, or a table of rows. */
+export type ServiceState = ValueState | TextState | TableState;
+
+type StateCommon = {
   key: string;
+  description: string | undefined;
+  sign: Sign;
+};
+
+export type ValueState = StateCommon & {
+  kind: "value";
   /** The Proposed initial value. */
   value: string;
   /** Set when a `-` and a `+` line declare the key with different values. */
   todayValue: string | undefined;
-  description: string | undefined;
-  sign: Sign;
 };
+
+/** From `text key` and the `|` lines under it. */
+export type TextState = StateCommon & { kind: "text"; lines: StateLine[] };
+
+/** From `table key`: a header line, then rows. Each row's first cell names it. */
+export type TableState = StateCommon & {
+  kind: "table";
+  columns: string[];
+  rows: TableRow[];
+};
+
+/** One `|` line of Markdown; in a diff, Today skips `+` lines and Proposed `-` lines. */
+export type StateLine = { text: string; sign: Sign };
+
+export type TableRow = { cells: string[]; sign: Sign };
+
+/** A table's value at one step on one side. */
+export type Table = { columns: string[]; rows: string[][] };
+
+/** What a state key holds at one step: a value, Markdown text, or a table. */
+export type StateValue = string | Table;
 
 export type ServiceStep = {
   /** What happens in this step, in a sentence. */
@@ -74,11 +102,24 @@ export type ServiceEvent = {
 export type ServiceUpdate = {
   service: string;
   key: string;
-  value: string;
+  change: StateChange;
   /** Shown beside the changed state while its step is current. */
   note: string | undefined;
   sign: Sign;
 };
+
+/**
+ * `Service.key = value` sets a value; on a text key it replaces the text,
+ * with `|` lines under it for more than one line. On a table key,
+ * `[row].column = value` sets a cell, `+= | … |` adds a row, and `-= row`
+ * removes one.
+ */
+export type StateChange =
+  | { kind: "set"; value: string }
+  | { kind: "text"; lines: StateLine[] }
+  | { kind: "cell"; row: string; column: string; value: string }
+  | { kind: "addRow"; cells: string[] }
+  | { kind: "removeRow"; row: string };
 
 export type ServicesParse =
   | { ok: true; diagram: ServiceDiagram }
@@ -94,7 +135,45 @@ const startLine = /^start\b(?:\s+"([^"]*)")?\s*$/;
 const eventLine = new RegExp(
   String.raw`^(${name})\s*->\s*(${name})(?:\s*:\s*(.*))?$`,
 );
-const updateLine = new RegExp(String.raw`^(${name})\.(${name})\s*=\s*(.+)$`);
+const textLine = new RegExp(String.raw`^text\s+(${name})\s*$`);
+const tableLine = new RegExp(String.raw`^table\s+(${name})\s*$`);
+const updateLine = new RegExp(
+  String.raw`^(${name})\.(${name})(?:\[([^\]]+)\]\.(${name}))?\s*(=|\+=|-=)\s*(.*)$`,
+);
+
+/** The sides of a diff a line with this sign belongs to. */
+function sidesOf(sign: Sign): Side[] {
+  return sign === "+"
+    ? ["proposed"]
+    : sign === "-"
+      ? ["today"]
+      : ["today", "proposed"];
+}
+
+/** An item takes the sign of the service, step, or state it sits in. */
+function signInside(
+  outer: Sign,
+  own: Sign,
+  kind: string,
+): { sign: Sign } | { reason: string } {
+  if (outer === " " || own === " " || own === outer)
+    return { sign: outer === " " ? own : outer };
+  return {
+    reason: `A ${own} line can't sit inside a ${outer === "-" ? "removed" : "added"} ${kind}.`,
+  };
+}
+
+/** A text's `|` line without its bar and the one space after it. */
+function markdownOf(line: string) {
+  return line.slice(1).replace(/^ /, "");
+}
+
+/** The cells of a `| a | b |` line, or undefined for a `|---|---|` separator. */
+function tableCells(line: string): string[] | undefined {
+  const inner = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  const cells = inner.split("|").map((cell) => cell.trim());
+  return cells.every((cell) => /^:?-+:?$/.test(cell)) ? undefined : cells;
+}
 const serviceNoteLine = new RegExp(String.raw`^(${name})$`);
 
 /**
@@ -141,6 +220,18 @@ export function parseServiceDiagram(
   };
   // A bare service name in a step, waiting for the `>` line that is its note.
   let pendingNote: { line: number; note: { text: string } } | undefined;
+  // Where a `|` line goes: a text's Markdown, or a table's header and rows.
+  // `finish` reports what is still missing once the lines end.
+  let piped:
+    | {
+        indent: number;
+        add: (cells: string, sign: Sign) => string | undefined;
+        finish: () => ServicesParse | undefined;
+      }
+    | undefined;
+  // Each table's row names on each side, as replayed so far, so updates can
+  // name only rows that exist at their step.
+  const liveRows = new Map<string, Record<Side, Set<string>>>();
   const noteMissing = () =>
     pendingNote !== undefined && pendingNote.note.text === ""
       ? ({
@@ -173,12 +264,8 @@ export function parseServiceDiagram(
       container: { sign: Sign } | undefined,
       kind: string,
     ) => {
-      const outer = container?.sign ?? " ";
-      if (outer === " " || own === " " || own === outer)
-        return outer === " " ? own : outer;
-      return fail(
-        `A ${own} line can't sit inside a ${outer === "-" ? "removed" : "added"} ${kind}.`,
-      );
+      const nested = signInside(container?.sign ?? " ", own, kind);
+      return "sign" in nested ? nested.sign : fail(nested.reason);
     };
     if (text.startsWith(">")) {
       if (described === undefined || indent <= described.indent)
@@ -188,6 +275,18 @@ export function parseServiceDiagram(
       described.append(text.slice(1).trim());
       continue;
     }
+    if (text.startsWith("|")) {
+      if (piped === undefined || indent <= piped.indent)
+        return fail(
+          "Put a | line directly below the text, table, or text update it belongs to, indented further.",
+        );
+      const problem = piped.add(text, own);
+      if (problem !== undefined) return fail(problem);
+      continue;
+    }
+    const unfinished = piped?.finish();
+    if (unfinished !== undefined) return unfinished;
+    piped = undefined;
     const missing = noteMissing();
     if (missing !== undefined) return missing;
     pendingNote = undefined;
@@ -226,7 +325,9 @@ export function parseServiceDiagram(
     }
 
     const stateMatch = stateLine.exec(text);
-    if (stateMatch !== null) {
+    const textMatch = textLine.exec(text);
+    const tableMatch = tableLine.exec(text);
+    if (stateMatch !== null || textMatch !== null || tableMatch !== null) {
       if (step !== undefined)
         return fail(
           "Declare state under its service, before the first step. Change it in a step with Service.key = value.",
@@ -235,35 +336,109 @@ export function parseServiceDiagram(
       const owner = open.at(-1)?.service;
       if (owner === undefined)
         return fail("Indent state under the service that owns it.");
-      const key = stateMatch[1]!;
-      const value = stateMatch[2]!.trim();
+      const key = (stateMatch ?? textMatch ?? tableMatch)![1]!;
       const sign = signWithin(owner, "service");
       if (typeof sign !== "string") return sign;
       const declared = owner.state.find((entry) => entry.key === key);
       if (declared !== undefined) {
         // A `-` and a `+` declaration of one key change its initial value.
         if (
+          stateMatch === null ||
+          declared.kind !== "value" ||
           declared.todayValue !== undefined ||
           declared.sign === " " ||
           sign === " " ||
           declared.sign === sign
         )
           return fail(`${owner.name}.${key} is declared twice.`);
+        const value = stateMatch[2]!.trim();
         declared.todayValue = declared.sign === "-" ? declared.value : value;
         declared.value = declared.sign === "+" ? declared.value : value;
         declared.sign = " ";
         describe(indent, declared);
         continue;
       }
-      const entry: ServiceState = {
+      if (stateMatch !== null) {
+        const entry: ServiceState = {
+          kind: "value",
+          key,
+          value: stateMatch[2]!.trim(),
+          todayValue: undefined,
+          description: undefined,
+          sign,
+        };
+        owner.state.push(entry);
+        describe(indent, entry);
+        continue;
+      }
+      if (textMatch !== null) {
+        const entry: TextState = {
+          kind: "text",
+          key,
+          lines: [],
+          description: undefined,
+          sign,
+        };
+        owner.state.push(entry);
+        describe(indent, entry);
+        piped = {
+          indent,
+          add: (bar, barSign) => {
+            const nested = signInside(entry.sign, barSign, "text");
+            if ("reason" in nested) return nested.reason;
+            entry.lines.push({ text: markdownOf(bar), sign: nested.sign });
+            return undefined;
+          },
+          finish: () => undefined,
+        };
+        continue;
+      }
+      const entry: TableState = {
+        kind: "table",
         key,
-        value,
-        todayValue: undefined,
+        columns: [],
+        rows: [],
         description: undefined,
         sign,
       };
       owner.state.push(entry);
       describe(indent, entry);
+      const live = { today: new Set<string>(), proposed: new Set<string>() };
+      liveRows.set(`${owner.name}.${key}`, live);
+      const declaredAt = line;
+      piped = {
+        indent,
+        add: (bar, barSign) => {
+          const cells = tableCells(bar);
+          if (cells === undefined) return undefined;
+          if (entry.columns.length === 0) {
+            if (entry.sign === " " && barSign !== " ")
+              return "Both versions share a table's header line; drop its sign.";
+            entry.columns = cells;
+            return undefined;
+          }
+          const nested = signInside(entry.sign, barSign, "table");
+          if ("reason" in nested) return nested.reason;
+          const within = nested.sign;
+          if (cells.length !== entry.columns.length)
+            return `This row has ${cells.length} cells, but ${owner.name}.${key} has ${entry.columns.length} columns (${entry.columns.join(", ")}).`;
+          for (const side of sidesOf(within)) {
+            if (live[side].has(cells[0]!))
+              return `${owner.name}.${key} already has a row ${cells[0]}. The first column names each row, so it must be unique.`;
+            live[side].add(cells[0]!);
+          }
+          entry.rows.push({ cells, sign: within });
+          return undefined;
+        },
+        finish: () =>
+          entry.columns.length > 0
+            ? undefined
+            : {
+                ok: false,
+                line: declaredAt,
+                reason: `Give table ${key} a header line under it, like | id | status |.`,
+              },
+      };
       continue;
     }
 
@@ -333,23 +508,102 @@ export function parseServiceDiagram(
       }
       const update = updateLine.exec(text);
       if (update !== null) {
-        const owner = byName.get(update[1]!);
-        if (owner === undefined) return fail(`Unknown service ${update[1]}.`);
-        if (!owner.state.some((entry) => entry.key === update[2]))
+        const [, service, key, rowKey, column, operator, rest] = update;
+        const owner = byName.get(service!);
+        if (owner === undefined) return fail(`Unknown service ${service}.`);
+        const declared = owner.state.find((entry) => entry.key === key);
+        if (declared === undefined)
           return fail(
-            `${owner.name} has no state ${update[2]}. Declare it with state ${update[2]} = <initial value>.`,
+            `${owner.name} has no state ${key}. Declare it with state ${key} = <initial value>, text ${key}, or table ${key}.`,
           );
         const sign = signWithin(step, "step");
         if (typeof sign !== "string") return sign;
+        const target = `${owner.name}.${key}`;
+        const value = rest!.trim();
+        let change: StateChange;
+        if (declared.kind === "table") {
+          const live = liveRows.get(target)!;
+          const rowName = rowKey?.trim() ?? value;
+          if (rowKey !== undefined && operator === "=") {
+            if (!declared.columns.includes(column!))
+              return fail(
+                `${target} has no column ${column}. Its columns are ${declared.columns.join(", ")}.`,
+              );
+            change = { kind: "cell", row: rowName, column: column!, value };
+          } else if (rowKey === undefined && operator === "+=") {
+            const cells = tableCells(value);
+            if (!value.startsWith("|") || cells === undefined)
+              return fail(
+                `Add a row with ${target} += | ${declared.columns.join(" | ")} |.`,
+              );
+            if (cells.length !== declared.columns.length)
+              return fail(
+                `This row has ${cells.length} cells, but ${target} has ${declared.columns.length} columns (${declared.columns.join(", ")}).`,
+              );
+            change = { kind: "addRow", cells };
+          } else if (
+            rowKey === undefined &&
+            operator === "-=" &&
+            value !== ""
+          ) {
+            change = { kind: "removeRow", row: rowName };
+          } else
+            return fail(
+              `Change table ${target} with ${target}[row].column = value, ${target} += | … |, or ${target} -= row.`,
+            );
+          const named = change.kind === "addRow" ? change.cells[0]! : rowName;
+          for (const side of sidesOf(sign)) {
+            const exists = live[side].has(named);
+            if (change.kind === "addRow" && exists)
+              return fail(`${target} already has a row ${named} at this step.`);
+            if (change.kind !== "addRow" && !exists)
+              return fail(`${target} has no row ${named} at this step.`);
+            if (change.kind === "addRow") live[side].add(named);
+            if (change.kind === "removeRow") live[side].delete(named);
+          }
+        } else if (rowKey !== undefined || operator !== "=") {
+          return fail(
+            `Only a table takes [row].column, +=, or -=. Change ${target} with ${target} = <new value>.`,
+          );
+        } else if (declared.kind === "text") {
+          change = {
+            kind: "text",
+            lines: value === "" ? [] : [{ text: value, sign: " " }],
+          };
+        } else {
+          if (value === "") return fail(`Give ${target} a new value after =.`);
+          change = { kind: "set", value };
+        }
         const entry: ServiceUpdate = {
           service: owner.name,
-          key: update[2]!,
-          value: update[3]!.trim(),
+          key: key!,
+          change,
           note: undefined,
           sign,
         };
         step.updates.push(entry);
         annotate(indent, entry);
+        if (change.kind === "text" && change.lines.length === 0) {
+          const textLines = change.lines;
+          const updatedAt = line;
+          piped = {
+            indent,
+            add: (markdown, lineSign) => {
+              const nested = signInside(entry.sign, lineSign, "update");
+              if ("reason" in nested) return nested.reason;
+              textLines.push({ text: markdownOf(markdown), sign: nested.sign });
+              return undefined;
+            },
+            finish: () =>
+              textLines.length > 0
+                ? undefined
+                : {
+                    ok: false,
+                    line: updatedAt,
+                    reason: `Put the new text after ${target} =, or in | lines under it.`,
+                  },
+          };
+        }
         continue;
       }
       const noteTarget = serviceNoteLine.exec(text);
@@ -378,6 +632,8 @@ export function parseServiceDiagram(
       `Expected service <Name>, state <key> = <value>, start "<caption>", or step "<caption>", got "${text}".`,
     );
   }
+  const unfinished = piped?.finish();
+  if (unfinished !== undefined) return unfinished;
   const missing = noteMissing();
   if (missing !== undefined) return missing;
   if (services.length === 0)
@@ -404,25 +660,60 @@ export function serviceStateAt(
   diagram: ServiceDiagram,
   step: number,
   side: Side = "proposed",
-) {
+): Map<string, Map<string, StateValue>> {
   const skip: Sign = side === "today" ? "+" : "-";
+  const markdown = (lines: StateLine[]) =>
+    lines
+      .filter((line) => line.sign !== skip)
+      .map((line) => line.text)
+      .join("\n");
+  const initial = (entry: ServiceState): StateValue => {
+    if (entry.kind === "text") return markdown(entry.lines);
+    if (entry.kind === "table")
+      return {
+        columns: entry.columns,
+        rows: entry.rows
+          .filter((row) => row.sign !== skip)
+          .map((row) => row.cells),
+      };
+    return side === "today" ? (entry.todayValue ?? entry.value) : entry.value;
+  };
   const state = new Map(
     flattenServices(diagram.services).map(({ service }) => [
       service.name,
       new Map(
         service.state
           .filter((entry) => entry.sign !== skip)
-          .map((entry) => [
-            entry.key,
-            side === "today" ? (entry.todayValue ?? entry.value) : entry.value,
-          ]),
+          .map((entry) => [entry.key, initial(entry)]),
       ),
     ]),
   );
   for (const { updates } of diagram.steps.slice(0, step))
-    for (const update of updates)
-      if (update.sign !== skip)
-        state.get(update.service)!.set(update.key, update.value);
+    for (const { service, key, change, sign } of updates) {
+      if (sign === skip) continue;
+      const values = state.get(service)!;
+      const before = values.get(key)!;
+      if (change.kind === "set") values.set(key, change.value);
+      else if (change.kind === "text") values.set(key, markdown(change.lines));
+      else {
+        // SAFETY: the parser accepts row changes only on table keys.
+        const table = before as Table;
+        const at = table.columns.indexOf(
+          change.kind === "cell" ? change.column : "",
+        );
+        values.set(key, {
+          columns: table.columns,
+          rows:
+            change.kind === "addRow"
+              ? [...table.rows, change.cells]
+              : change.kind === "removeRow"
+                ? table.rows.filter((row) => row[0] !== change.row)
+                : table.rows.map((row) =>
+                    row[0] === change.row ? row.with(at, change.value) : row,
+                  ),
+        });
+      }
+    }
   return state;
 }
 

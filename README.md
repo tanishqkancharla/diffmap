@@ -415,6 +415,8 @@ service API "HTTP server" [[src/api.ts]]
   service Auth
     state attempts = 0
       > Failures since the last success. Five locks the account.
+    table sessions
+      | id | user | expires |
 
 start "Alice logs in"
   > The API checks her password with Auth, then sets a session cookie.
@@ -425,6 +427,7 @@ step "The API asks Auth to verify"
     > Sends the username and the password from the form.
   Auth.attempts = 1
     > Counted before the check, so a crash still counts as a failure.
+  Auth.sessions += | s_81f | alice | 30 days |
 step "The API sets the session cookie"
   API -> Browser: 200 Set-Cookie
   Browser.cookie = sid=s_81f
@@ -434,7 +437,16 @@ step "The API sets the session cookie"
 - `service <Name> "label"` declares a service. Indent a `service` line under
   another to nest it. Names are unique within the diagram.
 - `state <key> = <value>` declares a value and its initial state. Indent it under
-  its service.
+  its service. State is what you could inspect if you paused between steps, so
+  give it one current value. A rule about how it changes goes in a `>` note, and
+  a decision or permission goes in the step where it happens.
+- `text <key>` declares Markdown the service holds, such as a checklist or a
+  draft, written in indented `| ` lines under it. It supports paragraphs,
+  bulleted and numbered lists, `[ ]` and `[x]` checklists, bold, italic, and
+  inline code.
+- `table <key>` declares records. The first indented `| a | b |` line is the
+  header, and each later line is a row. The first column names each row, so it
+  must be unique; a `|---|` separator line is ignored.
 - `start "caption"` at column 0, before the first step, titles the whole
   diagram, such as `start "Alice logs in"`. It stays in the title row while the
   reader steps. A `>` line under it gives an overview of the whole process,
@@ -446,6 +458,13 @@ step "The API sets the session cookie"
   under it are `From -> To: label` events and `Service.key = value` updates.
   A step's events travel one after another, in the order written, and the
   updates land when the last one arrives.
+  - `Service.key = text` replaces a text; put `| ` lines under
+    `Service.key =` for more than one line.
+  - On a table, `Service.key[row].column = value` changes one cell,
+    `Service.key += | … |` adds a row, and `Service.key -= row` removes one.
+    A row must exist at that step for a change or removal to name it.
+  - Changed values, text, cells, and added rows are highlighted while their
+    step is current, and a removed row stays struck through for that step.
 - A `>` line adds text to the line above it. Indent it further than that line;
   consecutive `>` lines join.
   - Under a service or state, it is a description: the name gets a dotted
@@ -516,7 +535,11 @@ In a `services diff`, lines inside a `-` or `+` service or step take its
 sign. Today replays the unmarked and `-` lines and Proposed the unmarked and
 `+` lines, so each state row shows Today's value struck through beside
 Proposed's when they differ. A `-` and a `+` declaration of the same state key
-give each version its own starting value. Added and removed steps color their
+give each version its own starting value. Signed `| ` lines give a text or a
+table each version's own lines or rows; a table's header has no sign. Where the
+versions differ, a text shows Today's version struck through above
+Proposed's, and a table shows rows only Today has in red, rows only Proposed
+has in green, and cells that differ with both values. Added and removed steps color their
 segment of the progress bar, and their caption starts with **Added** or
 **Removed**. See [the runnable examples](fixtures/diagram-diffs/README.md).
 

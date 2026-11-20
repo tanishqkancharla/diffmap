@@ -29,6 +29,8 @@ import {
   type ServiceNote,
   type ServiceUpdate,
   type Sign,
+  type StateValue,
+  type Table,
 } from "../services.js";
 import {
   layoutServices,
@@ -40,6 +42,11 @@ import {
   type ServiceLink,
   type Size,
 } from "./serviceLayout.js";
+import {
+  described as describedStyle,
+  mergeRows,
+  StateBlock,
+} from "./ServiceStateBlock.tsx";
 
 export const TRAVEL_MS = 750;
 const NOTE_WIDTH = 200;
@@ -51,16 +58,21 @@ type StepNote = {
   id: string;
   text: string;
   target: string;
+  /** Where the leader goes when `target` isn't shown, such as a row a diff hides. */
+  fallback?: string;
   /** For a state row or a service, the box whose right edge the leader starts from. */
   service: string | undefined;
 };
 
-type State = Map<string, Map<string, string>>;
+type State = Map<string, Map<string, StateValue>>;
 
 /** State replayed on each side of a diff; the sides match outside a diff. */
 export type SidedState = { today: State; proposed: State };
 
-type Values = { today: Map<string, string>; proposed: Map<string, string> };
+type Values = {
+  today: Map<string, StateValue>;
+  proposed: Map<string, StateValue>;
+};
 
 export type StageProps = {
   diagram: ServiceDiagram;
@@ -86,6 +98,7 @@ export function ServiceStage(props: StageProps) {
   const flat = useMemo(() => flattenServices(diagram.services), [diagram]);
   const links = useMemo(() => serviceLinks(diagram), [diagram]);
   const widest = useMemo(() => widestState(diagram), [diagram]);
+  const keyWidths = useMemo(() => keyColumnWidths(diagram), [diagram]);
   const outer = useRef<HTMLDivElement>(null);
   const measure = useRef<HTMLDivElement>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -122,6 +135,8 @@ export function ServiceStage(props: StageProps) {
       const available = outer.current!.clientWidth;
       if (!force && available === measuredWidth) return;
       measuredWidth = available;
+      // Text and tables wrap to fit a narrow column rather than overflow it.
+      measure.current!.style.setProperty("--fit-width", `${available - 32}px`);
       const run = ++latest;
       const sizes = new Map(
         [...measure.current!.querySelectorAll("[data-measure-service]")].map(
@@ -257,7 +272,8 @@ export function ServiceStage(props: StageProps) {
                     {
                       id: `update-${index}`,
                       text: update.note,
-                      target: `[data-state-row="${update.service}.${update.key}"]`,
+                      target: `[data-state-row="${update.service}.${update.key}${rowOf(update.change)}"]`,
+                      fallback: `[data-state-row="${update.service}.${update.key}"]`,
                       service: update.service,
                     },
                   ],
@@ -288,9 +304,11 @@ export function ServiceStage(props: StageProps) {
     const origin = outer.current!.getBoundingClientRect();
     const measured = notes
       .map((note) => {
-        const target = canvasRef
-          .current!.querySelector(note.target)!
-          .getBoundingClientRect();
+        const canvasElement = canvasRef.current!;
+        const target = (canvasElement.querySelector(note.target) ??
+          canvasElement.querySelector(
+            note.fallback ?? note.target,
+          ))!.getBoundingClientRect();
         const owner =
           note.service === undefined
             ? undefined
@@ -367,6 +385,7 @@ export function ServiceStage(props: StageProps) {
             key={service.name}
             className={box}
             data-measure-service={service.name}
+            data-wide={service.state.some((entry) => entry.kind !== "value")}
           >
             <ServiceCard
               {...props}
@@ -376,6 +395,7 @@ export function ServiceStage(props: StageProps) {
                 proposed: widest.get(service.name)!,
               }}
               previous={undefined}
+              keyWidth={keyWidths.get(service.name)!}
               changed={new Set()}
             />
           </section>
@@ -427,6 +447,7 @@ export function ServiceStage(props: StageProps) {
                   service={service}
                   values={valuesOf(props.state, service.name)}
                   previous={valuesOf(props.previousState, service.name)}
+                  keyWidth={keyWidths.get(service.name)!}
                 />
               </section>
             );
@@ -666,6 +687,8 @@ function ServiceCard(
     service: Service;
     values: Values;
     previous: Values | undefined;
+    /** In ch: the widest state key or table row name, so values and table columns line up. */
+    keyWidth: number;
     changed: Set<string>;
   } & SourceNavigation,
 ) {
@@ -676,6 +699,7 @@ function ServiceCard(
   const stateRow = useStyles(styles.stateRow);
   const annotation = service.annotation;
   const described = service.description !== undefined;
+  const valueEntries = service.state.filter((entry) => entry.kind === "value");
   const title = (
     <>
       {/* Keep the source arrow beside the name when the label wraps. */}
@@ -727,75 +751,90 @@ function ServiceCard(
           </button>
         )}
       </Described>
-      {service.state.length > 0 && (
-        <dl
-          className={stateList}
-          style={{
-            ["--key-width" as string]: `${Math.max(...service.state.map(({ key }) => key.length))}ch`,
-          }}
-        >
-          {service.state.map(({ key, description, sign }) => {
-            const changed = props.changed.has(`${service.name}.${key}`);
-            // A row added or removed in a diff shows only its own side.
-            const side = sign === "-" ? "today" : "proposed";
-            const today = props.values.today.get(key);
-            const proposed = props.values.proposed.get(key);
-            return (
-              <div
-                key={key}
-                className={stateRow}
-                data-changed={changed}
-                data-change={sign}
-                data-state-row={`${service.name}.${key}`}
-              >
-                <Described description={description}>
-                  <dt
-                    tabIndex={description === undefined ? undefined : 0}
-                    data-described={description !== undefined}
-                  >
-                    {key}
-                  </dt>
-                </Described>
-                <dd>
-                  {sign === " " && today !== proposed ? (
-                    <>
-                      <Text
-                        size="xs"
-                        monospace
-                        style={{ color: colors.red[11] }}
-                      >
-                        <s>{today}</s>{" "}
-                      </Text>
-                      <Text
-                        size="xs"
-                        monospace
-                        style={{ color: colors.green[11] }}
-                      >
-                        {proposed}
-                      </Text>
-                    </>
-                  ) : (
-                    <>
-                      {changed && (
-                        <Text size="xs" monospace color="lowContrast">
-                          <s>{props.previous?.[side].get(key)}</s>{" "}
+      <div style={{ ["--key-width" as string]: `${props.keyWidth}ch` }}>
+        {valueEntries.length > 0 && (
+          <dl className={stateList}>
+            {valueEntries.map(({ key, description, sign }) => {
+              const changed = props.changed.has(`${service.name}.${key}`);
+              // A row added or removed in a diff shows only its own side.
+              const side = sign === "-" ? "today" : "proposed";
+              // SAFETY: a key/value entry always replays to a string.
+              const today = props.values.today.get(key) as string | undefined;
+              const proposed = props.values.proposed.get(key) as
+                | string
+                | undefined;
+              return (
+                <div
+                  key={key}
+                  className={stateRow}
+                  data-changed={changed}
+                  data-change={sign}
+                  data-state-row={`${service.name}.${key}`}
+                >
+                  <Described description={description}>
+                    <dt
+                      tabIndex={description === undefined ? undefined : 0}
+                      data-described={description !== undefined}
+                    >
+                      {key}
+                    </dt>
+                  </Described>
+                  <dd>
+                    {sign === " " && today !== proposed ? (
+                      <>
+                        <Text
+                          size="xs"
+                          monospace
+                          style={{ color: colors.red[11] }}
+                        >
+                          <s>{today}</s>{" "}
                         </Text>
-                      )}
-                      <Text
-                        size="xs"
-                        monospace
-                        color={changed ? "accent" : undefined}
-                      >
-                        {props.values[side].get(key)}
-                      </Text>
-                    </>
-                  )}
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
-      )}
+                        <Text
+                          size="xs"
+                          monospace
+                          style={{ color: colors.green[11] }}
+                        >
+                          {proposed}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        {changed && (
+                          <Text size="xs" monospace color="lowContrast">
+                            <s>
+                              {props.previous?.[side].get(key) as string}
+                            </s>{" "}
+                          </Text>
+                        )}
+                        <Text
+                          size="xs"
+                          monospace
+                          color={changed ? "accent" : undefined}
+                        >
+                          {props.values[side].get(key) as string}
+                        </Text>
+                      </>
+                    )}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+        )}
+        {service.state.map(
+          (entry) =>
+            entry.kind !== "value" && (
+              <StateBlock
+                key={entry.key}
+                service={service.name}
+                entry={entry}
+                values={props.values}
+                previous={props.previous}
+                changed={props.changed.has(`${service.name}.${entry.key}`)}
+              />
+            ),
+        )}
+      </div>
     </>
   );
 }
@@ -816,17 +855,26 @@ export function Described(props: {
 /**
  * Each state value at its widest, including the struck-through old value a
  * changed row shows beside the new one, and a diff's Today value beside its
- * Proposed one.
+ * Proposed one. A table's widest is as many rows as any step shows, each
+ * holding every column's widest cell.
  */
 function widestState(diagram: ServiceDiagram) {
   const flat = flattenServices(diagram.services);
   const widest = new Map(
-    flat.map(({ service }) => [service.name, new Map<string, string>()]),
+    flat.map(({ service }) => [service.name, new Map<string, StateValue>()]),
   );
+  const tables = new Map<string, { rows: number; cells: string[] }>();
   const at = (step: number) => ({
     today: serviceStateAt(diagram, step, "today"),
     proposed: serviceStateAt(diagram, step, "proposed"),
   });
+  const keep = (service: string, key: string, candidate: string) => {
+    const best = widest.get(service)!;
+    if (
+      candidate.length > ((best.get(key) as string | undefined)?.length ?? -1)
+    )
+      best.set(key, candidate);
+  };
   let before = at(0);
   for (let step = 0; step <= diagram.steps.length; step++) {
     const now = step === 0 ? before : at(step);
@@ -837,28 +885,118 @@ function widestState(diagram: ServiceDiagram) {
       ),
     );
     for (const { service } of flat)
-      for (const { key } of service.state) {
-        const best = widest.get(service.name)!;
+      for (const entry of service.state) {
+        const { key } = entry;
         const value = (state: State) => state.get(service.name)!.get(key);
         const today = value(now.today);
         const proposed = value(now.proposed);
-        const shown = [
-          today === undefined || proposed === undefined || today === proposed
-            ? (proposed ?? today ?? "")
-            : `${today} ${proposed}`,
+        const changed = updated.has(`${service.name}.${key}`);
+        if (entry.kind === "table") {
+          const id = `${service.name}.${key}`;
+          const table = tables.get(id) ?? {
+            rows: 0,
+            cells: entry.columns.map(() => ""),
+          };
+          tables.set(id, table);
+          // SAFETY: a table entry always replays to a Table.
+          const shown = [
+            ...(today !== undefined && proposed !== undefined
+              ? [mergeRows(proposed as Table, today as Table, "compare")]
+              : []),
+            ...(["today", "proposed"] as const).flatMap((side) => {
+              const current = value(now[side]) as Table | undefined;
+              if (current === undefined) return [];
+              const previous = value(before[side]) as Table | undefined;
+              return [
+                mergeRows(current, changed ? previous : undefined, "step"),
+              ];
+            }),
+          ];
+          for (const rows of shown) {
+            table.rows = Math.max(table.rows, rows.length);
+            for (const row of rows)
+              row.cells.forEach((cell, index) => {
+                const was = row.was[index];
+                const candidate = was === undefined ? cell : `${was} ${cell}`;
+                if (candidate.length > table.cells[index]!.length)
+                  table.cells[index] = candidate;
+              });
+          }
+          continue;
+        }
+        // SAFETY: key/value and text entries replay to strings.
+        const [t, p] = [
+          today as string | undefined,
+          proposed as string | undefined,
         ];
-        if (updated.has(`${service.name}.${key}`))
-          shown.push(
-            `${value(before.today) ?? ""} ${today ?? ""}`,
-            `${value(before.proposed) ?? ""} ${proposed ?? ""}`,
-          );
-        for (const candidate of shown)
-          if (candidate.length > (best.get(key)?.length ?? -1))
-            best.set(key, candidate);
+        const join = entry.kind === "text" ? "\n\n" : " ";
+        keep(
+          service.name,
+          key,
+          t === undefined || p === undefined || t === p
+            ? (p ?? t ?? "")
+            : `${t}${join}${p}`,
+        );
+        if (changed && entry.kind === "value")
+          for (const side of ["today", "proposed"] as const)
+            keep(
+              service.name,
+              key,
+              `${(value(before[side]) as string | undefined) ?? ""} ${(value(now[side]) as string | undefined) ?? ""}`,
+            );
       }
     before = now;
   }
+  for (const [id, { rows, cells }] of tables) {
+    const [service, key] = id.split(".") as [string, string];
+    const columns = flat
+      .find((item) => item.service.name === service)!
+      .service.state.find((entry) => entry.key === key)!;
+    widest.get(service)!.set(key, {
+      columns: columns.kind === "table" ? columns.columns : [],
+      rows: Array.from({ length: rows }, () => cells),
+    });
+  }
   return widest;
+}
+
+/** Per service, in ch, the widest value key or table row name any step shows. */
+function keyColumnWidths(diagram: ServiceDiagram) {
+  const added = new Map<string, string[]>();
+  for (const step of diagram.steps)
+    for (const update of step.updates)
+      if (update.change.kind === "addRow")
+        added.set(update.service, [
+          ...(added.get(update.service) ?? []),
+          update.change.cells[0]!,
+        ]);
+  return new Map(
+    flattenServices(diagram.services).map(({ service }) => [
+      service.name,
+      Math.max(
+        0,
+        ...service.state.flatMap((entry) =>
+          entry.kind === "value"
+            ? [entry.key.length]
+            : entry.kind === "table"
+              ? [
+                  entry.columns[0]!,
+                  ...entry.rows.map((row) => row.cells[0]!),
+                ].map((name) => name.length)
+              : [],
+        ),
+        ...(added.get(service.name) ?? []).map((name) => name.length),
+      ),
+    ]),
+  );
+}
+
+/** `[row]` for a change to one table row, so its note points at that row. */
+function rowOf(change: ServiceUpdate["change"]) {
+  if (change.kind === "cell" || change.kind === "removeRow")
+    return `[${change.row}]`;
+  if (change.kind === "addRow") return `[${change.cells[0]}]`;
+  return "";
 }
 
 function valuesOf(state: SidedState, service: string): Values {
@@ -950,15 +1088,6 @@ function cumulativeLengths(points: Point[]) {
   });
 }
 
-const described = {
-  "&[data-described='true']": {
-    textDecorationLine: "underline",
-    textDecorationStyle: "dotted" as const,
-    textDecorationColor: colors.gray[8],
-    textUnderlineOffset: "3px",
-  },
-};
-
 const styles = {
   stage: style(
     {
@@ -981,6 +1110,10 @@ const styles = {
       width: "max-content",
       minWidth: 120,
       maxWidth: 240,
+    },
+    // Text and tables need room for a sentence or a few columns.
+    "& > [data-measure-service][data-wide='true']": {
+      maxWidth: "max(240px, min(440px, var(--fit-width, 440px)))",
     },
     "& > [data-measure-event]": {
       position: "absolute",
@@ -1060,7 +1193,7 @@ const styles = {
     focusRing(),
     {
       minWidth: 0,
-      "& > [data-described='true']": described["&[data-described='true']"],
+      "& > [data-described='true']": describedStyle["&[data-described='true']"],
     },
   ),
   headerButton: style({
@@ -1086,7 +1219,7 @@ const styles = {
       minWidth: "min(var(--key-width), 100%)",
       color: colors.gray[11],
     },
-    "& dt[data-described='true']": described["&[data-described='true']"],
+    "& dt[data-described='true']": describedStyle["&[data-described='true']"],
     "& dt:focus-visible": { outline: `2px solid ${colors.blueAlpha[8]}` },
     "& dd": {
       flex: "1 1 auto",
@@ -1101,7 +1234,7 @@ const styles = {
     alignItems: "baseline",
     columnGap: spacing.value(4),
     paddingInline: spacing.value(2),
-    marginInline: `-${spacing.value(2)}`,
+    marginInline: `calc(-1 * ${spacing.value(2)})`,
     "&[data-change='+']": {
       backgroundColor: colors.greenAlpha[3],
       boxShadow: `inset 2px 0 ${colors.green[9]}`,

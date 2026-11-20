@@ -706,6 +706,160 @@ test("a services diff rejects unmarked lines and contradictory signs", () => {
   );
 });
 
+test("text and table state replay cell, row, and text changes", () => {
+  const document = parseServicesSpec([
+    'service Local "IndexedDB"',
+    "  table pending",
+    "    | id | mutation        | status |",
+    "    |----|-----------------|--------|",
+    "    | m1 | complete todo 3 | queued |",
+    "  text plan",
+    "    | - [ ] Send *m1*",
+    'step "Queue m2, then send it"',
+    "  Local.pending += | m2 | delete todo 4 | queued |",
+    "  Local.pending[m2].status = sent",
+    "    > Sent in the step that queued it.",
+    "  Local.plan =",
+    "    | - [x] Send *m1*",
+    "    |   - and m2",
+    'step "Confirm m1"',
+    "  Local.pending -= m1",
+    "  Local.plan = Done",
+  ]);
+  if (document instanceof Error) throw document;
+  const fence = document.nodes[1];
+  if (fence?.type !== "view" || fence.fence.kind !== "services")
+    throw new Error("expected a services fence");
+  if (!fence.fence.parsed.ok) throw new Error(fence.fence.parsed.reason);
+  const diagram = fence.fence.parsed.diagram;
+  const at = (step: number) =>
+    Object.fromEntries(serviceStateAt(diagram, step).get("Local")!);
+  const columns = ["id", "mutation", "status"];
+  assert.deepEqual(at(0), {
+    pending: { columns, rows: [["m1", "complete todo 3", "queued"]] },
+    plan: "- [ ] Send *m1*",
+  });
+  // A cell changes on a row added earlier in the same step, and a text
+  // update keeps the indentation after each bar.
+  assert.deepEqual(at(1), {
+    pending: {
+      columns,
+      rows: [
+        ["m1", "complete todo 3", "queued"],
+        ["m2", "delete todo 4", "sent"],
+      ],
+    },
+    plan: "- [x] Send *m1*\n  - and m2",
+  });
+  assert.deepEqual(at(2), {
+    pending: { columns, rows: [["m2", "delete todo 4", "sent"]] },
+    plan: "Done",
+  });
+  assert.equal(
+    diagram.steps[0]!.updates[1]!.note,
+    "Sent in the step that queued it.",
+  );
+});
+
+test("a services diff gives text lines and table rows their own sides", () => {
+  const document = parseServicesSpec(
+    [
+      " service Local",
+      "   table pending",
+      "     | id | status |",
+      "-    | m1 | queued |",
+      "+    | m1 | sending |",
+      "-    | m0 | failed |",
+      "   text policy",
+      "     | On error:",
+      "-    | drop it",
+      "+    | retry it",
+      ' step "Fail"',
+      "-  Local.pending -= m1",
+      "+  Local.pending[m1].status = retrying",
+    ],
+    "services diff",
+  );
+  if (document instanceof Error) throw document;
+  const fence = document.nodes[1];
+  if (fence?.type !== "view" || fence.fence.kind !== "services")
+    throw new Error("expected a services fence");
+  if (!fence.fence.parsed.ok) throw new Error(fence.fence.parsed.reason);
+  const diagram = fence.fence.parsed.diagram;
+  const at = (step: number, side: "today" | "proposed") =>
+    Object.fromEntries(serviceStateAt(diagram, step, side).get("Local")!);
+  const columns = ["id", "status"];
+  assert.deepEqual(at(0, "today"), {
+    pending: {
+      columns,
+      rows: [
+        ["m1", "queued"],
+        ["m0", "failed"],
+      ],
+    },
+    policy: "On error:\ndrop it",
+  });
+  assert.deepEqual(at(1, "today").pending, {
+    columns,
+    rows: [["m0", "failed"]],
+  });
+  assert.deepEqual(at(1, "proposed"), {
+    pending: { columns, rows: [["m1", "retrying"]] },
+    policy: "On error:\nretry it",
+  });
+});
+
+test("text and table state errors name the line", () => {
+  const problem = (body: string[]) => String(parseServicesSpec(body));
+  const table = [
+    "service Q",
+    "  table jobs",
+    "    | id | state |",
+    "    | j1 | new |",
+  ];
+  assert.match(
+    problem([...table, "    | j2 | new | extra |"]),
+    /line 8\): This row has 3 cells, but Q.jobs has 2 columns/,
+  );
+  assert.match(
+    problem([...table, "    | j1 | old |"]),
+    /line 8\): Q.jobs already has a row j1/,
+  );
+  // A removed row can't change in a later step.
+  assert.match(
+    problem([
+      ...table,
+      'step "Drop"',
+      "  Q.jobs -= j1",
+      'step "Edit"',
+      "  Q.jobs[j1].state = done",
+    ]),
+    /line 11\): Q.jobs has no row j1 at this step/,
+  );
+  assert.match(
+    problem([...table, 'step "Edit"', "  Q.jobs[j1].owner = me"]),
+    /line 9\): Q.jobs has no column owner/,
+  );
+  assert.match(
+    problem(["service Q", "  table jobs", 'step "Go"']),
+    /line 5\): Give table jobs a header line/,
+  );
+  assert.match(
+    problem([
+      "service Q",
+      "  text plan",
+      'step "Go"',
+      "  Q.plan =",
+      "  Q -> Q: hi",
+    ]),
+    /line 7\): Put the new text after Q.plan =/,
+  );
+  assert.match(
+    problem(["service Q", "  state count = 1", 'step "Go"', "  Q.count += 1"]),
+    /line 7\): Only a table takes/,
+  );
+});
+
 test("a mermaid diff keeps every line and splits out each side", () => {
   const document = parseViewerDocument(
     [

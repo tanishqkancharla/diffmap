@@ -73,3 +73,37 @@ Today, sessions live in an in-memory cache inside the API. The proposed flow dro
    API -> Browser: 200 Set-Cookie
    Browser.cookie = sid=s_81f
 ```
+
+## Text and table state
+
+Today a failed send is dropped; the proposed queue keeps it and retries. Rows only Today has are red, rows only Proposed has are green, and cells that differ show both values.
+
+```services diff
+ service Local "IndexedDB"
+   table pending
+     | id | mutation        | status |
+-    | m1 | complete todo 3 | queued |
++    | m1 | complete todo 3 | sending |
++    | m2 | delete todo 4   | queued |
+-    | m0 | rename todo 2   | failed |
+   text policy
+     | On a network error:
+-    | - drop the mutation
++    | - keep it and retry with **backoff**
+ service Supabase
+
+ start "Failed sends retry instead of disappearing"
+   > Both versions send m1. Today a network error drops it; the proposal keeps it queued and retries.
+
+ step "The worker sends m1"
+   Local -> Supabase: m1
+   Local.pending[m1].status = sent
+ step "The network drops the request"
+-  Local.pending -= m1
++  Local.pending[m1].status = retrying
+     > Still queued, so the next attempt can send it.
++step "The retry succeeds"
++  Local -> Supabase: m1
++  Supabase -> Local: ack m1
++  Local.pending -= m1
+```
