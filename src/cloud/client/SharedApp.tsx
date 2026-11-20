@@ -145,7 +145,7 @@ export function SharedApp() {
               document={document}
               mode="host"
               headerActions={headerActions}
-              drawerFooter={<DrawerBrandLink />}
+              drawerFooter={<DrawerBrandLink owner={info.owner} />}
               spec={
                 spec.pages.length > 1
                   ? {

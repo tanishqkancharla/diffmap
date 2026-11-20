@@ -124,6 +124,7 @@ export function TableOfContents(props: {
   const railClass = useStyles(styles.rail);
   const dockedClass = useStyles(styles.docked);
   const drawerClass = useStyles(styles.drawer);
+  const drawerListClass = useStyles(styles.drawerList);
   const listClass = useStyles(styles.list);
 
   if (items.length === 0) return undefined;
@@ -176,20 +177,22 @@ export function TableOfContents(props: {
         aria-label="Table of contents"
       >
         <nav className={drawerClass} aria-label="Table of contents">
-          <TocList
-            items={items}
-            className={listClass}
-            activeId={activeId}
-            onSelect={(id) => {
-              setActiveId(id);
-              props.onDrawerOpenChange(false);
-            }}
-            onPage={(event, page) => {
-              openPage(event, page);
-              props.onDrawerOpenChange(false);
-            }}
-            pageHref={spec?.href}
-          />
+          <div className={drawerListClass}>
+            <TocList
+              items={items}
+              className={listClass}
+              activeId={activeId}
+              onSelect={(id) => {
+                setActiveId(id);
+                props.onDrawerOpenChange(false);
+              }}
+              onPage={(event, page) => {
+                openPage(event, page);
+                props.onDrawerOpenChange(false);
+              }}
+              pageHref={spec?.href}
+            />
+          </div>
           {props.drawerFooter}
         </nav>
       </Drawer>
@@ -553,7 +556,18 @@ const styles = {
     ...tocListRules,
   }),
   // The same list in Maui's Drawer, which supplies the surface and scrolling.
-  drawer: style(spacing.padding({ x: 3, y: 3 }), tocListRules),
+  // The footer sits at the bottom; the list centers in the space above it.
+  drawer: style(
+    { display: "flex", flexDirection: "column", gap: 0 },
+    tocListRules,
+  ),
+  // Auto margins center the list but let a long one start at the top and scroll.
+  drawerList: style(spacing.padding({ x: 3, y: 3 }), {
+    flex: "1 0 auto",
+    display: "flex",
+    flexDirection: "column",
+    "& > ol": { marginBlock: "auto" },
+  }),
   list: style(text({ size: "sm", fontWeight: 400, color: "lowContrast" })),
   item: style({
     "&::before": {
