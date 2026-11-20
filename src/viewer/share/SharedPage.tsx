@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Banner,
   Button,
@@ -177,15 +177,22 @@ export function SharedPage(props: {
   );
 }
 
+/** A link to productdoc.dev for the bottom of the narrow-screen contents drawer. */
+export function DrawerBrandLink() {
+  const className = useStyles(styles.drawerBrand);
+  return (
+    <a className={className} href="https://productdoc.dev">
+      <ProductdocWordmark />
+    </a>
+  );
+}
+
 /**
- * Says who shared a public document, with a link to productdoc.dev. It slides
- * away while the reader scrolls down, comes back when they scroll up, and the
- * reader can close it for good.
+ * Says who shared a public document, with a link to productdoc.dev. The reader
+ * can close it.
  */
 function PublicBar(props: { owner: string }) {
   const [closed, setClosed] = useState(false);
-  const [hidden, setHidden] = useState(false);
-  const last = useRef(0);
   const bar = useStyles(styles.bar);
   const brand = useStyles(styles.brand);
   const wide = useStyles(styles.wide);
@@ -193,27 +200,9 @@ function PublicBar(props: { owner: string }) {
   const link = useStyles(styles.link);
   const close = useStyles(styles.close);
 
-  useEffect(() => {
-    // The viewer scrolls inside its own panes, so listen for any scroll on the page.
-    const onScroll = (event: Event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const top = target.scrollTop;
-      if (Math.abs(top - last.current) < 8) return;
-      setHidden(top > last.current && top > 48);
-      last.current = top;
-    };
-    document.addEventListener("scroll", onScroll, {
-      capture: true,
-      passive: true,
-    });
-    return () =>
-      document.removeEventListener("scroll", onScroll, { capture: true });
-  }, []);
-
   if (closed) return undefined;
   return (
-    <div className={bar} data-hidden={hidden}>
+    <div className={bar}>
       <a
         className={brand}
         href="https://productdoc.dev"
@@ -249,24 +238,14 @@ const styles = {
   }),
   bar: style(
     flex({ direction: "row", alignItems: "center", gap: 2 }),
-    spacing.padding({ left: 4, right: 1, y: 1 }),
+    spacing.padding({ left: 6, right: 3, y: 1 }),
     border(["bottom"], "border"),
     text({ size: "sm", fontWeight: 600, color: "highContrast" }),
     {
       flexShrink: 0,
       minWidth: 0,
-      maxHeight: "48px",
-      overflow: "hidden",
       whiteSpace: "nowrap",
       backgroundColor: backgroundColor.elementHover,
-      transition:
-        "max-height 160ms ease, padding 160ms ease, border-width 160ms ease",
-      "&[data-hidden='true']": {
-        maxHeight: 0,
-        paddingBlock: 0,
-        borderBottomWidth: 0,
-      },
-      "@media (prefers-reduced-motion: reduce)": { transition: "none" },
     },
   ),
   // On a phone the logo stands in for the name, so the owner's name fits.
@@ -287,7 +266,18 @@ const styles = {
     flexShrink: 0,
     color: "inherit",
   }),
-  close: style({ flexShrink: 0 }),
+  // Pulled out to the edge so its icon lines up with the header's actions.
+  close: style({
+    flexShrink: 0,
+    marginInlineEnd: `calc(-1 * ${spacing.value(2)})`,
+  }),
+  drawerBrand: style(
+    flex({ direction: "row", alignItems: "center", gap: 2 }),
+    spacing.padding({ x: 4, top: 4 }),
+    border(["top"], "border"),
+    text({ size: "sm", fontWeight: 600, color: "highContrast" }),
+    { marginTop: spacing.value(4), textDecoration: "none" },
+  ),
   // The viewer fills the viewport, so it scrolls inside what is left under the bar.
   viewer: style({
     flex: "1 1 auto",

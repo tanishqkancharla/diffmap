@@ -111,6 +111,7 @@ export function TableOfContents(props: {
   /** The narrow-screen drawer, opened from the header's TOC button. */
   drawerOpen: boolean;
   onDrawerOpenChange: (open: boolean) => void;
+  drawerFooter?: ReactNode;
 }) {
   const spec = useSpec();
   const headings = tocEntries(props.headings, spec);
@@ -190,6 +191,7 @@ export function TableOfContents(props: {
             }}
             pageHref={spec?.href}
           />
+          {props.drawerFooter}
         </nav>
       </Drawer>
     </>

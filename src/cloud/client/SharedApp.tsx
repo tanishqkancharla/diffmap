@@ -19,7 +19,7 @@ import {
 } from "../../viewer/StatusPage.tsx";
 import { ViewerApp } from "../../viewer/ViewerApp.tsx";
 import { ProductdocWordmark } from "../../viewer/share/ProductdocWordmark.tsx";
-import { SharedPage } from "../../viewer/share/SharedPage.tsx";
+import { DrawerBrandLink, SharedPage } from "../../viewer/share/SharedPage.tsx";
 import {
   blobUrl,
   isDocumentId,
@@ -145,6 +145,7 @@ export function SharedApp() {
               document={document}
               mode="host"
               headerActions={headerActions}
+              drawerFooter={<DrawerBrandLink />}
               spec={
                 spec.pages.length > 1
                   ? {
