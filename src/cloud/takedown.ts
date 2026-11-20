@@ -1,5 +1,5 @@
 /**
- * Takes a shared document down after a report to abuse@productdoc.dev:
+ * Takes a shared document down:
  * `PRODUCTDOC_ADMIN_TOKEN=… npm run cloud:takedown -- <id> "<reason>"`. Set
  * `PRODUCTDOC_ORIGIN=http://localhost:8787` to try it against
  * `npm run cloud:dev`, whose token is `dev-admin-token`. The link then says the

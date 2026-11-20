@@ -1,7 +1,7 @@
 /**
- * productdoc.dev on Cloudflare: the productdoc.dev zone, the D1 database, the
- * R2 bucket, and one Worker serving the website build, sign-in, the sharing
- * API, and shared documents. `npm run cloud:dev` runs it locally;
+ * share.productdoc.dev on Cloudflare: the D1 database, the R2 bucket, and one
+ * Worker serving sign-in, the sharing API, and shared documents. productdoc.dev
+ * itself stays on Vercel. `npm run cloud:dev` runs it locally;
  * `npm run cloud:deploy` provisions and deploys it. See cloud/README.md.
  */
 import * as Alchemy from "alchemy";
@@ -11,8 +11,8 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
-const DOMAIN = "productdoc.dev";
-const ABUSE_INBOX = "tanishqkancharla3@gmail.com";
+const ZONE = "productdoc.dev";
+const DOMAIN = `share.${ZONE}`;
 
 const Database = Cloudflare.D1.Database("Database", {
   migrations: "./cloud/migrations",
@@ -43,44 +43,24 @@ export default Alchemy.Stack(
   },
   Effect.gen(function* () {
     const dev = yield* Alchemy.ALCHEMY_DEV;
-    // The domain can only be attached once its nameservers point at Cloudflare.
-    const live =
-      !dev &&
-      (yield* Config.Boolean("PRODUCTDOC_LIVE").pipe(
-        Config.withDefault(false),
-      ));
 
+    // productdoc.dev's DNS is on Cloudflare, but the site and its other
+    // subdomains stay on Vercel. Removing these from the stack would delete them.
     const zone = dev
       ? undefined
-      : yield* Cloudflare.Zone.Zone("Zone", { name: DOMAIN });
-
-    // Until the Worker takes the domain, Cloudflare's DNS keeps sending
-    // productdoc.dev to the Vercel project, as Vercel's DNS did.
-    if (!live && zone !== undefined) {
+      : yield* Cloudflare.Zone.Zone("Zone", { name: ZONE });
+    if (zone !== undefined) {
       yield* Cloudflare.DNS.Record("VercelApex", {
         zoneId: zone.zoneId,
-        name: DOMAIN,
+        name: ZONE,
         type: "CNAME",
         content: "3a2a24b09f57c90b.vercel-dns-017.com",
       });
       yield* Cloudflare.DNS.Record("VercelWildcard", {
         zoneId: zone.zoneId,
-        name: `*.${DOMAIN}`,
+        name: `*.${ZONE}`,
         type: "CNAME",
         content: "cname.vercel-dns-017.com",
-      });
-    }
-
-    if (live && zone !== undefined) {
-      const destination = yield* Cloudflare.Email.Address("AbuseInbox", {
-        email: ABUSE_INBOX,
-      });
-      yield* Cloudflare.Email.Routing("EmailRouting", { zone });
-      yield* Cloudflare.Email.Rule("Abuse", {
-        zone,
-        name: `abuse@${DOMAIN}`,
-        matchers: [{ type: "literal", field: "to", value: `abuse@${DOMAIN}` }],
-        actions: [{ type: "forward", value: [destination.email] }],
       });
     }
 
@@ -103,7 +83,9 @@ export default Alchemy.Stack(
         htmlHandling: "none",
         notFoundHandling: "none",
       },
-      domain: live ? DOMAIN : undefined,
+      // This record for share.productdoc.dev takes precedence over the wildcard.
+      domain:
+        zone === undefined ? undefined : { name: DOMAIN, zoneId: zone.zoneId },
       observability: { enabled: true },
       dev: { port: 8787 },
       env: {
@@ -115,9 +97,6 @@ export default Alchemy.Stack(
         ...signIn,
       },
     });
-    return {
-      url: worker.url,
-      ...(zone === undefined ? {} : { nameServers: zone.nameServers }),
-    };
+    return { url: worker.url };
   }),
 );

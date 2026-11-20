@@ -3,7 +3,7 @@ import { handleDocuments, json, problem } from "./documents.ts";
 import type { Env } from "./env.ts";
 import { isDocumentId } from "./protocol.ts";
 import { respondReader } from "./reader.ts";
-import { asset, respondSite } from "./site.ts";
+import { asset } from "./site.ts";
 
 /** The password every development account shares; dev sign-in never runs in production. */
 const DEV_PASSWORD = "productdoc-dev-password";
@@ -65,7 +65,11 @@ async function route(
     });
   if (pathname.startsWith("/d/"))
     return respondReader(env, request, url, origin);
-  return respondSite(env, request, url);
+  // Everything else is the productdoc.dev website, which stays on Vercel.
+  return Response.redirect(
+    `https://productdoc.dev${pathname}${url.search}`,
+    301,
+  );
 }
 
 function admin(request: Request, env: Env, path: string) {
@@ -121,7 +125,7 @@ async function takedown(request: Request, env: Env, id: string) {
   const reason =
     typeof body.reason === "string" && body.reason.trim() !== ""
       ? body.reason.trim()
-      : "Reported to abuse@productdoc.dev";
+      : "Taken down by an admin";
   const result = await env.DB.prepare(
     `update "document" set "removed_at" = ?, "removed_reason" = ? where "id" = ?`,
   )

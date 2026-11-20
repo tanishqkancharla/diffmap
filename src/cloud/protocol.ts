@@ -4,7 +4,7 @@
  * it stays free of Node and Worker imports.
  */
 
-export const DEFAULT_ORIGIN = "https://productdoc.dev";
+export const DEFAULT_ORIGIN = "https://share.productdoc.dev";
 
 /** The client id the CLI sends with device authorization. */
 export const CLI_CLIENT_ID = "product-doc-cli";
