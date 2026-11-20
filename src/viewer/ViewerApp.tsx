@@ -55,6 +55,8 @@ export function ViewerApp(props: {
   mode: ViewerMode;
   title?: string;
   headerActions?: ReactNode;
+  /** Shown under the table of contents in the narrow-screen drawer, such as a link to the host. */
+  drawerFooter?: ReactNode;
   /** Changes the Diff button opens before any reference is selected, such as a pull request. */
   defaultRev?: Rev;
   /** The spec this page belongs to. Its host remounts the viewer for each page. */
@@ -255,6 +257,7 @@ export function ViewerApp(props: {
                         articleRef={articleRef}
                         drawerOpen={tocDrawerOpen}
                         onDrawerOpenChange={setTocDrawerOpen}
+                        drawerFooter={props.drawerFooter}
                       />
                     )}
                   </div>
