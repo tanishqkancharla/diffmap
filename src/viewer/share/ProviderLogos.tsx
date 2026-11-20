@@ -1,36 +1,256 @@
+import { useId } from "react";
+
 /**
- * The sign-in providers' own marks, sized to sit in a button beside its label.
- * Google's "G" keeps its brand colors, from Google's sign-in assets; GitHub's
- * mark is Primer's `mark-github` and follows the text color, so it shows in dark mode.
+ * The sign-in providers' logos from svgl.app (https://svgl.app/library/google.svg
+ * and github_light.svg), sized to sit in a button beside its label. Google's
+ * keeps its colors; GitHub's follows the text color, so it shows in dark mode.
  */
 
 const size = 16;
 
 export function GoogleLogo() {
+  // The logo's gradients are referenced by id, so each copy needs its own.
+  const id = useId();
   return (
     <svg
       aria-hidden="true"
       focusable="false"
       width={size}
       height={size}
-      viewBox="0 0 118 120"
+      viewBox="0 0 268.152 273.883"
     >
-      <path
-        fill="#4285F4"
-        d="M117.6 61.36c0-4.25-.38-8.34-1.09-12.27H60V72.3h32.29c-1.39 7.5-5.62 13.85-11.97 18.11v15.05h19.39c11.35-10.45 17.89-25.83 17.89-44.1z"
-      />
-      <path
-        fill="#34A853"
-        d="M60 120c16.2 0 29.78-5.37 39.71-14.54L80.32 90.41c-5.37 3.6-12.25 5.73-20.32 5.73-15.63 0-28.85-10.56-33.57-24.74H6.38v15.55C16.25 106.55 36.55 120 60 120z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M26.43 71.4c-1.2-3.6-1.88-7.45-1.88-11.4s.68-7.8 1.88-11.4V33.05H6.38C2.32 41.15 0 50.32 0 60s2.32 18.85 6.38 26.95L26.43 71.4z"
-      />
-      <path
-        fill="#EA4335"
-        d="M60 23.86c8.81 0 16.72 3.03 22.94 8.98l17.21-17.21C89.75 5.95 76.17 0 60 0 36.55 0 16.25 13.45 6.38 33.05L26.43 48.6C31.15 34.42 44.37 23.86 60 23.86z"
-      />
+      <defs>
+        <linearGradient id={`${id}-a`}>
+          <stop offset="0" stopColor="#0fbc5c" />
+          <stop offset="1" stopColor="#0cba65" />
+        </linearGradient>
+        <linearGradient id={`${id}-g`}>
+          <stop offset=".231" stopColor="#0fbc5f" />
+          <stop offset=".312" stopColor="#0fbc5f" />
+          <stop offset=".366" stopColor="#0fbc5e" />
+          <stop offset=".458" stopColor="#0fbc5d" />
+          <stop offset=".54" stopColor="#12bc58" />
+          <stop offset=".699" stopColor="#28bf3c" />
+          <stop offset=".771" stopColor="#38c02b" />
+          <stop offset=".861" stopColor="#52c218" />
+          <stop offset=".915" stopColor="#67c30f" />
+          <stop offset="1" stopColor="#86c504" />
+        </linearGradient>
+        <linearGradient id={`${id}-h`}>
+          <stop offset=".142" stopColor="#1abd4d" />
+          <stop offset=".248" stopColor="#6ec30d" />
+          <stop offset=".312" stopColor="#8ac502" />
+          <stop offset=".366" stopColor="#a2c600" />
+          <stop offset=".446" stopColor="#c8c903" />
+          <stop offset=".54" stopColor="#ebcb03" />
+          <stop offset=".616" stopColor="#f7cd07" />
+          <stop offset=".699" stopColor="#fdcd04" />
+          <stop offset=".771" stopColor="#fdce05" />
+          <stop offset=".861" stopColor="#ffce0a" />
+        </linearGradient>
+        <linearGradient id={`${id}-f`}>
+          <stop offset=".316" stopColor="#ff4c3c" />
+          <stop offset=".604" stopColor="#ff692c" />
+          <stop offset=".727" stopColor="#ff7825" />
+          <stop offset=".885" stopColor="#ff8d1b" />
+          <stop offset="1" stopColor="#ff9f13" />
+        </linearGradient>
+        <linearGradient id={`${id}-b`}>
+          <stop offset=".231" stopColor="#ff4541" />
+          <stop offset=".312" stopColor="#ff4540" />
+          <stop offset=".458" stopColor="#ff4640" />
+          <stop offset=".54" stopColor="#ff473f" />
+          <stop offset=".699" stopColor="#ff5138" />
+          <stop offset=".771" stopColor="#ff5b33" />
+          <stop offset=".861" stopColor="#ff6c29" />
+          <stop offset="1" stopColor="#ff8c18" />
+        </linearGradient>
+        <linearGradient id={`${id}-d`}>
+          <stop offset=".408" stopColor="#fb4e5a" />
+          <stop offset="1" stopColor="#ff4540" />
+        </linearGradient>
+        <linearGradient id={`${id}-c`}>
+          <stop offset=".132" stopColor="#0cba65" />
+          <stop offset=".21" stopColor="#0bb86d" />
+          <stop offset=".297" stopColor="#09b479" />
+          <stop offset=".396" stopColor="#08ad93" />
+          <stop offset=".477" stopColor="#0aa6a9" />
+          <stop offset=".568" stopColor="#0d9cc6" />
+          <stop offset=".667" stopColor="#1893dd" />
+          <stop offset=".769" stopColor="#258bf1" />
+          <stop offset=".859" stopColor="#3086ff" />
+        </linearGradient>
+        <linearGradient id={`${id}-e`}>
+          <stop offset=".366" stopColor="#ff4e3a" />
+          <stop offset=".458" stopColor="#ff8a1b" />
+          <stop offset=".54" stopColor="#ffa312" />
+          <stop offset=".616" stopColor="#ffb60c" />
+          <stop offset=".771" stopColor="#ffcd0a" />
+          <stop offset=".861" stopColor="#fecf0a" />
+          <stop offset=".915" stopColor="#fecf08" />
+          <stop offset="1" stopColor="#fdcd01" />
+        </linearGradient>
+        <linearGradient
+          href={`#${id}-a`}
+          id={`${id}-s`}
+          x1="219.7"
+          x2="254.467"
+          y1="329.535"
+          y2="329.535"
+          gradientUnits="userSpaceOnUse"
+        />
+        <radialGradient
+          href={`#${id}-b`}
+          id={`${id}-m`}
+          cx="109.627"
+          cy="135.862"
+          r="71.46"
+          fx="109.627"
+          fy="135.862"
+          gradientTransform="matrix(-1.93688 1.043 1.45573 2.55542 290.525 -400.634)"
+          gradientUnits="userSpaceOnUse"
+        />
+        <radialGradient
+          href={`#${id}-c`}
+          id={`${id}-n`}
+          cx="45.259"
+          cy="279.274"
+          r="71.46"
+          fx="45.259"
+          fy="279.274"
+          gradientTransform="matrix(-3.5126 -4.45809 -1.69255 1.26062 870.8 191.554)"
+          gradientUnits="userSpaceOnUse"
+        />
+        <radialGradient
+          href={`#${id}-d`}
+          id={`${id}-l`}
+          cx="304.017"
+          cy="118.009"
+          r="47.854"
+          fx="304.017"
+          fy="118.009"
+          gradientTransform="matrix(2.06435 0 0 2.59204 -297.679 -151.747)"
+          gradientUnits="userSpaceOnUse"
+        />
+        <radialGradient
+          href={`#${id}-e`}
+          id={`${id}-o`}
+          cx="181.001"
+          cy="177.201"
+          r="71.46"
+          fx="181.001"
+          fy="177.201"
+          gradientTransform="matrix(-.24858 2.08314 2.96249 .33417 -255.146 -331.164)"
+          gradientUnits="userSpaceOnUse"
+        />
+        <radialGradient
+          href={`#${id}-f`}
+          id={`${id}-p`}
+          cx="207.673"
+          cy="108.097"
+          r="41.102"
+          fx="207.673"
+          fy="108.097"
+          gradientTransform="matrix(-1.2492 1.34326 -3.89684 -3.4257 880.501 194.905)"
+          gradientUnits="userSpaceOnUse"
+        />
+        <radialGradient
+          href={`#${id}-g`}
+          id={`${id}-r`}
+          cx="109.627"
+          cy="135.862"
+          r="71.46"
+          fx="109.627"
+          fy="135.862"
+          gradientTransform="matrix(-1.93688 -1.043 1.45573 -2.55542 290.525 838.683)"
+          gradientUnits="userSpaceOnUse"
+        />
+        <radialGradient
+          href={`#${id}-h`}
+          id={`${id}-j`}
+          cx="154.87"
+          cy="145.969"
+          r="71.46"
+          fx="154.87"
+          fy="145.969"
+          gradientTransform="matrix(-.0814 -1.93722 2.92674 -.11625 -215.135 632.86)"
+          gradientUnits="userSpaceOnUse"
+        />
+        <filter
+          id={`${id}-q`}
+          width="1.097"
+          height="1.116"
+          x="-.048"
+          y="-.058"
+          colorInterpolationFilters="sRGB"
+        >
+          <feGaussianBlur stdDeviation="1.701" />
+        </filter>
+        <filter
+          id={`${id}-k`}
+          width="1.033"
+          height="1.02"
+          x="-.017"
+          y="-.01"
+          colorInterpolationFilters="sRGB"
+        >
+          <feGaussianBlur stdDeviation=".242" />
+        </filter>
+        <clipPath id={`${id}-i`} clipPathUnits="userSpaceOnUse">
+          <path d="M371.378 193.24H237.083v53.438h77.167c-1.241 7.563-4.026 15.003-8.105 21.786-4.674 7.773-10.451 13.69-16.373 18.196-17.74 13.498-38.42 16.258-52.783 16.258-36.283 0-67.283-23.286-79.285-54.928-.484-1.149-.805-2.335-1.197-3.507a81.115 81.115 0 0 1-4.101-25.448c0-9.226 1.569-18.057 4.43-26.398 11.285-32.897 42.985-57.467 80.179-57.467 7.481 0 14.685.884 21.517 2.648a77.668 77.668 0 0 1 33.425 18.25l40.834-39.712c-24.839-22.616-57.219-36.32-95.844-36.32-30.878 0-59.386 9.553-82.748 25.7-18.945 13.093-34.483 30.625-44.97 50.985-9.753 18.879-15.094 39.8-15.094 62.294 0 22.495 5.35 43.633 15.103 62.337v.126c10.302 19.857 25.368 36.954 43.678 49.988 15.997 11.386 44.68 26.551 84.031 26.551 22.63 0 42.687-4.051 60.375-11.644 12.76-5.478 24.065-12.622 34.301-21.804 13.525-12.132 24.117-27.139 31.347-44.404 7.23-17.265 11.097-36.79 11.097-57.957 0-9.858-.998-19.87-2.689-28.968Z" />
+        </clipPath>
+      </defs>
+      <g
+        clipPath={`url(#${id}-i)`}
+        transform="matrix(.95792 0 0 .98525 -90.174 -78.856)"
+      >
+        <path
+          fill={`url(#${id}-j)`}
+          d="M92.076 219.958c.148 22.14 6.501 44.983 16.117 63.424v.127c6.949 13.392 16.445 23.97 27.26 34.452l65.327-23.67c-12.36-6.235-14.246-10.055-23.105-17.026-9.054-9.066-15.802-19.473-20.004-31.677h-.17l.17-.127c-2.765-8.058-3.037-16.613-3.14-25.503Z"
+          filter={`url(#${id}-k)`}
+        />
+        <path
+          fill={`url(#${id}-l)`}
+          d="M237.083 79.025c-6.456 22.526-3.988 44.421 0 57.161 7.457.006 14.64.888 21.45 2.647a77.662 77.662 0 0 1 33.424 18.25l41.88-40.726c-24.81-22.59-54.667-37.297-96.754-37.332Z"
+          filter={`url(#${id}-k)`}
+        />
+        <path
+          fill={`url(#${id}-m)`}
+          d="M236.943 78.847c-31.67 0-60.91 9.798-84.871 26.359a145.533 145.533 0 0 0-24.332 21.15c-1.904 17.744 14.257 39.551 46.262 39.37 15.528-17.936 38.495-29.542 64.056-29.542l.07.002-1.044-57.335c-.048 0-.093-.004-.14-.004Z"
+          filter={`url(#${id}-k)`}
+        />
+        <path
+          fill={`url(#${id}-n)`}
+          d="m341.475 226.379-28.268 19.285c-1.24 7.562-4.028 15.002-8.107 21.786-4.674 7.772-10.45 13.69-16.373 18.196-17.702 13.47-38.328 16.244-52.687 16.255-14.842 25.102-17.444 37.675 1.043 57.934 22.877-.016 43.157-4.117 61.046-11.796 12.931-5.551 24.388-12.792 34.761-22.097 13.706-12.295 24.442-27.503 31.769-45 7.327-17.497 11.245-37.282 11.245-58.734Z"
+          filter={`url(#${id}-k)`}
+        />
+        <path
+          fill="#3086ff"
+          d="M234.996 191.21v57.498h136.006c1.196-7.874 5.152-18.064 5.152-26.5 0-9.858-.996-21.899-2.687-30.998Z"
+          filter={`url(#${id}-k)`}
+        />
+        <path
+          fill={`url(#${id}-o)`}
+          d="M128.39 124.327c-8.394 9.119-15.564 19.326-21.249 30.364-9.753 18.879-15.094 41.83-15.094 64.324 0 .317.026.627.029.944 4.32 8.224 59.666 6.649 62.456 0-.004-.31-.039-.613-.039-.924 0-9.226 1.57-16.026 4.43-24.367 3.53-10.289 9.056-19.763 16.123-27.926 1.602-2.031 5.875-6.397 7.121-9.016.475-.997-.862-1.557-.937-1.908-.083-.393-1.876-.077-2.277-.37-1.275-.929-3.8-1.414-5.334-1.845-3.277-.921-8.708-2.953-11.725-5.06-9.536-6.658-24.417-14.612-33.505-24.216Z"
+          filter={`url(#${id}-k)`}
+        />
+        <path
+          fill={`url(#${id}-p)`}
+          d="M162.099 155.857c22.112 13.301 28.471-6.714 43.173-12.977l-25.574-52.664a144.74 144.74 0 0 0-26.543 14.504c-12.316 8.512-23.192 18.9-32.176 30.72Z"
+          filter={`url(#${id}-q)`}
+        />
+        <path
+          fill={`url(#${id}-r)`}
+          d="M171.099 290.222c-29.683 10.641-34.33 11.023-37.062 29.29a144.806 144.806 0 0 0 16.792 13.984c15.996 11.386 46.766 26.551 86.118 26.551.046 0 .09-.004.137-.004v-59.157l-.094.002c-14.736 0-26.512-3.843-38.585-10.527-2.977-1.648-8.378 2.777-11.123.799-3.786-2.729-12.9 2.35-16.183-.938Z"
+          filter={`url(#${id}-k)`}
+        />
+        <path
+          fill={`url(#${id}-s)`}
+          d="M219.7 299.023v59.996c5.506.64 11.236 1.028 17.247 1.028 6.026 0 11.855-.307 17.52-.872v-59.748a105.119 105.119 0 0 1-17.477 1.461c-5.932 0-11.7-.686-17.29-1.865Z"
+          filter={`url(#${id}-k)`}
+          opacity=".5"
+        />
+      </g>
     </svg>
   );
 }
@@ -42,10 +262,14 @@ export function GitHubLogo() {
       focusable="false"
       width={size}
       height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
+      viewBox="0 0 1024 1024"
     >
-      <path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943" />
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M512 0C229.12 0 0 229.12 0 512c0 226.56 146.56 417.92 350.08 485.76 25.6 4.48 35.2-10.88 35.2-24.32 0-12.16-.64-52.48-.64-95.36-128.64 23.68-161.92-31.36-172.16-60.16-5.76-14.72-30.72-60.16-52.48-72.32-17.92-9.6-43.52-33.28-.64-33.92 40.32-.64 69.12 37.12 78.72 52.48 46.08 77.44 119.68 55.68 149.12 42.24 4.48-33.28 17.92-55.68 32.64-68.48-113.92-12.8-232.96-56.96-232.96-252.8 0-55.68 19.84-101.76 52.48-137.6-5.12-12.8-23.04-65.28 5.12-135.68 0 0 42.88-13.44 140.8 52.48 40.96-11.52 84.48-17.28 128-17.28s87.04 5.76 128 17.28c97.92-66.56 140.8-52.48 140.8-52.48 28.16 70.4 10.24 122.88 5.12 135.68 32.64 35.84 52.48 81.28 52.48 137.6 0 196.48-119.68 240-233.6 252.8 18.56 16 34.56 46.72 34.56 94.72 0 68.48-.64 123.52-.64 140.8 0 13.44 9.6 29.44 35.2 24.32C877.44 929.92 1024 737.92 1024 512 1024 229.12 794.88 0 512 0"
+      />
     </svg>
   );
 }
