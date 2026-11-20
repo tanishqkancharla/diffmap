@@ -177,12 +177,17 @@ export function SharedPage(props: {
   );
 }
 
-/** A link to productdoc.dev for the bottom of the narrow-screen contents drawer. */
-export function DrawerBrandLink() {
+/** Credits the owner, by first name to fit the narrow drawer, and productdoc at the bottom of the narrow-screen contents drawer. */
+export function DrawerBrandLink(props: { owner: string }) {
   const className = useStyles(styles.drawerBrand);
+  const strong = useStyles(styles.drawerStrong);
   return (
     <a className={className} href="https://productdoc.dev">
-      <ProductdocWordmark />
+      Shared by <span className={strong}>{props.owner.split(" ")[0]}</span>{" "}
+      using{" "}
+      <span className={strong}>
+        <Logo size={16} /> productdoc
+      </span>
     </a>
   );
 }
@@ -272,11 +277,23 @@ const styles = {
     marginInlineEnd: `calc(-1 * ${spacing.value(2)})`,
   }),
   drawerBrand: style(
-    flex({ direction: "row", alignItems: "center", gap: 2 }),
-    spacing.padding({ x: 4, top: 4 }),
     border(["top"], "border"),
+    text({ size: "sm", fontWeight: 400, color: "lowContrast" }),
+    {
+      // Text starts where the list's entries do, above the phone's home bar.
+      paddingBlock: spacing.value(4),
+      paddingInline: `calc(${spacing.value(3)} + ${spacing.value(4)})`,
+      paddingBottom: `calc(${spacing.value(4)} + env(safe-area-inset-bottom))`,
+      display: "block",
+      flexShrink: 0,
+      textDecoration: "none",
+      backgroundColor: backgroundColor.elementHover,
+      "& svg": { verticalAlign: "-2px" },
+    },
+  ),
+  drawerStrong: style(
     text({ size: "sm", fontWeight: 600, color: "highContrast" }),
-    { marginTop: spacing.value(4), textDecoration: "none" },
+    { whiteSpace: "nowrap" },
   ),
   // The viewer fills the viewport, so it scrolls inside what is left under the bar.
   viewer: style({
