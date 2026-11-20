@@ -1,0 +1,11 @@
+Semvariant is adapted from Halo, Copyright 2026 Saffron Health, Inc.
+Upstream: https://github.com/cashew-labs/halo
+Revision: 536cffe316681229cbb4b76984dfe98299572672
+Original files: tools/semvariant/cli.ts, tools/semvariant/semvariant.ts,
+.agents/skills/semvariant/SKILL.md, and tools/semvariant/rules/R0001.md,
+R0052.md, and R0054.md–R0057.md.
+
+These portions retain the Apache License, Version 2.0 (see LICENSE).
+Local modifications adapt commands, execution, names, paths, and guidance to
+diffmap. The local tests and integration are new. This repository-only tool is
+not part of product-doc's published npm package.

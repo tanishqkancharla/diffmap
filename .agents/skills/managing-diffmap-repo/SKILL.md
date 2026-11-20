@@ -22,7 +22,7 @@ It should not have shown a `changes` fence with an `ignore:` line or the `warnin
 
 ## Pull requests
 
-1. Branch from `main`. Commit the change, then bump the version in its own commit as `AGENTS.md` describes under Releasing (minor for new behavior, patch for fixes).
+1. Retrieve full rules with `npm run semvariant -- context --diff main --full` before preparing or reviewing the diff. Branch from `main`; follow R0002 for the release commit (minor for new behavior, patch for fixes).
 2. For anything a reader sees, capture the rendered diffmap. Serve a small spec that shows each affected state, then take element screenshots with `agent-browser screenshot '<selector>' <path>` at 2x scale.
 3. Attach the screenshots to the PR; don't commit them or keep them on a branch. Save them under `/opt/cursor/artifacts/` and embed each by that path in the description. The PR tool uploads it as an attachment and rewrites the path:
 
