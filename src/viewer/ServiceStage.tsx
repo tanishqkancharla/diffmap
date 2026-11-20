@@ -1233,8 +1233,9 @@ const styles = {
     flexWrap: "wrap",
     alignItems: "baseline",
     columnGap: spacing.value(4),
+    // No negative margin to cancel the padding: it would make the measured
+    // card narrower than its rows need, so long values wrap out of the box.
     paddingInline: spacing.value(2),
-    marginInline: `calc(-1 * ${spacing.value(2)})`,
     "&[data-change='+']": {
       backgroundColor: colors.greenAlpha[3],
       boxShadow: `inset 2px 0 ${colors.green[9]}`,

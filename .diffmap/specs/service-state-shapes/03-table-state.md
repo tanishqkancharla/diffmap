@@ -191,7 +191,7 @@ In [[src/parseViewer.test.ts]]:
 - In a diff, a `-` row and a `+` row with the same name give each side its own cells, and a `-` removal leaves Proposed's row in place.
 - Errors name the line: a row with the wrong number of cells, a duplicate row name, a change to a row removed in an earlier step, an unknown column, a table with no header, and `+=` on a key/value state.
 
-Rendering: the existing Logging in diagram shows the same values, steps, and routes before and after. Its cards are about 8 px narrower: key/value rows used a negative margin written as `-var(…)`, which is invalid CSS, so they were inset 4 px on each side. Writing it as `calc(-1 * var(…))` makes rows line up with tables and lets ELK lay the cards out slightly tighter.
+Rendering: the existing Logging in diagram renders the same before and after, at steps 0, 6, and 9 in light mode and step 9 in dark mode. The only differing pixels are anti-aliasing specks of at most 11 px each. Key/value rows keep their padding with no negative margin, since a negative margin made the hidden measuring copy undercount a row's width so long values wrapped out of the card. Table and text panels pad by the same amount, so their columns still line up with the keys.
 
 :::gallery side-by-side
 ![Logging in before](media/regressions/login-before.png)

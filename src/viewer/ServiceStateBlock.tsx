@@ -297,12 +297,12 @@ export const described = {
 };
 
 const styles = {
-  // A soft panel that bleeds into the card's padding, so its content starts
-  // where the card's key/value rows do.
+  // A soft panel that bleeds into the card's padding.
   block: style(radius.sm, {
     marginInline: `calc(${spacing.value(4)} - ${spacing.value(3)})`,
     marginBottom: spacing.value(3),
-    paddingInline: spacing.value(3),
+    // Key/value rows are inset by their padding; match it so columns line up.
+    paddingInline: `calc(${spacing.value(3)} + ${spacing.value(2)})`,
     paddingBlock: spacing.value(2),
     minWidth: 0,
     backgroundColor: colors.gray[2],
@@ -320,7 +320,6 @@ const styles = {
   text: style(text({ size: "xs" }), radius.xs, {
     maxWidth: "36ch",
     paddingInline: spacing.value(2),
-    marginInline: `calc(-1 * ${spacing.value(2)})`,
     overflowWrap: "anywhere",
     // The attribute outranks the page's prose sizes for p and li.
     "&[data-text] :is(p, ul, ol, li)": {
