@@ -13,7 +13,14 @@ import {
   runUpdate,
 } from "./update.js";
 
-const guideTopics = ["ui", "previews"] as const;
+const guideTopics = [
+  "services",
+  "callstack",
+  "mermaid",
+  "code",
+  "previews",
+  "ui",
+] as const;
 
 const serveArgs = z.object({
   file: z
@@ -212,7 +219,7 @@ const cli = Cli.create("product-doc", {
         .enum(guideTopics)
         .optional()
         .describe(
-          "A part the main guide sends you to: ui (showing a UI change) or previews (live preview and flow blocks)",
+          "A part the main guide sends you to: services, callstack, mermaid, or code (block syntax), previews (live preview and flow blocks), or ui (showing a UI change)",
         ),
     }),
     output: z.string(),

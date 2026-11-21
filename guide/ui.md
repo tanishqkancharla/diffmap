@@ -4,7 +4,15 @@ When a phase changes a UI that has Storybook stories, or could have them, show i
 
 - Use screenshots by default: they show how a state looks. Take one per state, variant, or window width the change affects, default first, such as empty, loading, error, hover, or a narrow window, and label each with the state it shows.
 - Record a clip only for what screenshots cannot show: hover and click feedback, menus, focus, dragging, transitions, or timing. Move a real pointer through the whole interaction, past neighboring controls, and keep the clip under about 15 seconds.
-- Show Today beside Proposed when the comparison is the point, in a `side-by-side` gallery. Capture Today from the unchanged code, such as the base commit in a worktree, not from a mockup. Use `grid` to scan several states or variants, and `carousel` to step through the stages of a flow.
+- Show Today beside Proposed when the comparison is the point, in a `side-by-side` gallery. Capture Today from the unchanged code, such as the base commit in a worktree, not from a mockup. Use `grid` to scan several states or variants, and `carousel [Title]` to step through the stages of a flow:
+
+  ```md
+  :::gallery side-by-side
+  ![Before](media/<page-slug>/save-before.png)
+  ![After](media/<page-slug>/save-after.png)
+  :::
+  ```
+
 - Keep only captures that help the reader decide something. Leave out intermediate attempts; when a fix changes the UI, replace the capture so only the final one remains.
 - Crop screenshots to the part that changed, keep text readable, and leave out secrets and personal data.
 - Save captures under `media/<phase-slug>/` in the spec and link them relative to the page, as in `media/write-through/save.png`. Prefer `.mp4` for recordings, since every browser plays it. Commit them with the spec so the pull request viewer shows them; ask the user before committing more than a few megabytes.

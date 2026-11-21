@@ -318,7 +318,14 @@ test("product-doc guide prints guide.md, and each topic it names", async () => {
   const result = await runCli(["guide"]);
   assert.equal(result.exitCode, 0, result.stderr);
   assert.equal(result.stdout.trim(), guide.trim());
-  for (const topic of ["ui", "previews"]) {
+  for (const topic of [
+    "services",
+    "callstack",
+    "mermaid",
+    "code",
+    "previews",
+    "ui",
+  ]) {
     const part = await fs.readFile(
       path.join(packageRoot, "guide", `${topic}.md`),
       "utf8",

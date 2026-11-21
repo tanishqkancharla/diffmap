@@ -53,12 +53,12 @@ Name stories by their Storybook ID. In a `flow`, the first line is the starting 
 
    Add a `flows` key only to change a flow's defaults: `"transitions": "render"` draws each state from the start instead of playing the step on the live UI, and `"viewport": { "width": 1280, "height": 800 }` sets the size of the expanded flow.
 
-**Choose the states from the real UI.** Read the component, the screens that use it, and how its state changes. Map where the person starts, what they do, and the success, loading, validation, failure, retry, and permission states that matter to the change. Don't invent screens to fill out a flow.
+**Choose the states that matter.** Map where the person starts, what they do, and the success, loading, validation, failure, retry, and permission states that matter to the flow. For built UI, read the component and the screens that use it. For planning unbuilt UI (including greenfield web features or proposed mobile screens), design lightweight mock React components that show each proposed state clearly. Build the mocks from the project's existing design system, components, and tokens, so they look like the product. Mock only the data and the screens that do not exist yet.
 
 **Write the stories.**
 
-- Reuse the team's stories where they exist. Write new ones next to the component, in Storybook's format, with a `title`.
-- Render the real component, through its props and the story's fixtures. If it mixes server calls with rendering, propose pulling out a small presentational component; never keep a lookalike copy of the UI for previews.
+- Reuse the team's stories where they exist. Write new ones next to the component (or in a lightweight Vite + `@storybook/react` preview page when planning unbuilt or mobile UI), in Storybook's format, with a `title`.
+- For built UI, render the real component through its props and the story's fixtures; if it mixes server calls with rendering, propose pulling out a small presentational component rather than copying it. For planned UI that does not exist yet, render clean mock React components and label them as proposed mocks in each story's description.
 - Answer every request from the story's `parameters.msw.handlers`, never a live backend: previews must not sign anyone in, charge a card, or change real data. Use fixed values, not timestamps or random content.
 - In a flow, each story after the first is one step from the story it is indented under. Its `play` does what the person does next, through `canvas` and `userEvent`, and its handlers give the server's answer to that step. Don't repeat the parent's steps: diffmap plays the path for you.
 - Reach each state through the controls a person uses: click the real buttons, type one keystroke at a time, open the real menu and pick its item. The app's own transitions, such as a menu opening or a validation message appearing, then play in the preview as they do in the app. Set state directly only when no control reaches it.
