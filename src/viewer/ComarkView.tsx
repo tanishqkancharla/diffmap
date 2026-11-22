@@ -26,6 +26,7 @@ import { DocumentLink } from "./specNav.tsx";
 import { Fence } from "./Fence.tsx";
 import { HtmlPlaceholder } from "./HtmlPlaceholder.tsx";
 import { Gallery, Media, MediaCard } from "./Media.tsx";
+import { useThemedHtml } from "./htmlTheme.ts";
 import { useViewerMode } from "./viewerMode.ts";
 
 const voidTags = new Set(["hr", "br"]);
@@ -43,6 +44,12 @@ export function ComarkView(
   );
 }
 
+function RawHtml(props: { source: string; block?: boolean }) {
+  const html = { __html: useThemedHtml(props.source) };
+  if (props.block) return <div dangerouslySetInnerHTML={html} />;
+  return <span dangerouslySetInnerHTML={html} />;
+}
+
 function renderNode(
   node: ViewerNode,
   key: number,
@@ -54,12 +61,7 @@ function renderNode(
     if (!trustedHtml) {
       return <HtmlPlaceholder key={key} inline={node.block !== true} />;
     }
-    if (node.block) {
-      return (
-        <div key={key} dangerouslySetInnerHTML={{ __html: node.source }} />
-      );
-    }
-    return <span key={key} dangerouslySetInnerHTML={{ __html: node.source }} />;
+    return <RawHtml key={key} source={node.source} block={node.block} />;
   }
   if (node.type === "view") {
     return <Fence key={key} fence={node.fence} {...navigation} />;

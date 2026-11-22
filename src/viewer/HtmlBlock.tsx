@@ -1,5 +1,6 @@
 import { backgroundColor, radius, shadow, spacing } from "maui";
 import { style, useStyles } from "purse-styles";
+import { useThemedHtml } from "./htmlTheme.ts";
 
 export function HtmlBlock(props: { source: string }) {
   const className = useStyles(styles.shell);
@@ -7,7 +8,7 @@ export function HtmlBlock(props: { source: string }) {
     <div
       className={className}
       data-diffmap-kind="html"
-      dangerouslySetInnerHTML={{ __html: props.source }}
+      dangerouslySetInnerHTML={{ __html: useThemedHtml(props.source) }}
     />
   );
 }
