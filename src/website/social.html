@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1200, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Productdoc social image</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+        margin: 0;
+        overflow: hidden;
+        background: #fcfcfc;
+        color: #202020;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+        font-synthesis: none;
+      }
+
+      main {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+      }
+
+      .background {
+        position: absolute;
+        inset: 0;
+      }
+
+      .brand {
+        position: absolute;
+        top: 54px;
+        left: 72px;
+        display: flex;
+        align-items: center;
+        gap: 17px;
+        height: 96px;
+        font-size: 46px;
+        font-weight: 600;
+        letter-spacing: -1px;
+      }
+
+      h1 {
+        position: absolute;
+        top: 225px;
+        left: 72px;
+        margin: 0;
+        font-size: 76px;
+        font-weight: 650;
+        line-height: 98px;
+        letter-spacing: -1.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Render at 1200 × 630 on macOS to capture the native SF font. -->
+    <main>
+      <svg
+        class="background"
+        xmlns="http://www.w3.org/2000/svg"
+        width="1200"
+        height="630"
+        viewBox="0 0 1200 630"
+        aria-hidden="true"
+      >
+        <defs>
+          <radialGradient id="green">
+            <stop stop-color="#a2d8b7" />
+            <stop offset="1" stop-color="#fcfcfc" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id="red">
+            <stop stop-color="#f7a99c" />
+            <stop offset="1" stop-color="#fcfcfc" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <rect width="1200" height="630" fill="#fcfcfc" />
+        <ellipse cx="600" cy="260" rx="700" ry="500" fill="url(#green)" />
+        <ellipse cx="0" cy="100" rx="520" ry="480" fill="url(#red)" />
+        <ellipse cx="1200" cy="250" rx="520" ry="480" fill="url(#red)" />
+      </svg>
+      <div class="brand">
+        <!-- Original artwork from src/landing/Logo.tsx. -->
+        <svg
+          width="96"
+          height="96"
+          viewBox="4 -8 108 108"
+          stroke-width="5"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M8 22 41 10v58L8 80z" fill="#b5e3cc" stroke="#5fae8a" />
+          <path d="M41 10l34 12v58L41 68z" fill="#fbf7ef" stroke="#d9cdb4" />
+          <path d="M75 22l33-12v58L75 80z" fill="#f7a99c" stroke="#e2725f" />
+        </svg>
+        <span>productdoc</span>
+      </div>
+      <h1>Build software at<br />the product level.</h1>
+    </main>
+  </body>
+</html>

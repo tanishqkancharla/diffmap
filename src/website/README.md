@@ -9,6 +9,23 @@ npm run build:gist
 amp orb service start productdoc-website --command 'node --import tsx src/website/server.ts' --portal
 ```
 
+## Social image
+
+`social.html` is the self-contained source for the 1200 × 630 link-preview card.
+It preserves the original folded-map logo and pastel artwork, uses native SF
+typography, and contains only the brand and headline. The deployed PNG lives at
+`gist/public/productdoc-social.png`; the website build copies it unchanged.
+
+Regenerate from the repository root on **macOS with Google Chrome installed** so
+`-apple-system` resolves to SF. Other platforms can preview the HTML, but their
+system font will differ. No Apple font files are bundled or fetched.
+
+```sh
+npx --yes playwright@1.65.1 screenshot --channel chrome --viewport-size '1200,630' --wait-for-timeout 500 "file://$PWD/src/website/social.html" gist/public/productdoc-social.png
+```
+
+Commit the HTML and regenerated PNG together after checking the image.
+
 The Vite build keeps the existing shared viewer in `dist/viewer.html`, and generates public pages plus Markdown twins from `content.ts`. `gist/website.html` is the website entry; `gist/index.html` remains the shared viewer entry. Website HTML uses semantic native elements because the installed Maui/Purse provider requires `document` during rendering. The existing `Mesh` artwork is rendered into the initial HTML with its CSS, theme variables, base typography, and early theme/scale selection. It does not wait for the reader bundle or swap from a different fallback gradient. When reduced motion is not requested, CSS slowly drifts and scales its blobs from that rendered first frame; there is no script or canvas. The homepage keeps its Maui-powered `ScrollDemo`, prompt controls, original logo, and footer.
 
 The standalone Examples browser is removed for now; its implementation and sample documents remain recoverable from git history in commit `533b7b8`. Old `/examples`, nested example, and Markdown URLs return 404 through the existing public-page handler; their Vercel rewrites are retained so stale links do not fall through to the homepage. Examples are absent from navigation, generated discovery files, and documentation links. Docs opens the rendered `generate-product-doc/SKILL.md` on GitHub, where the skill directs agents to the version-matched CLI guide. Existing local documentation pages remain directly readable. The homepage demo, host separation, shared-viewer routing, live onboarding prompt, and separate Diffmap landing page are unchanged.
