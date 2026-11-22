@@ -41,7 +41,7 @@ Default structure for planning documents:
   - **Title heading:** short, literal phase title (`# Phase 1: Sign in`), plain when planned, `⏳` in progress, and `✅` done.
   - **Intro:** brief, simple explanation of how things work today and what is planned to change.
   - **Media:** ideally a diff form, such as an interactive `services diff` or `callstack` diff, showing how the phase works.
-  - **Phase goals:** the end-user flows that are the goal of this phase (including key failure or recovery paths), under the heading `## Phase goals`. When the phase involves UI, set up the preview component (`npx product-doc guide previews`) and show each flow as an interactive `flow` or `preview` block with real or mock React components, alongside the numbered steps. When the end user is a developer, show the calls and results they write.
+  - **Phase goals:** the end-user flows that are the goal of this phase (including key failure or recovery paths), under the heading `## Phase goals`. Write each goal as what the end user does and sees, because that is what the reader already understands. Attach media to each goal in the end user's own medium: for an app, an interactive `flow` or `preview` block with real or mock React components (`npx product-doc guide previews`); for a library or API, the code a developer writes and the result it returns; for a CLI, the command and its output. Use pseudocode when the real interface does not exist yet.
 
 ## Explain existing system
 
