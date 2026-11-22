@@ -26,14 +26,14 @@ Cloudflare credentials and the admin token are kept as Amp secrets, not on one m
 
 Deployed November 20. `/api/config` lists both providers, `google` and `github`.
 
-| Flow                    | Live result                                                                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Share with GitHub    | Signed in with GitHub, approved the terminal, got [share.productdoc.dev/d/f10u1c4q5j](https://share.productdoc.dev/d/f10u1c4q5j).                   |
-| 2. Signed-out reader    | Every page, diff, and screenshot loads without signing in.                                                                                         |
-| 3. Google, same account | Signed out, signed in with Google: same user ID, now with `github` and `google` linked. `share` worked.                                              |
+| Flow                    | Live result                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Share with GitHub    | Signed in with GitHub, approved the terminal, got [share.productdoc.dev/d/f10u1c4q5j](https://share.productdoc.dev/d/f10u1c4q5j).               |
+| 2. Signed-out reader    | Every page, diff, and screenshot loads without signing in.                                                                                      |
+| 3. Google, same account | Signed out, signed in with Google: same user ID, now with `github` and `google` linked. `share` worked.                                         |
 | 4. Someone else         | With your email taken off the `publisher` list, upload returned 403. No second real account has tried yet. A missing or fake token returns 401. |
-| 5. `share --stop`       | The page says you stopped sharing, and its files return 404.                                                                                      |
-| 6. `.md` version        | Returns the document as Markdown.                                                                                                                 |
+| 5. `share --stop`       | The page says you stopped sharing, and its files return 404.                                                                                    |
+| 6. `.md` version        | Returns the document as Markdown.                                                                                                               |
 
 Development sign-in returns 404 and email sign-up returns 400 on the deployment, so GitHub and Google are the only ways in.
 
