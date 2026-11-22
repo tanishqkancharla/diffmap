@@ -6,7 +6,7 @@ One Cloudflare Worker serves sign-in (`/api/auth`, `/device`), the sharing API (
 
 ## Internal for now
 
-Sharing to productdoc.dev isn't public yet. The CLI's `share` publishes a gist unless `PRODUCTDOC_ORIGIN` is set, which also adds `login` and `logout`; the public docs don't mention it. The server lets only the verified emails in D1's `publisher` table create documents, while anyone with a link can read it. The first migration adds tanishqkancharla3@gmail.com; manage the rest with:
+The CLI's `share`, `login`, and `logout` use https://share.productdoc.dev; set `PRODUCTDOC_ORIGIN` only to point them at another deployment, such as the local stack below. The server lets only the verified emails in D1's `publisher` table create documents, while anyone with a link can read it. The first migration adds tanishqkancharla3@gmail.com; manage the rest with:
 
 ```sh
 PRODUCTDOC_ADMIN_TOKEN=… npm run cloud:publishers                    # list
@@ -17,7 +17,7 @@ PRODUCTDOC_ADMIN_TOKEN=… npm run cloud:publishers -- remove <email>
 Changes apply at once, with no deploy. To share as an allowed account:
 
 ```sh
-PRODUCTDOC_ORIGIN=https://share.productdoc.dev npx product-doc share <spec>
+npx product-doc share <spec>
 ```
 
 ## Run it locally

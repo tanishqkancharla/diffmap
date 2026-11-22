@@ -134,8 +134,10 @@ Run from the repo root:
 npx product-doc validate .diffmap/specs/<name>/ # check syntax, diagrams, notes, and page names
 npx product-doc list                            # reuse the URL if already served
 npx product-doc serve .diffmap/specs/<name>/
-npx product-doc share .diffmap/specs/<name>/    # only when asked; prints https://diffmap.dev/g/<id>
+npx product-doc share .diffmap/specs/<name>/    # only when asked; prints https://share.productdoc.dev/d/<id>
 ```
+
+Anyone with a shared link can read the document, its media, and the source files it shows. The first `share` prints a sign-in link: give it to the user and wait, since the command finishes once they approve. If `share` stops on a file that looks private, remove it from the document or ask the user before passing `--allow <file>`. Each `share` makes a new link; `share --stop` deletes the one in the spec's `.productdoc.json`.
 
 Fix validation errors before handing back the viewer. Inspect rendered desktop and narrow layouts, step through diagrams and flows, and verify source links. Leave the server running and give the user the directory and URL. To read a served page as an agent, request its viewer URL with `Accept: text/markdown`; you get the page's Markdown source.
 

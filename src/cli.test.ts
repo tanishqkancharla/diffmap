@@ -302,7 +302,16 @@ test("product-doc excludes generated skills and MCP but keeps completions", asyn
       JSON.parse(manifest.stdout).commands.map(
         (entry: { name: string }) => entry.name,
       ),
-      ["guide", "list", "serve", "share", "update", "validate"],
+      [
+        "guide",
+        "list",
+        "login",
+        "logout",
+        "serve",
+        "share",
+        "update",
+        "validate",
+      ],
     );
   }
   const schema = await runCli(["validate", "--schema", "--json"]);

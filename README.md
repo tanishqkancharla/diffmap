@@ -24,7 +24,7 @@ For a non-interactive Amp installation, add `--agent amp --yes`. Then ask your a
 
 Installing the skill and acquiring the CLI are separate steps. The skill is a short pointer: your agent loads the full instructions from `npx product-doc guide`, which acquires the CLI from npm and keeps its instructions version-matched to the viewer. Running that command alone does not install the skill. When the stub itself changes, update it with `npx skills update generate-product-doc`.
 
-The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source and MIT licensed. Documents are served locally by default; [sharing as an unlisted gist](#share-a-spec-with-a-link-experimental) still uses diffmap.dev until productdoc.dev supports those links.
+The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source and MIT licensed. Documents are served locally by default; [sharing](#share-a-spec-with-a-link-experimental) uploads a document to share.productdoc.dev.
 
 ### Migrating from Diffmap
 
@@ -154,13 +154,14 @@ Run `npx product-doc fixtures/sessions-in-postgres` for an example.
 
 ## Share a spec with a link (experimental)
 
-Share an unlisted gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
+Upload a document to share.productdoc.dev and print its public link. The first time, it prints a link to sign in with GitHub or Google. Does not start a local server:
 
 ```sh
-npx product-doc share .diffmap/specs/<name>/
+npx product-doc share .diffmap/specs/<name>/   # https://share.productdoc.dev/d/<id>
+npx product-doc share .diffmap/specs/<name>/ --stop
 ```
 
-A spec's pages share one gist. Hosted viewer: `https://diffmap.dev/g/<gistId>` for the cover, and `/<slug>` after it for a page (`#heading` is the table of contents). Gists shared before specs were directories still open, one file at a time. The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
+Anyone with the link can read the document, its media, and the source files it shows. Sharing is invite-only for now: accounts that aren't allowed to share are refused. `product-doc logout` signs out. Specs shared earlier as gists still open at `https://diffmap.dev/g/<gistId>`.
 
 A spec committed to a GitHub pull request also opens at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>`, which pins to the pull request's head commit and opens the spec's cover. Its pages keep their file names in the URL, as in `…/commit/<sha>/.diffmap/specs/<name>/02-write-through.md`, since a pinned commit never renames them.
 
