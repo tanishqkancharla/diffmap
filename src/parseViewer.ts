@@ -2,6 +2,11 @@ import * as errore from "errore";
 import { parseAST } from "md4x/napi";
 import type { ComarkElement, ComarkNode } from "md4x/napi";
 import {
+  parseFragment,
+  serializeOuter,
+  type DefaultTreeAdapterTypes,
+} from "parse5";
+import {
   referenceLabel,
   sourceReferenceMatches,
   type SourceAnnotation,
@@ -55,6 +60,8 @@ export type ViewerElement = {
   tag: string;
   attrs: ViewerElementAttrs;
   children: ViewerNode[];
+  /** An empty raw HTML element, whose attributes are applied only in the local viewer. */
+  html?: string;
 };
 
 export type ViewerHtml = {
@@ -276,11 +283,11 @@ export function collectFences(nodes: ViewerNode[]): Fence[] {
   });
 }
 
-/** The `src` of every image and video, in document order. */
+/** The `src` of every Markdown image and video, in document order. */
 export function collectMedia(nodes: ViewerNode[]): string[] {
   return nodes.flatMap((node) => {
     if (node.type !== "element") return [];
-    if (node.tag === "img")
+    if (node.tag === "img" && node.html === undefined)
       return node.attrs.src === undefined ? [] : [node.attrs.src];
     return collectMedia(node.children);
   });
@@ -501,8 +508,8 @@ function fromElement(
   if (tag === "file") return fileView(element, children);
   if (tag === "gallery") return galleryElement(element, children);
   if (tag === "html") return htmlView(element, children);
-  const convertedChildren = children.flatMap((child) =>
-    fromNode(child, literalChildren),
+  const convertedChildren = inlineHtmlChildren(
+    children.flatMap((child) => fromNode(child, literalChildren)),
   );
   return {
     type: "element",
@@ -589,6 +596,56 @@ function fileView(
     `${start === undefined ? 1 : start}:${end === undefined ? Number.MAX_SAFE_INTEGER : end}:${path}`,
     comarkText(children),
   );
+}
+
+/** Parse sibling HTML fragments together without serializing Markdown or reference nodes. */
+function inlineHtmlChildren(children: ViewerNode[]): ViewerNode[] {
+  if (!children.some((child) => child.type === "html" && !child.block))
+    return children;
+  const raw = children
+    .flatMap((child) => (child.type === "html" ? [child.source] : []))
+    .join("");
+  let marker = "diffmap-inline:";
+  while (raw.includes(marker)) marker += ":";
+  const source = children
+    .map((child, index) =>
+      child.type === "html" && !child.block
+        ? child.source
+        : `<!--${marker}${index}-->`,
+    )
+    .join("");
+  const tree = parseFragment(source);
+  const restore = (node: DefaultTreeAdapterTypes.ChildNode): ViewerNode[] => {
+    if (node.nodeName === "#comment" && "data" in node) {
+      if (!node.data.startsWith(marker)) return [];
+      return [children[Number(node.data.slice(marker.length))]!];
+    }
+    if ("value" in node) {
+      // In raw-text elements (for example <style>), HTML comments are text.
+      const parts = node.value.split(new RegExp(`<!--${marker}(\\d+)-->`, "g"));
+      return parts.flatMap((part, index) =>
+        index % 2 === 1
+          ? [children[Number(part)]!]
+          : part === ""
+            ? []
+            : [{ type: "text" as const, value: part }],
+      );
+    }
+    if (!("tagName" in node)) return [];
+    const attrs = Object.fromEntries(
+      node.attrs.map((attr) => [attr.name, attr.value]),
+    );
+    return [
+      {
+        type: "element",
+        tag: node.tagName,
+        attrs: elementAttrs([node.tagName, attrs]),
+        html: serializeOuter({ ...node, childNodes: [] }),
+        children: node.childNodes.flatMap(restore),
+      },
+    ];
+  };
+  return tree.childNodes.flatMap(restore);
 }
 
 function htmlView(

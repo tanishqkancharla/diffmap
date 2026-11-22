@@ -11,7 +11,7 @@ import { callStackRow } from "./annotations.js";
 import { lineSymbolMatches } from "./codeNotes.js";
 import { DiffmapMermaidError, DiffmapServicesError } from "./errors.js";
 import { themeMermaidSvg } from "./mermaidTheme.js";
-import { parseViewerDocument } from "./parseViewer.js";
+import { collectMedia, parseViewerDocument } from "./parseViewer.js";
 import { serviceStateAt } from "./services.js";
 import { shareMarkdownFile } from "./share.js";
 import { startServer } from "./serve.js";
@@ -82,6 +82,78 @@ async function runCli(args: string[]) {
     return { exitCode, stdout, stderr };
   }
 }
+
+test("inline HTML nests Markdown and references without flattening them", () => {
+  const document = parseViewerDocument(
+    'Before <span title="a > b" style="background:#fef9c3"><mark>marked **bold**</mark> &amp; [[src/parseViewer.ts#L1]]<br>after</span> tail',
+  );
+  assert.ok(!(document instanceof Error));
+  const paragraph = document.nodes[0];
+  assert.ok(paragraph?.type === "element");
+  assert.deepEqual(
+    paragraph.children.filter((node) => node.type === "text"),
+    [
+      { type: "text", value: "Before " },
+      { type: "text", value: " tail" },
+    ],
+  );
+  const span = paragraph.children[1];
+  assert.ok(span?.type === "element" && span.tag === "span");
+  assert.equal(
+    span.html,
+    '<span title="a > b" style="background:#fef9c3"></span>',
+  );
+  const mark = span.children[0];
+  assert.ok(mark?.type === "element" && mark.tag === "mark");
+  assert.deepEqual(mark.children[0], { type: "text", value: "marked " });
+  const bold = mark.children[1];
+  assert.ok(bold?.type === "element" && bold.tag === "strong");
+  assert.deepEqual(bold.children, [{ type: "text", value: "bold" }]);
+  assert.deepEqual(span.children[1], { type: "text", value: " & " });
+  assert.equal(span.children[2]?.type, "reference");
+  assert.deepEqual(document.references, [
+    { kind: "file", path: "src/parseViewer.ts", start: 1, end: 1 },
+  ]);
+  const br = span.children[3];
+  assert.ok(br?.type === "element" && br.tag === "br");
+  assert.deepEqual(span.children[4], { type: "text", value: "after" });
+});
+
+test("inline HTML handles adjacent, unmatched and void tags without reinterpreting text", () => {
+  const document = parseViewerDocument(
+    "Keys: <kbd>Ctrl</kbd><kbd>Enter</kbd> &lt;b&gt; <span>open<br>line<!--diffmap-inline:0-->",
+  );
+  assert.ok(!(document instanceof Error));
+  const paragraph = document.nodes[0];
+  assert.ok(paragraph?.type === "element");
+  const [before, ctrl, enter, literal, open] = paragraph.children;
+  assert.deepEqual(before, { type: "text", value: "Keys: " });
+  assert.ok(ctrl?.type === "element" && ctrl.tag === "kbd");
+  assert.deepEqual(ctrl.children, [{ type: "text", value: "Ctrl" }]);
+  assert.ok(enter?.type === "element" && enter.tag === "kbd");
+  assert.deepEqual(enter.children, [{ type: "text", value: "Enter" }]);
+  assert.deepEqual(literal, { type: "text", value: " <b> " });
+  assert.ok(open?.type === "element" && open.tag === "span");
+  assert.deepEqual(open.children[0], { type: "text", value: "open" });
+  assert.equal(
+    open.children[1]?.type === "element" && open.children[1].tag,
+    "br",
+  );
+  assert.deepEqual(open.children[2], { type: "text", value: "line" });
+  const block = parseViewerDocument("<div>block highlight</div>");
+  assert.ok(!(block instanceof Error));
+  assert.deepEqual(block.nodes, [
+    { type: "html", block: true, source: "<div>block highlight</div>\n" },
+  ]);
+});
+
+test("media collection includes Markdown inside HTML but excludes disabled raw images", () => {
+  const document = parseViewerDocument(
+    'Media: <span><img src="raw.png">![Markdown](markdown.png)</span>',
+  );
+  assert.ok(!(document instanceof Error));
+  assert.deepEqual(collectMedia(document.nodes), ["markdown.png"]);
+});
 
 test("parseViewerDocument accepts a spec with valid mermaid", async () => {
   const source = await fs.readFile(sampleSpec, "utf8");

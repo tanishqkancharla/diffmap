@@ -1,4 +1,4 @@
-import { createElement, type ReactNode, useState } from "react";
+import { createElement, type ReactNode, useCallback, useState } from "react";
 import {
   Badge,
   Checkbox,
@@ -50,6 +50,26 @@ function RawHtml(props: { source: string; block?: boolean }) {
   return <span dangerouslySetInnerHTML={html} />;
 }
 
+/** React owns the Markdown children; only trusted HTML owns these attributes. */
+function InlineHtml(props: { node: ViewerElement; children: ReactNode[] }) {
+  const html = useThemedHtml(props.node.html!);
+  const ref = useCallback(
+    (element: Element | null) => {
+      if (element === null) return;
+      const template = document.createElement("template");
+      template.innerHTML = html;
+      const source = template.content.firstElementChild;
+      if (source === null) return;
+      for (const attr of Array.from(element.attributes))
+        element.removeAttributeNode(attr);
+      for (const attr of Array.from(source.attributes))
+        element.setAttributeNS(attr.namespaceURI, attr.name, attr.value);
+    },
+    [html],
+  );
+  return createElement(props.node.tag, { ref }, ...props.children);
+}
+
 function renderNode(
   node: ViewerNode,
   key: number,
@@ -80,11 +100,25 @@ function renderElement(
   navigation: SourceNavigation,
   trustedHtml: boolean,
 ): ReactNode {
-  if (node.tag === "table")
-    return renderTable(node, key, navigation, trustedHtml);
   const children = node.children.map((child, index) =>
     renderNode(child, index, navigation, trustedHtml),
   );
+  if (node.html !== undefined) {
+    if (!trustedHtml)
+      return (
+        <span key={key}>
+          {" "}
+          <HtmlPlaceholder inline /> {children}
+        </span>
+      );
+    return (
+      <InlineHtml key={key} node={node}>
+        {children}
+      </InlineHtml>
+    );
+  }
+  if (node.tag === "table")
+    return renderTable(node, key, navigation, trustedHtml);
   if (node.tag === "alert") {
     return (
       <blockquote key={key} data-alert={node.attrs.alertType}>
@@ -162,7 +196,12 @@ function mediaOnlyChildren(node: ViewerElement) {
   );
   if (
     items.length === 0 ||
-    !items.every((child) => child.type === "element" && child.tag === "img")
+    !items.every(
+      (child) =>
+        child.type === "element" &&
+        child.tag === "img" &&
+        child.html === undefined,
+    )
   )
     return undefined;
   return items as ViewerElement[];
