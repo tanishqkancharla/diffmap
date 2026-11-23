@@ -25,6 +25,11 @@
 
       main {
         position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 48px;
         width: 1200px;
         height: 630px;
       }
@@ -35,27 +40,25 @@
       }
 
       .brand {
-        position: absolute;
-        top: 54px;
-        left: 72px;
+        position: relative;
         display: flex;
         align-items: center;
-        gap: 17px;
-        height: 96px;
+        gap: 12px;
+        height: 60px;
         font-size: 46px;
         font-weight: 600;
+        line-height: 60px;
         letter-spacing: -1px;
       }
 
       h1 {
-        position: absolute;
-        top: 225px;
-        left: 72px;
+        position: relative;
         margin: 0;
         font-size: 76px;
         font-weight: 650;
         line-height: 98px;
         letter-spacing: -1.5px;
+        text-align: center;
       }
     </style>
   </head>
@@ -88,8 +91,8 @@
       <div class="brand">
         <!-- Original artwork from src/landing/Logo.tsx. -->
         <svg
-          width="96"
-          height="96"
+          width="60"
+          height="60"
           viewBox="4 -8 108 108"
           stroke-width="5"
           stroke-linejoin="round"
