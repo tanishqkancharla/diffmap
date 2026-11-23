@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import {
   backgroundColor,
   Button,
@@ -26,6 +32,7 @@ export function CommentCard(props: {
   const store = useComments();
   const [editing, setEditing] = useState(false);
   const card = useStyles(styles.card);
+  const row = useStyles(styles.row);
   const body = useStyles(styles.body);
   const actions = useStyles(styles.actions);
   const comment = props.comment;
@@ -73,7 +80,7 @@ export function CommentCard(props: {
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <>
+        <div className={row}>
           <div className={body}>{comment.body}</div>
           <div className={actions} data-actions="">
             <Button
@@ -93,7 +100,7 @@ export function CommentCard(props: {
               <Trash size="sm" />
             </Button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -112,6 +119,14 @@ function Composer(props: {
     const frame = requestAnimationFrame(() => textarea.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, []);
+  // Browsers without `field-sizing: content` grow the textarea here instead.
+  useLayoutEffect(() => {
+    const element = textarea.current;
+    if (element === null || CSS.supports("field-sizing", "content")) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- The value is the trigger; the effect reads the element.
+  }, [value]);
   const input = useStyles(textFieldStyles.input({}), styles.textarea);
   const buttons = useStyles(styles.buttons);
   const blank = value.trim() === "";
@@ -135,7 +150,6 @@ function Composer(props: {
         aria-label="Comment"
         placeholder="Add a comment…"
         ref={textarea}
-        rows={3}
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={onKeyDown}
@@ -171,29 +185,46 @@ const styles = {
       backgroundColor: backgroundColor.element,
       cursor: "default",
       "&[data-active='true']": { boxShadow: shadowVars.medium },
-      "&:hover > [data-actions], &:focus-within > [data-actions], &[data-active='true'] > [data-actions]":
-        { opacity: 1 },
+      "&:hover [data-actions], &:has(:focus-visible) [data-actions]": {
+        opacity: 1,
+      },
     },
   ),
+  row: style(flex({ direction: "row", alignItems: "start", gap: 2 })),
+  // Trimmed to its capitals and padded back to whole lines, so the first
+  // line's capitals center in the same line-tall box as the actions.
   body: style(text({ size: "sm", color: "highContrast" }), {
+    flex: 1,
+    minWidth: 0,
     whiteSpace: "pre-wrap",
     overflowWrap: "anywhere",
-    paddingRight: "52px",
+    textBox: "trim-both cap alphabetic",
+    paddingBlock: "calc((1lh - 1cap) / 2)",
   }),
-  // Hidden until the card is hovered, focused, or active. Touch screens have no hover.
-  actions: style(flex({ direction: "row", gap: 1 }), {
-    position: "absolute",
-    top: "4px",
-    right: "4px",
+  // One body line tall, so the buttons sit on the first line. Hidden until the
+  // card is hovered or has keyboard focus; touch screens have no hover.
+  actions: style(text({ size: "sm" }), flex({ direction: "row", gap: 1 }), {
+    flexShrink: 0,
+    height: "1lh",
     opacity: 0,
     "@media (hover: none)": { opacity: 1 },
+    "& > button:has([data-button-content] > svg:only-child)": {
+      height: "100%",
+      width: "auto",
+      aspectRatio: "1",
+      paddingBlock: 0,
+    },
   }),
   textarea: style({
     display: "block",
     height: "auto",
     minHeight: "60px",
-    resize: "vertical",
+    resize: "none",
+    fieldSizing: "content",
     fontFamily: "inherit",
+    background: backgroundColor.elementHover,
+    boxShadow: "none",
+    "&:focus-visible": { boxShadow: "none" },
   }),
   buttons: style(flex({ direction: "row", justifyContent: "end", gap: 2 }), {}),
 };

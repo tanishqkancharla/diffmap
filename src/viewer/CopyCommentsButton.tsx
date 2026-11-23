@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, buttonStyles, Check, colors, Copy } from "maui";
-import { style, useStyles } from "purse-styles";
+import { Button, Check, Copy } from "maui";
 import { isMultiPage, useSpec } from "./specNav.tsx";
 import {
   commentsKey,
@@ -32,7 +31,6 @@ export function CopyCommentsButton(props: {
       ? comments.length
       : pages.reduce((sum, page) => sum + page.comments.length, 0);
   const [copied, setCopied] = useState(false);
-  const count = useStyles(buttonStyles.label, countStyle);
   useEffect(() => {
     if (!copied) return;
     const timer = setTimeout(() => setCopied(false), 1500);
@@ -41,6 +39,7 @@ export function CopyCommentsButton(props: {
   if (total === 0) return undefined;
   return (
     <Button
+      variant="primary"
       onPress={() => {
         const markdown = formatComments({
           title: props.title,
@@ -59,13 +58,9 @@ export function CopyCommentsButton(props: {
       }}
     >
       {copied ? <Check size="sm" /> : <Copy size="sm" />}
-      {copied ? "Copied" : "Copy comments"}
-      <span className={count}>{total}</span>
+      {copied
+        ? "Copied"
+        : `Copy ${total} ${total === 1 ? "comment" : "comments"}`}
     </Button>
   );
 }
-
-const countStyle = style({
-  color: colors.gray[11],
-  fontVariantNumeric: "tabular-nums",
-});
