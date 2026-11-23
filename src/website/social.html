@@ -25,11 +25,6 @@
 
       main {
         position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 48px;
         width: 1200px;
         height: 630px;
       }
@@ -40,7 +35,10 @@
       }
 
       .brand {
-        position: relative;
+        position: absolute;
+        top: 54px;
+        left: 50%;
+        transform: translateX(-50%);
         display: flex;
         align-items: center;
         gap: 12px;
@@ -52,12 +50,15 @@
       }
 
       h1 {
-        position: relative;
+        position: absolute;
+        top: 40%;
+        left: 7.5%;
+        width: 85%;
         margin: 0;
-        font-size: 76px;
+        font-size: 138px;
         font-weight: 650;
-        line-height: 98px;
-        letter-spacing: -1.5px;
+        line-height: 1.1;
+        letter-spacing: -2.5px;
         text-align: center;
       }
     </style>
