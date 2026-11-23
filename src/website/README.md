@@ -13,7 +13,7 @@ amp orb service start productdoc-website --command 'node --import tsx src/websit
 
 `social.html` is the self-contained source for the 1200 × 630 link-preview card.
 It preserves the original folded-map logo and pastel artwork, uses native SF
-typography, and contains only the brand and headline. The deployed PNG lives at
+typography, and includes the brand, headline, and a secondary gray URL. The deployed PNG lives at
 `gist/public/productdoc-social.png`; the website build copies it unchanged.
 
 Regenerate from the repository root on **macOS with Google Chrome installed** so

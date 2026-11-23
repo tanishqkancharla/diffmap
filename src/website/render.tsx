@@ -246,7 +246,7 @@ export function renderPage(page: Page, template: string) {
       <meta property="og:image:height" content="630" />
       <meta
         property="og:image:alt"
-        content="Productdoc — Build software at the product level."
+        content="Productdoc — Build software at the product level. productdoc.dev"
       />
       <meta name="twitter:card" content="summary_large_image" />
     </>,
