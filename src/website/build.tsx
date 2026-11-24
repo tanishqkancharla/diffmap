@@ -99,10 +99,6 @@ const logo = renderToStaticMarkup(<Logo size={96} />).replace(
 );
 await fs.writeFile(path.join(out, "productdoc-logo.svg"), logo);
 await fs.writeFile(
-  path.join(out, "productdoc-social.svg"),
-  `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><defs><radialGradient id="green"><stop stop-color="#a2d8b7"/><stop offset="1" stop-color="#fcfcfc" stop-opacity="0"/></radialGradient><radialGradient id="red"><stop stop-color="#f7a99c"/><stop offset="1" stop-color="#fcfcfc" stop-opacity="0"/></radialGradient></defs><rect width="1200" height="630" fill="#fcfcfc"/><ellipse cx="600" cy="260" rx="700" ry="500" fill="url(#green)"/><ellipse cx="0" cy="100" rx="520" ry="480" fill="url(#red)"/><ellipse cx="1200" cy="250" rx="520" ry="480" fill="url(#red)"/><g transform="translate(72 54)">${logo}</g><g font-family="system-ui,sans-serif"><text x="185" y="116" font-size="46" font-weight="600" fill="#202020">productdoc</text><text x="72" y="300" font-size="76" font-weight="650" fill="#202020">Build software at</text><text x="72" y="398" font-size="76" font-weight="650" fill="#202020">the product level.</text><text x="72" y="540" font-size="28" fill="#646464">Explain · Plan · Review</text></g></svg>`,
-);
-await fs.writeFile(
   path.join(out, "404.html"),
   renderPage(
     {
