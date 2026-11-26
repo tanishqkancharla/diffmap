@@ -71,7 +71,7 @@ ${examplePrompt}
 
 Install: npx skills add tanishqkancharla/diffmap --skill generate-product-doc
 Public skill source: ${repository}/tree/main/skills/generate-product-doc
-CLI guide: npx product-doc guide
+CLI guide: npx product-doc@latest guide
 Running the CLI does not install the skill. Load generate-product-doc in your agent after installation.
 
 ## Documentation

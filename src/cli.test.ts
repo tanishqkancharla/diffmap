@@ -339,7 +339,7 @@ test("product-doc guide prints guide.md, and each topic it names", async () => {
       path.join(packageRoot, "guide", `${topic}.md`),
       "utf8",
     );
-    assert.match(guide, new RegExp(`product-doc guide ${topic}\\b`));
+    assert.match(guide, new RegExp(`npx product-doc@latest guide ${topic}\\b`));
     const printed = await runCli(["guide", topic]);
     assert.equal(printed.exitCode, 0, printed.stderr);
     assert.equal(printed.stdout.trim(), part.trim());

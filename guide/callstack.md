@@ -14,4 +14,4 @@ To show a change, start rows with `-` (before only), `+` (after only), or a spac
 ```
 ````
 
-Explain a symbol at the bottom of the block with `# [!note L3 symbol] text`, the same way code blocks do (`npx product-doc guide code`).
+Explain a symbol at the bottom of the block with `# [!note L3 symbol] text`, the same way code blocks do (`npx product-doc@latest guide code`).

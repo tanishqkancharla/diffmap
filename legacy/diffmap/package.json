@@ -1,0 +1,22 @@
+{
+  "name": "@tanishqkancharla/diffmap",
+  "version": "0.14.0",
+  "description": "Deprecated. Use product-doc instead.",
+  "homepage": "https://productdoc.dev",
+  "license": "MIT",
+  "author": "Tanishq Kancharla",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tanishqkancharla/diffmap.git"
+  },
+  "bin": {
+    "diffmap": "bin.js"
+  },
+  "files": [
+    "bin.js"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

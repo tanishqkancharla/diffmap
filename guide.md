@@ -35,13 +35,13 @@ A request to explain, plan, or review does not authorize implementing a proposal
 Default structure for planning documents:
 
 - **Cover (`README.md`)**
-  - **Intro paragraphs:** explain what is being built, with visual mocks or media if possible, and high-level tradeoffs. When the work includes UI, set up the preview component (`npx product-doc guide previews`) and render visual mocks with `preview` or `flow` blocks.
+  - **Intro paragraphs:** explain what is being built, with visual mocks or media if possible, and high-level tradeoffs. When the work includes UI, set up the preview component (`npx product-doc@latest guide previews`) and render visual mocks with `preview` or `flow` blocks.
   - **Implementation section:** explain how it will be implemented, followed by a bulleted list of the phase pages (planned MVP-first, starting from the smallest usable end-user outcome), one bullet per phase with its link and one sentence on what it adds. Include brief pseudocode if helpful.
 - **Phase pages (`01-<slug>.md`, `02-<slug>.md`, …)**
   - **Title heading:** short, literal phase title (`# Phase 1: Sign in`), plain when planned, `⏳` in progress, and `✅` done.
   - **Intro:** brief, simple explanation of how things work today and what is planned to change.
   - **Media:** ideally a diff form, such as an interactive `services diff` or `callstack` diff, showing how the phase works.
-  - **Phase goals:** the end-user flows that are the goal of this phase (including key failure or recovery paths), under the heading `## Phase goals`. Write each goal as what the end user does and sees, because that is what the reader already understands. Attach media to each goal in the end user's own medium: for an app, an interactive `flow` or `preview` block with real or mock React components (`npx product-doc guide previews`); for a library or API, the code a developer writes and the result it returns; for a CLI, the command and its output. Use pseudocode when the real interface does not exist yet.
+  - **Phase goals:** the end-user flows that are the goal of this phase (including key failure or recovery paths), under the heading `## Phase goals`. Write each goal as what the end user does and sees, because that is what the reader already understands. Attach media to each goal in the end user's own medium: for an app, an interactive `flow` or `preview` block with real or mock React components (`npx product-doc@latest guide previews`); for a library or API, the code a developer writes and the result it returns; for a CLI, the command and its output. Use pseudocode when the real interface does not exist yet.
 
 ## Explain existing system
 
@@ -99,19 +99,19 @@ How to pick the right view:
 
 Each block has its own page of syntax and examples. Read the page before you write that block:
 
-- `npx product-doc guide services`: `services` diagrams, their state shapes (values, `text`, and `table`), and `diff`.
-- `npx product-doc guide callstack`: `callstack` rows, nesting, and diffs.
-- `npx product-doc guide mermaid`: Mermaid flowcharts, sequence and state diagrams, and links to source.
-- `npx product-doc guide code`: code blocks with highlights and notes, and `changes` cards.
-- `npx product-doc guide previews`: `preview` and `flow` blocks, mock components, and the one-time app setup.
-- `npx product-doc guide ui`: screenshots, recordings, and galleries for UI that has no stories.
+- `npx product-doc@latest guide services`: `services` diagrams, their state shapes (values, `text`, and `table`), and `diff`.
+- `npx product-doc@latest guide callstack`: `callstack` rows, nesting, and diffs.
+- `npx product-doc@latest guide mermaid`: Mermaid flowcharts, sequence and state diagrams, and links to source.
+- `npx product-doc@latest guide code`: code blocks with highlights and notes, and `changes` cards.
+- `npx product-doc@latest guide previews`: `preview` and `flow` blocks, mock components, and the one-time app setup.
+- `npx product-doc@latest guide ui`: screenshots, recordings, and galleries for UI that has no stories.
 
 ## Committed work
 
 When a phase or change is committed:
 
 1. Commit the code. Use `<base>..<head>` for a multi-commit phase.
-2. End the page with a `changes` card that names the commit and lists the files to review in order (`npx product-doc guide code`).
+2. End the page with a `changes` card that names the commit and lists the files to review in order (`npx product-doc@latest guide code`).
 3. Point changed references on the page at the commit (`[[a1b2c3d:src/request.ts#L8-L20]]`), update visuals to match what shipped, mark a phase title `✅`, and commit the document update separately.
 
 ## Files, serving, and references
@@ -126,15 +126,15 @@ A document is a directory at `.diffmap/specs/<short-kebab-case-name>/`. Reuse th
   media/<topic-slug>/       screenshots and recordings for that page
 ```
 
-Link between pages with relative file links, such as `[Phase 1](01-sign-in.md)`. To insert a page, `git mv` later pages to new numbers. `product-doc` succeeds Diffmap (`generate-diffmap` and `generate-product-doc` coexist temporarily; keep `.diffmap/specs/` paths).
+Link between pages with relative file links, such as `[Phase 1](01-sign-in.md)`. To insert a page, `git mv` later pages to new numbers. `product-doc` succeeds Diffmap, which is deprecated; keep `.diffmap/specs/` paths.
 
 Run from the repo root:
 
 ```sh
-npx product-doc validate .diffmap/specs/<name>/ # check syntax, diagrams, notes, and page names
-npx product-doc list                            # reuse the URL if already served
-npx product-doc serve .diffmap/specs/<name>/
-npx product-doc share .diffmap/specs/<name>/    # only when asked; prints https://share.productdoc.dev/d/<id>
+npx product-doc@latest validate .diffmap/specs/<name>/ # check syntax, diagrams, notes, and page names
+npx product-doc@latest list                            # reuse the URL if already served
+npx product-doc@latest serve .diffmap/specs/<name>/
+npx product-doc@latest share .diffmap/specs/<name>/    # only when asked; prints https://share.productdoc.dev/d/<id>
 ```
 
 Anyone with a shared link can read the document, its media, and the source files it shows. The first `share` prints a sign-in link: give it to the user and wait, since the command finishes once they approve. If `share` stops on a file that looks private, remove it from the document or ask the user before passing `--allow <file>`. Each `share` makes a new link; `share --stop` deletes the one in the spec's `.productdoc.json`.

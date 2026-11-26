@@ -8,9 +8,9 @@ description: Create general-purpose visual documents with productdoc, including 
 Before writing or updating a document, run this from the repository root and follow what it prints:
 
 ```sh
-npx product-doc guide
+npx product-doc@latest guide
 ```
 
-The CLI guide owns the authoring instructions and document format, keeping them version-matched to the viewer. If `guide` is unavailable in an installed release, run `npx product-doc update`, then retry.
+The CLI guide owns the authoring instructions and document format, keeping them version-matched to the viewer. `@latest` makes npx use the newest release even when an older one is installed.
 
-**Migration:** productdoc succeeds Diffmap; the two skills coexist temporarily. Keep existing documents rather than creating migration copies.
+**Migration:** productdoc succeeds Diffmap, which is deprecated. If the `generate-diffmap` skill is also installed, offer to remove it with `npx skills remove generate-diffmap`. Keep existing documents rather than creating migration copies.

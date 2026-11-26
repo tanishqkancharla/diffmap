@@ -27,7 +27,7 @@ npx skills add tanishqkancharla/diffmap --skill generate-product-doc
 
 For a non-interactive Amp installation, add `--agent amp --yes`. Then ask your agent to use `generate-product-doc` to explain a system, plan work, or review changes. If the current session does not discover the installed skill, reload its skills or start a new session.
 
-Installing the skill and acquiring the CLI are separate steps. The skill is a short pointer: your agent loads the full instructions from `npx product-doc guide`, which acquires the CLI from npm and keeps its instructions version-matched to the viewer. Running that command alone does not install the skill. When the stub itself changes, update it with `npx skills update generate-product-doc`.
+Installing the skill and acquiring the CLI are separate steps. The skill is a short pointer: your agent loads the full instructions from `npx product-doc@latest guide`, which acquires the CLI from npm and keeps its instructions version-matched to the viewer. Running that command alone does not install the skill. When the stub itself changes, update it with `npx skills update generate-product-doc`.
 
 The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source and MIT licensed. Documents are served locally by default; [sharing](#share-a-spec-with-a-link-experimental) uploads a document to share.productdoc.dev.
 

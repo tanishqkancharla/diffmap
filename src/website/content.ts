@@ -59,7 +59,7 @@ npx skills add tanishqkancharla/diffmap --skill generate-product-doc
 
 For a non-interactive Amp installation, add --agent amp --yes. Then ask your agent to use generate-product-doc. If the current session does not discover the new skill, reload its skills or start a new session before continuing.
 
-Installing the skill adds authoring instructions to your agent; it does not install the viewer globally. The skill tells the agent to run npx product-doc guide, which acquires the CLI from npm and prints its version-matched instructions. Running that command alone does not install the skill.
+Installing the skill adds authoring instructions to your agent; it does not install the viewer globally. The skill tells the agent to run npx product-doc@latest guide, which acquires the CLI from npm and prints its version-matched instructions. Running that command alone does not install the skill.
 
 [Install, update, and remove](/docs/install)
 
@@ -111,7 +111,7 @@ For Amp without prompts, append --agent amp --yes. The skill is installed for yo
 The skill’s first step acquires the public CLI and loads its guide:
 
 \`\`\`sh
-npx product-doc guide
+npx product-doc@latest guide
 \`\`\`
 
 These are separate steps: the skills installer makes the authoring skill available to your agent; npx acquires and runs the product-doc CLI. Neither requires installing the old Diffmap package. Git, npm and Node.js 22 or newer are required.
@@ -168,7 +168,7 @@ Retained configuration names such as DIFFMAP_TELEMETRY and the diffmap configura
 
 ## The agent cannot find the skill or CLI
 
-The authoring skill and runtime are separate. Install generate-product-doc from tanishqkancharla/diffmap using npx skills add, then reload your agent’s skill list or start a new session if necessary. Running npx product-doc guide alone does not install the skill.
+The authoring skill and runtime are separate. Install generate-product-doc from tanishqkancharla/diffmap using npx skills add, then reload your agent’s skill list or start a new session if necessary. Running npx product-doc@latest guide alone does not install the skill.
 
 Check Node.js is version 22 or newer and that Git and npm can reach GitHub and the npm registry. If npx reuses an old CLI, try npx product-doc@latest guide. Use the successor’s guide rather than substituting the legacy Diffmap guide. If a skill is listed but not being used, explicitly ask the agent to load generate-product-doc; scanner discovery alone does not prove that it loaded the skill.
 
