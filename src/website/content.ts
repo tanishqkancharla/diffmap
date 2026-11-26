@@ -139,21 +139,25 @@ Using the CLI through npx does not create a global product-doc installation. If 
     path: "/docs/migration",
     title: "Coming from Diffmap",
     description:
-      "Use Productdoc alongside Diffmap while preserving existing documents, skills and shared links.",
+      "Switch from Diffmap to Productdoc and keep your documents, shared links, and settings.",
     label: "Documentation · Migration",
     body: `# Coming from Diffmap
 
-Productdoc and Diffmap are available alongside one another. Productdoc lives at productdoc.dev and expands visual documents to explaining existing systems and planning future work as well as reviewing changes. Diffmap keeps its original website at diffmap.dev; it is not being retired as part of this rollout.
+Diffmap is deprecated. Use Productdoc instead. It is the same tool under a new name, and it also explains existing systems and plans future work.
+
+## Switch over
+
+1. Remove the old skill: npx skills remove generate-diffmap
+2. Install the new one: npx skills add tanishqkancharla/diffmap --skill generate-product-doc
+3. Ask your agent for a document as before. The skill runs npx product-doc@latest guide.
 
 ## What stays put
 
-Keep documents in .diffmap/specs/. Do not remove existing installs or shared-document links as part of migration. Existing diffmap.dev shared links should continue to open their documents, not redirect to a marketing homepage.
+Keep documents in .diffmap/specs/. Productdoc reads them as they are. Shared diffmap.dev links keep opening their documents. DIFFMAP_TELEMETRY and the diffmap configuration directory still apply, so your privacy choices carry over.
 
-## What is changing
+## What happens to diffmap
 
-For Productdoc, the public npm package and executable are product-doc, and the skill is generate-product-doc. Install that skill and use its CLI guide when asking for Productdoc documents. The generate-diffmap skill remains available too; installing Productdoc does not require removing or replacing it. Keep each tool's existing installation and use the skill you intend.
-
-Retained configuration names such as DIFFMAP_TELEMETRY and the diffmap configuration directory preserve existing privacy choices during migration.
+The last diffmap release, 0.14.0, prints a notice instead of running. It asks your agent to tell you and offer this switch. npm also marks every diffmap version as deprecated.
 
 [Check release status](/docs/install) · [Privacy](/privacy)
 `,

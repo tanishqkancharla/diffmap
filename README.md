@@ -35,7 +35,14 @@ The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source
 
 Productdoc is the standalone successor to Diffmap, expanding beyond diff review. The npm package is `product-doc`, its executable is `product-doc`, and its website is [productdoc.dev](https://productdoc.dev). The GitHub repository keeps its current URL.
 
-Diffmap is deprecated. Use `generate-product-doc` and `product-doc` for new work, not the legacy `generate-diffmap` skill or `@tanishqkancharla/diffmap` package. Existing installs do not migrate automatically. Keep existing documents and shared links rather than copying or deleting them; Productdoc still reads `.diffmap/specs/`. No legacy binary alias or automatic installation migration is added.
+Diffmap is deprecated. Use `generate-product-doc` and `product-doc` for new work, not the legacy `generate-diffmap` skill or `@tanishqkancharla/diffmap` package. To switch:
+
+```sh
+npx skills remove generate-diffmap
+npx skills add tanishqkancharla/diffmap --skill generate-product-doc
+```
+
+Then ask your agent for a document as before; the skill runs `npx product-doc@latest guide`. Keep existing documents and shared links rather than copying or deleting them; Productdoc still reads `.diffmap/specs/`. No legacy binary alias or automatic installation migration is added.
 
 [The original Diffmap launch video](https://x.com/tanishqk/status/2116212881125691850) shows the review workflow this builds on.
 
