@@ -1,5 +1,10 @@
 # productdoc
 
+> [!IMPORTANT]
+> Diffmap is deprecated. Use product-doc instead. This repository is now home to product-doc, Diffmap's successor. See [Migrating from Diffmap](#migrating-from-diffmap).
+
+**Website:** [productdoc.dev](https://productdoc.dev) · **npm:** [`product-doc`](https://www.npmjs.com/package/product-doc)
+
 **Understand the system, decide what to build, and review what changed.** Productdoc turns your coding agent's findings into visual documents, with diagrams, media, and source links behind the reasoning.
 
 Use it to explain an existing workflow, plan future work, or review a change. Documents start with the reader's question and familiar UI or involved services—not automatically with code. Plans keep one small, independent or commit-sized change per page.
@@ -30,7 +35,7 @@ The skill keeps documents in `.diffmap/specs/<name>/`. Productdoc is open source
 
 Productdoc is the standalone successor to Diffmap, expanding beyond diff review. The npm package is `product-doc`, its executable is `product-doc`, and its website is [productdoc.dev](https://productdoc.dev). The GitHub repository keeps its current URL.
 
-Diffmap is being retired. Use `generate-product-doc` and `product-doc` for new work, not the legacy skill or package. Existing installs do not migrate automatically. Keep existing documents and shared links rather than copying or deleting them; Productdoc still reads `.diffmap/specs/`. No legacy binary alias or automatic installation migration is added.
+Diffmap is deprecated. Use `generate-product-doc` and `product-doc` for new work, not the legacy `generate-diffmap` skill or `@tanishqkancharla/diffmap` package. Existing installs do not migrate automatically. Keep existing documents and shared links rather than copying or deleting them; Productdoc still reads `.diffmap/specs/`. No legacy binary alias or automatic installation migration is added.
 
 [The original Diffmap launch video](https://x.com/tanishqk/status/2116212881125691850) shows the review workflow this builds on.
 
