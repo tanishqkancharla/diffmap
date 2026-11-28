@@ -16,18 +16,18 @@ Caveats to following this guide:
 
 Treat these structures as template suggestions. Use abstract reasoning and bottom-up first-principles thinking about what helps the user most when deciding how closely to follow them or whether to add or drop sections and pages.
 
-A request to explain, plan, or review does not authorize implementing a proposal. Label anything that is not built yet as proposed or illustrative.
+A request to explain, plan, or review does not authorize implementing a proposal. Label anything that is not built yet as proposed in the page text or the story's description, never inside the mock UI.
 
 ## General principles
 
 - **Make the document visual first.** Use a diagram, code block, or UI preview wherever the reader would otherwise piece a flow together from paragraphs, and use a list when the content is already a simple sequence.
 - **Keep pages short: roughly one screen per page, with minimal scrolling.** Keep pages short by letting diagrams, previews, code, and numbered flows carry the detail and splitting distinct flows onto separate pages—never by writing clipped sentence fragments.
-- **Write in full, simple sentences.** Explain what happens and why in clear, complete sentences.
+- **Write for a reader who has seen only their own messages.** Explain what happens and why in full, simple sentences, and define each term where you first use it.
 - **Show things from the end user's point of view.** For an app, that is the screens and states a person sees. For a library, CLI, or API, it is the calls and results a developer writes.
-- **Infer the end-user flows before you start, and align on them with the user.** Inspect the relevant source, state the flows and scope boundary you inferred, and ask up to two alignment questions before you write, most important first. Wait for answers unless scope is already settled.
+- **Infer the end-user flows before you start, and align on them with the user.** Inspect the relevant source, state the flows and scope boundary you inferred, and ask up to two alignment questions before you write, most important first, and wait for the answers.
 - **Make the cover a summary with a bulleted page list.** Open `README.md` with the core idea and list the phase or topic pages as bullets, one line per page.
 - **Use short, literal titles.** Title documents, pages, and sections in 2–5 plain words, like a pull request or feature name—such as "Add dark mode", "Billing service", "Redis vs. Postgres", or "Phase 1: Checkout"—rather than sentence-long headlines.
-- **Keep one clear thesis.** When the user asks a question or gives feedback, revise the existing sections and visuals around the core thesis instead of tacking on extra sections.
+- **Keep one clear thesis.** When the user asks a question or gives feedback, revise the existing sections and visuals instead of tacking on extra sections. Keep every decision the user has made; cut detail only from what is not being built.
 - **Check facts against the source code.** Read the code that owns the behavior and place source references beside the claims they support.
 
 ## Planning
@@ -35,13 +35,13 @@ A request to explain, plan, or review does not authorize implementing a proposal
 Default structure for planning documents:
 
 - **Cover (`README.md`)**
-  - **Intro paragraphs:** explain what is being built, with visual mocks or media if possible, and high-level tradeoffs. When the work includes UI, set up the preview component (`npx product-doc@latest guide previews`) and render visual mocks with `preview` or `flow` blocks.
+  - **Intro paragraphs:** explain the problem and the constraints the design must meet, then what is being built, with visual mocks or media if possible, and high-level tradeoffs. When the work includes UI, set up the preview component (`npx product-doc@latest guide previews`) and render visual mocks with `preview` or `flow` blocks.
   - **Implementation section:** explain how it will be implemented, followed by a bulleted list of the phase pages (planned MVP-first, starting from the smallest usable end-user outcome), one bullet per phase with its link and one sentence on what it adds. Include brief pseudocode if helpful.
 - **Phase pages (`01-<slug>.md`, `02-<slug>.md`, …)**
   - **Title heading:** short, literal phase title (`# Phase 1: Sign in`), plain when planned, `⏳` in progress, and `✅` done.
-  - **Intro:** brief, simple explanation of how things work today and what is planned to change.
+  - **Intro:** the problem this phase solves and why it comes now, then how things work today and what changes.
   - **Media:** ideally a diff form, such as an interactive `services diff` or `callstack` diff, showing how the phase works.
-  - **Phase goals:** the end-user flows that are the goal of this phase (including key failure or recovery paths), under the heading `## Phase goals`. Write each goal as what the end user does and sees, because that is what the reader already understands. Attach media to each goal in the end user's own medium: for an app, an interactive `flow` or `preview` block with real or mock React components (`npx product-doc@latest guide previews`); for a library or API, the code a developer writes and the result it returns; for a CLI, the command and its output. Use pseudocode when the real interface does not exist yet.
+  - **Phase goals:** the end-user flows that are the goal of this phase (including key failure or recovery paths), under the heading `## Phase goals`. Write each goal as what the end user does and sees, because that is what the reader already understands. Attach media to each goal in the end user's own medium: for an app, an interactive `flow` or `preview` block with real or mock React components (`npx product-doc@latest guide previews`); for a library or API, the code a developer writes and the result it returns; for a CLI, the command and its output. When the real interface does not exist yet, write the proposed calls in the style of the repo's existing code and tests.
 
 ## Explain existing system
 
@@ -55,14 +55,14 @@ Default structure for explanation documents:
   - **User flows:** the end-user flows as they work today, as numbered steps, including the failure path that matters (with `flow` / `preview` blocks or code examples alongside them).
   - **Media:** an interactive `services` diagram or `callstack` that shows how the system carries those flows.
 
-If the user is comparing options, show each option's flows side by side on the same page. Organize pages around how the system works today rather than implementation phases.
+If the user is comparing options, show every option they named side by side on the same page, each written the same way. Organize pages around how the system works today rather than implementation phases.
 
 ## Review
 
 Default structure for review documents:
 
 - **Cover (`README.md`)**
-  - **Before and after:** real screenshots, live `preview` / `flow` blocks, or code of the change, first thing on the page.
+  - **Before and after:** a screenshot of the old UI followed by a live `preview` / `flow` block of the new one, or code of the change, first thing on the page.
   - **Intro paragraphs:** what changed for the end user, and why.
   - **Pages section:** a bulleted list linking each page for an affected flow, with one sentence on what changed.
 - **Pages (`01-<slug>.md`, …), one per affected flow**
@@ -90,9 +90,9 @@ How to pick the right view:
 - **Zoom in** (`callstack`, code and types) when the reader already knows which services take part and the work inside one service is what matters or changes.
 - **Choose between `services` and `callstack` by how the parts talk.** Use `services` when parts keep state after handling a message, run at the same time, or send one message to many (fan out). Use `callstack` when parts are function calls that return values, branch, or return early.
 - **Use lighter Mermaid views when state does not need stepping through.** Mermaid sequence diagrams trace messages when state changes are not the point, and Mermaid state diagrams show one service's lifecycle.
-- **Keep one zoom level small.** Show at most about 7 services in one `services` view, and about 12 rows in one `callstack`. When a flow needs more, collapse a service's sub-services into one box and explain its inside in a separate view.
-- **Put UI and lists at the reader's level.** When a person interacts with screens, show visual mocks with `preview` and `flow` blocks (or screenshots and recordings when stories are not practical). When the content is already a sequence or set of items, use a numbered or bulleted list instead of a diagram.
-- **Use built-in blocks before `html`.** Reach for `services`, `callstack`, `mermaid`, a table, or `preview` first. Use an `html` block only for a visual none of them can draw.
+- **Keep one zoom level small.** Show at most about 5 services in one `services` view, and about 12 rows in one `callstack`. When a flow needs more, collapse a service's sub-services into one box and explain its inside in a separate view.
+- **Put UI and lists at the reader's level.** When a person interacts with screens, show them live with `preview` and `flow` blocks, setting up stories if the app has none. When the content is already a sequence or set of items, use a numbered or bulleted list instead of a diagram.
+- **Use built-in blocks before `html`.** Reach for `services`, `callstack`, `mermaid`, a table, or `preview` first. Use an `html` block only for a visual none of them can show live.
 - **Add `diff` to show a change.** Add `diff` after `services` or `mermaid`, or mark rows in `callstack`, starting lines with `-` (before only), `+` (after only), or a space (both). For code or prose patches, use a `diff` fence. Title blocks with `[Title]` after the fence name.
 
 ### Diagram syntax
@@ -104,7 +104,7 @@ Each block has its own page of syntax and examples. Read the page before you wri
 - `npx product-doc@latest guide mermaid`: Mermaid flowcharts, sequence and state diagrams, and links to source.
 - `npx product-doc@latest guide code`: code blocks with highlights and notes, and `changes` cards.
 - `npx product-doc@latest guide previews`: `preview` and `flow` blocks, mock components, and the one-time app setup.
-- `npx product-doc@latest guide ui`: screenshots, recordings, and galleries for UI that has no stories.
+- `npx product-doc@latest guide ui`: screenshots, recordings, and galleries, for the old side of a before-and-after and for UI that cannot run without a real backend.
 
 ## Committed work
 
@@ -121,7 +121,7 @@ A document is a directory at `.diffmap/specs/<short-kebab-case-name>/`. Reuse th
 ```text
 .diffmap/specs/<name>/
   README.md                 cover: first # Heading is the document title
-  01-<topic-slug>.md        two-digit number sets order; slug is its URL
+  01-<topic-slug>.md        number sets order; the name after it is the URL
   02-<topic-slug>.md
   media/<topic-slug>/       screenshots and recordings for that page
 ```

@@ -6,7 +6,7 @@ Use real names for nodes and arrows. Link a node to source with `%% ref node:<id
 
 ````md
 ```mermaid diff [Validate input]
- flowchart LR
+ flowchart TD
 -    A[requestHandler] -->|record| B[existingService]
 +    A[requestHandler] -->|record| V[validateInput]
 +    V -->|valid record| B[existingService]

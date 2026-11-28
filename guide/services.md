@@ -8,7 +8,7 @@ State is what you could inspect inside a service if you paused between steps: on
 - `text key` with indented `| ` Markdown lines under it for prose, a draft, or a checklist (`Service.key = text` or `Service.key =` with `| ` lines replaces it).
 - `table key` with an indented `| col1 | col2 |` header and rows uniquely named by their first cell (`Service.key[row].col = value` changes a cell, `Service.key += | … |` adds a row, and `Service.key -= row` removes one).
 
-Link a service to source with `[[path#symbol]]` after its name. Add `diff` after `services` to show a change, starting lines with `-` (before only), `+` (after only), or a space (both). Title a block with `[Title]` after the fence name. Show at most about 7 services in one view; collapse a service's sub-services into one box and explain its inside in a separate view.
+Link a service to source with `[[path#symbol]]` after its name. Add `diff` after `services` to show a change, starting lines with `-` (before only), `+` (after only), or a space (both). Title a block with `[Title]` after the fence name. Show at most about 5 services in one view; collapse a service's sub-services into one box and explain its inside in a separate view.
 
 ````md
 ```services diff

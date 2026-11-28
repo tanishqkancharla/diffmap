@@ -4,7 +4,7 @@ When a phase changes a UI that has Storybook stories, or could have them, show i
 
 - Use screenshots by default: they show how a state looks. Take one per state, variant, or window width the change affects, default first, such as empty, loading, error, hover, or a narrow window, and label each with the state it shows.
 - Record a clip only for what screenshots cannot show: hover and click feedback, menus, focus, dragging, transitions, or timing. Move a real pointer through the whole interaction, past neighboring controls, and keep the clip under about 15 seconds.
-- Show Today beside Proposed when the comparison is the point, in a `side-by-side` gallery. Capture Today from the unchanged code, such as the base commit in a worktree, not from a mockup. Use `grid` to scan several states or variants, and `carousel [Title]` to step through the stages of a flow:
+- Show Today beside Proposed when the comparison is the point. Capture Today from the unchanged code, such as the base commit in a worktree, not from a mockup. When Proposed has a story, put the Today screenshot right above its live `preview` block; otherwise pair both captures in a `side-by-side` gallery. Use `grid` to scan several states or variants, and `carousel [Title]` to step through the stages of a flow:
 
   ```md
   :::gallery side-by-side

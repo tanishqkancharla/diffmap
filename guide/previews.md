@@ -1,6 +1,6 @@
 # Live previews
 
-A `preview` or `flow` block runs the app's real components in the spec, from the app's own Storybook stories. Use a `preview` block for a component or a design, with its variants side by side. Use a `flow` block for a journey of several states, or one that branches. Keep screenshots for UI that has no story, such as a whole page that needs a real backend.
+A `preview` or `flow` block runs the app's real components in the spec, from the app's own Storybook stories. Use a `preview` block for a component or a design, with its variants side by side. Use a `flow` block for a journey of several states, or one that branches. Keep screenshots for UI that cannot run without a real backend.
 
 ````text
 ```preview [The log-in screen]
