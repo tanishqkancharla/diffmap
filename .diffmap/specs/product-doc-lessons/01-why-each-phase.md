@@ -14,7 +14,7 @@ Plans listed what each phase builds, but not the problem it solves. Tanishq had 
 
 ## Likely cause in the guide
 
-Both planning intros ask for *what*, never *why*:
+Both planning intros ask for _what_, never _why_:
 
 - The cover says "explain what is being built".
 - The phase intro says "brief, simple explanation of how things work today and what is planned to change".

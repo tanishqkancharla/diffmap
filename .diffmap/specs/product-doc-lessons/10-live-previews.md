@@ -24,6 +24,7 @@ The agent followed the guide closely. The guide steers a review of a visual chan
    - `guide/previews.md`: "Keep screenshots for UI that has no story"
 
    Only `guide/ui.md` says "or could have them", and the agent reached it already headed for screenshots.
+
 3. **The review cover lists screenshots first:** "real screenshots, live `preview` / `flow` blocks, or code of the change".
 4. **The `html` rule rules out a live typography sample.** "Use an `html` block only for a visual none of them can draw." A gallery can "draw" any screen, so `html` never qualifies, even when it is the only way to show both scales live.
 

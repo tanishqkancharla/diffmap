@@ -20,16 +20,16 @@ In most threads, Tanishq said little about how the doc looked. He did not compla
 
 ## Changes
 
-| Rank | Change | Confidence |
-| ---- | ------ | ---------- |
-| 1 | [Explain why each phase exists](01-why-each-phase.md) | High |
-| 2 | [Keep decisions in rewrites](02-keep-decisions.md) | High |
-| 3 | [Show the developer's real code](03-real-code.md) | High |
-| 4 | [Write for a cold reader](05-cold-reader.md) | Medium-high |
-| 5 | [Confirm scope on relayed briefs](06-relayed-briefs.md) | Medium |
-| 6 | [Mocks without doc chrome](07-mocks-without-chrome.md) | Medium-low |
-| 7 | [Fit blocks to the column](08-fit-the-column.md) | Medium |
-| 8 | [Live previews over screenshots](10-live-previews.md) | High |
+| Rank | Change                                                  | Confidence  |
+| ---- | ------------------------------------------------------- | ----------- |
+| 1    | [Explain why each phase exists](01-why-each-phase.md)   | High        |
+| 2    | [Keep decisions in rewrites](02-keep-decisions.md)      | High        |
+| 3    | [Show the developer's real code](03-real-code.md)       | High        |
+| 4    | [Write for a cold reader](05-cold-reader.md)            | Medium-high |
+| 5    | [Confirm scope on relayed briefs](06-relayed-briefs.md) | Medium      |
+| 6    | [Mocks without doc chrome](07-mocks-without-chrome.md)  | Medium-low  |
+| 7    | [Fit blocks to the column](08-fit-the-column.md)        | Medium      |
+| 8    | [Live previews over screenshots](10-live-previews.md)   | High        |
 
 The last page, [Small fixes](09-small-fixes.md), covers the page-URL reword, tool problems the guide can't fix, and feedback the guide already covers.
 
